@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>سامانه استعدادیابی مهارت‌محور</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+  <style>body { font-family: 'Vazirmatn', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800 p-4 md:p-8">
+  <div class="max-w-2xl mx-auto">
+    
+    <!-- فرم لاگین -->
+    <div id="login-box" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+      <h1 class="text-xl font-bold mb-4 text-center">ورود به سامانه پایش مهارت</h1>
+      <p class="text-sm text-slate-500 mb-6 text-center">کد پرونده فرزند خود را وارد کنید</p>
+      <input type="text" id="student-code" placeholder="کد دانش‌آموز (مثال: 101)" class="w-full border p-3 rounded-xl mb-4 text-center font-bold text-lg outline-none focus:border-indigo-600">
+      <button onclick="login()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition">ورود</button>
+      <p id="login-error" class="text-red-500 text-sm mt-3 text-center hidden"></p>
+    </div>
+
+    <!-- فرم ارزیابی -->
+    <div id="quiz-box" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hidden">
+      <div class="flex justify-between items-center border-b pb-4 mb-6">
+        <div>
+          <span class="text-xs text-slate-400">دانش‌آموز:</span>
+          <h2 id="student-display" class="font-bold text-indigo-700"></h2>
+        </div>
+        <span id="skill-title" class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">مهارت: برنامه‌نویسی</span>
+      </div>
+
+      <div id="questions-container" class="space-y-6"></div>
+
+      <button onclick="submitQuiz()" class="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-bold hover:bg-emerald-700 transition mt-8 shadow-lg shadow-emerald-100">ثبت پاسخ‌ها و ادامه</button>
+    </div>
+
+    <!-- پیام پایان -->
+    <div id="success-box" class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center hidden">
+      <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">✓</div>
+      <h2 class="text-xl font-bold mb-2">اطلاعات با موفقیت ثبت شد</h2>
+      <p class="text-slate-500 text-sm">پاسخ‌های شما ذخیره شد و در فرآیند ارزیابی استعدادیابی مدرسه قرار گرفت.</p>
+    </div>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
