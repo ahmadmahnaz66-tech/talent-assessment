@@ -1,7 +1,7 @@
 let currentStudent = null;
 let skillsList = [];
 let currentSkillIndex = 0;
-let savedResponses = {}; // ذخیره پاسخ‌های ثبت‌شده قبلی دانش‌آموز
+let savedResponsesData = {}; // ذخیره کامل پاسخ‌ها شامل q1 تا q4
 
 async function login() {
   const codeInput = document.getElementById('student-code');
@@ -35,7 +35,6 @@ async function login() {
     document.getElementById('login-box').classList.add('hidden');
     document.getElementById('quiz-box').classList.remove('hidden');
     
-    // اصلاح نمایش پایه و نام دانش‌آموز
     const studentName = currentStudent.student_name || currentStudent.name || 'دانش‌آموز';
     const studentGrade = currentStudent.grade || '-';
     document.getElementById('student-display').innerText = `${studentName} (پایه: ${studentGrade})`;
@@ -62,19 +61,24 @@ async function loadSkillsFromDatabase() {
   }
 }
 
-// دریافت پاسخ‌های قبلی دانش‌آموز از سرور
 async function loadStudentExistingResponses(studentId) {
   try {
     const res = await fetch(`/api/admin-reports?type=by-student&studentId=${studentId}`);
     const data = await res.json();
-    savedResponses = {};
+    savedResponsesData = {};
     if (Array.isArray(data)) {
       data.forEach(item => {
-        savedResponses[item.skill_slug] = item.total_score;
+        savedResponsesData[item.skill_slug] = {
+          total_score: item.total_score,
+          q1: item.q1,
+          q2: item.q2,
+          q3: item.q3,
+          q4: item.q4
+        };
       });
     }
   } catch (e) {
-    console.error('خطا در دریافت سوابق پاسخ‌ها:', e);
+    console.error('خطا در دریافت سوابق:', e);
   }
 }
 
@@ -95,30 +99,32 @@ function loadSkillQuestion(index) {
   document.getElementById('skill-jump-select').value = index;
   document.getElementById('btn-prev').disabled = (index === 0);
 
+  const saved = savedResponsesData[skill.slug] || {};
+
   const container = document.getElementById('questions-container');
   container.innerHTML = `
     <div class="space-y-5">
       <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
         <p class="font-bold text-sm text-slate-700 mb-2">۱. میزان علاقه و اشتیاق خودجوش فرزند به این حوزه:</p>
-        ${renderRatingRadio(skill.slug, 'q1')}
+        ${renderRatingRadio(skill.slug, 'q1', saved.q1)}
       </div>
       <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
         <p class="font-bold text-sm text-slate-700 mb-2">۲. تمرکز، استمرار و پیگیری در انجام فعالیت‌های مرتبط:</p>
-        ${renderRatingRadio(skill.slug, 'q2')}
+        ${renderRatingRadio(skill.slug, 'q2', saved.q2)}
       </div>
       <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
         <p class="font-bold text-sm text-slate-700 mb-2">۳. خلاقیت و ابتکار عمل نشان داده شده در این زمینه:</p>
-        ${renderRatingRadio(skill.slug, 'q3')}
+        ${renderRatingRadio(skill.slug, 'q3', saved.q3)}
       </div>
       <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
         <p class="font-bold text-sm text-slate-700 mb-2">۴. سرعت یادگیری و درک مفاهیم مربوط به این مهارت:</p>
-        ${renderRatingRadio(skill.slug, 'q4')}
+        ${renderRatingRadio(skill.slug, 'q4', saved.q4)}
       </div>
     </div>
   `;
 }
 
-function renderRatingRadio(slug, qKey) {
+function renderRatingRadio(slug, qKey, savedVal) {
   const options = [
     { label: 'خیلی کم / بدون تمایل', val: 3 },
     { label: 'متوسط', val: 7 },
@@ -130,7 +136,7 @@ function renderRatingRadio(slug, qKey) {
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
       ${options.map(opt => `
         <label class="border p-2.5 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-white hover:border-indigo-300 transition">
-          <input type="radio" name="${slug}_${qKey}" value="${opt.val}" class="text-indigo-600 focus:ring-0">
+          <input type="radio" name="${slug}_${qKey}" value="${opt.val}" ${savedVal == opt.val ? 'checked' : ''} class="text-indigo-600 focus:ring-0">
           <span>${opt.label}</span>
         </label>
       `).join('')}
@@ -145,11 +151,16 @@ async function submitCurrentSkill(isFinalizing = false) {
   const q3 = document.querySelector(`input[name="${skill.slug}_q3"]:checked`);
   const q4 = document.querySelector(`input[name="${skill.slug}_q4"]:checked`);
 
-  if (q1 || q2 || q3 || q4) {
-    const total = (Number(q1?.value) || 0) + (Number(q2?.value) || 0) + (Number(q3?.value) || 0) + (Number(q4?.value) || 0);
-    savedResponses[skill.slug] = total;
+  const v1 = Number(q1?.value) || 0;
+  const v2 = Number(q2?.value) || 0;
+  const v3 = Number(q3?.value) || 0;
+  const v4 = Number(q4?.value) || 0;
 
-    await saveResponseToDb(skill.slug, total);
+  if (v1 || v2 || v3 || v4) {
+    const total = v1 + v2 + v3 + v4;
+    savedResponsesData[skill.slug] = { total_score: total, q1: v1, q2: v2, q3: v3, q4: v4 };
+
+    await saveResponseToDb(skill.slug, total, v1, v2, v3, v4);
   }
 
   if (isFinalizing) return;
@@ -179,15 +190,16 @@ function skipCurrentSkill() {
   }
 }
 
-async function saveResponseToDb(skillSlug, totalScore) {
+async function saveResponseToDb(skillSlug, totalScore, q1, q2, q3, q4) {
   try {
-    await fetch('/api/responses', {
+    await fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         studentId: currentStudent.id,
         skillSlug: skillSlug,
-        totalScore: totalScore
+        totalScore: totalScore,
+        q1, q2, q3, q4
       })
     });
   } catch (err) {
