@@ -77,12 +77,12 @@
       <button onclick="switchTab('manage')" id="tab-btn-manage" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">
         ۴. مدیریت مهارت‌ها و سوالات
       </button>
-      <!-- تب پنجم: ویژه ادمین ارشد برای تعریف پرسنل -->
-      <button onclick="switchTab('staff')" id="tab-btn-staff" class="tab-btn hidden px-4 py-2 rounded-xl text-xs font-bold bg-white text-purple-700 border border-purple-200 hover:bg-purple-50 transition">
-        ۵. مدیریت کادر و دسترسی‌ها
-      </button>
-    </nav>
 
+      <!-- دکمه تب ۵ در نوار بالا (برای همه عوامل قابل مشاهده است) -->
+      <button onclick="switchTab('staff')" id="tab-btn-staff" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-purple-700 border border-purple-200 hover:bg-purple-50 transition">
+        ۵. کادر و پرسنل مدرسه
+      </button>
+      
     <!-- تب ۱: مدیریت دانش‌آموزان -->
     <section id="tab-content-students" class="tab-content space-y-4">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -210,9 +210,10 @@
       </div>
     </section>
 
-    <!-- تب ۵: مدیریت کادر مدرسه و دسترسی‌ها (فقط برای super_admin) -->
+<!-- تب ۵: مشاهده و مدیریت کادر مدرسه -->
     <section id="tab-content-staff" class="tab-content hidden space-y-5">
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+      <!-- فرم افزودن کادر (فقط با لاگین مدیر ارشد نمایش داده می‌شود) -->
+      <div id="add-staff-container" class="hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <h2 class="font-bold text-slate-800 text-xs">تعریف حساب کاربری جدید برای کادر مدرسه</h2>
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <input type="text" id="staff-name" placeholder="نام و نام خانوادگی (مثال: خانم علوی)" class="border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
@@ -229,9 +230,9 @@
         </button>
       </div>
 
-      <!-- لیست کادر ثبت‌شده -->
+      <!-- لیست کادر ثبت‌شده (قابل مشاهده برای همه عوامل مدرسه) -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <h3 class="font-bold text-slate-800 text-xs">لیست کادر و نقش‌های فعال</h3>
+        <h3 class="font-bold text-slate-800 text-xs">لیست کادر و نقش‌های فعال سامانه</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-right text-xs">
             <thead class="bg-slate-50 text-slate-500 border-b">
@@ -247,8 +248,7 @@
         </div>
       </div>
     </section>
-
-  </div>
+      
 
   <!-- مودال پاپ‌آپ تغییر رمز عبور خود کاربر -->
   <div id="change-pass-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
