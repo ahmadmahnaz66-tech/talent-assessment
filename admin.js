@@ -652,3 +652,92 @@ async function deleteSelectedSkill() {
   });
   if (res.ok) await loadInitialMetadata();
 }
+
+let currentStudentReportData = null;
+
+// نمایش دکمه AI پس از لود نمرات دانش‌آموز
+async function fetchStudentReport(studentId) {
+  const container = document.getElementById('student-report-results');
+  const aiBtn = document.getElementById('btn-ai-analyze');
+  const aiBox = document.getElementById('ai-analysis-box');
+  if (aiBox) aiBox.classList.add('hidden');
+
+  if (!studentId) {
+    container.innerHTML = '';
+    if (aiBtn) aiBtn.classList.add('hidden');
+    currentStudentReportData = null;
+    return;
+  }
+  
+  container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">در حال دریافت نتایج...</p>';
+
+  try {
+    const res = await fetch(`/api/admin-reports?type=by-student&studentId=${encodeURIComponent(studentId)}`);
+    const records = await res.json();
+
+    if (!records || records.length === 0) {
+      container.innerHTML = '<div class="p-4 bg-white rounded-xl text-center text-xs text-amber-600 border border-slate-200">هنوز پاسخی برای این دانش‌آموز ثبت نشده است.</div>';
+      if (aiBtn) aiBtn.classList.add('hidden');
+      currentStudentReportData = null;
+      return;
+    }
+
+    currentStudentReportData = {
+      studentId: studentId,
+      scores: records
+    };
+
+    if (aiBtn) aiBtn.classList.remove('hidden');
+
+    container.innerHTML = records.map((r, i) => `
+      <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between gap-3 shadow-sm">
+        <div class="flex items-center gap-3">
+          <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center">${i + 1}</span>
+          <span class="text-xs font-bold text-slate-800">${r.skill_title}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-400">امتیاز کل:</span>
+          <span class="text-sm font-black text-indigo-600">${r.total_score}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">خطا در بارگذاری کارنامه.</p>';
+    if (aiBtn) aiBtn.classList.add('hidden');
+  }
+}
+
+// درخواست تحلیل به اندپوینت هوش مصنوعی
+async function generateAIReport() {
+  if (!currentStudentReportData || !currentStudentReportData.scores.length) return;
+
+  const aiBox = document.getElementById('ai-analysis-box');
+  const content = document.getElementById('ai-analysis-content');
+  const aiBtn = document.getElementById('btn-ai-analyze');
+
+  aiBox.classList.remove('hidden');
+  content.innerHTML = '<span class="text-indigo-600 animate-pulse">در حال تحلیل نمرات و نگارش گزارش روانشناختی با هوش مصنوعی... لطفاً چند لحظه صبر کنید.</span>';
+  aiBtn.disabled = true;
+
+  try {
+    const res = await fetch('/api/ai-interpret', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId: currentStudentReportData.studentId,
+        reportData: currentStudentReportData.scores
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.analysis) {
+      content.innerText = data.analysis;
+    } else {
+      content.innerText = data.error || 'خطا در دریافت تحلیل از هوش مصنوعی.';
+    }
+  } catch (e) {
+    content.innerText = 'خطا در اتصال به سرویس هوش مصنوعی.';
+  } finally {
+    aiBtn.disabled = false;
+  }
+}
