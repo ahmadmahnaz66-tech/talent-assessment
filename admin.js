@@ -3,7 +3,6 @@ let loadedStudents = [];
 let currentAdminSkillSlug = '';
 let currentStaffUser = null;
 
-// نقش‌های فارسی
 const ROLE_NAMES = {
   super_admin: 'مدیر ارشد سامانه',
   counselor: 'مشاور تخصصی',
@@ -15,7 +14,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   checkAuthSession();
 });
 
-// بررسی وضعیت لاگین
 function checkAuthSession() {
   const savedUser = sessionStorage.getItem('staffUser');
   if (savedUser) {
@@ -42,11 +40,17 @@ function showDashboard() {
   document.getElementById('user-display-name').innerText = currentStaffUser.fullName || currentStaffUser.username;
   document.getElementById('user-display-role').innerText = ROLE_NAMES[currentStaffUser.role] || currentStaffUser.role;
 
+  // اگر مدیر ارشد بود، تب پنجم (مدیریت کادر) را نمایش بده
+  if (currentStaffUser.role === 'super_admin') {
+    const staffTabBtn = document.getElementById('tab-btn-staff');
+    if (staffTabBtn) staffTabBtn.classList.remove('hidden');
+  }
+
   loadInitialMetadata();
   loadStudentsList();
 }
 
-// ارسال درخواست ورود به API
+// ورود به سیستم
 async function handleStaffLogin() {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value.trim();
@@ -89,6 +93,53 @@ function handleStaffLogout() {
   location.reload();
 }
 
+// مودال تغییر رمز کاربر جاری
+function openChangePassModal() {
+  document.getElementById('modal-old-pass').value = '';
+  document.getElementById('modal-new-pass').value = '';
+  document.getElementById('change-pass-modal').classList.remove('hidden');
+}
+
+function closeChangePassModal() {
+  document.getElementById('change-pass-modal').classList.add('hidden');
+}
+
+async function submitChangePassword() {
+  const oldPassword = document.getElementById('modal-old-pass').value.trim();
+  const newPassword = document.getElementById('modal-new-pass').value.trim();
+
+  if (!oldPassword || !newPassword) {
+    return alert('لطفاً هر دو فیلد رمز فعلی و جدید را پر کنید.');
+  }
+  if (newPassword.length < 5) {
+    return alert('رمز جدید باید حداقل ۵ رقم یا کاراکتر باشد.');
+  }
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'change-staff-password',
+        username: currentStaffUser.username,
+        oldPassword,
+        newPassword
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert('رمز عبور شما با موفقیت تغییر کرد.');
+      closeChangePassModal();
+    } else {
+      alert(data.error || 'خطا در تغییر رمز عبور.');
+    }
+  } catch (e) {
+    alert('خطا در ارتباط با سرور.');
+  }
+}
+
+// مدیریت تب‌ها
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -104,10 +155,80 @@ function switchTab(tabId) {
   if (tabId === 'manage') {
     const manageSelect = document.getElementById('manage-skill-select');
     if (manageSelect && manageSelect.value) loadQuestionsForAdmin(manageSelect.value);
+  } else if (tabId === 'staff') {
+    loadStaffList();
   }
 }
 
-// دریافت لیست دانش‌آموزان
+// تب ۵: کادر مدرسه
+async function loadStaffList() {
+  try {
+    const res = await fetch('/api/auth');
+    const staffList = await res.json();
+    const tbody = document.getElementById('staff-table-body');
+
+    if (!staffList || staffList.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">هیچ پرسنلی یافت نشد.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = staffList.map(s => `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="p-3 font-bold text-slate-800">${s.full_name}</td>
+        <td class="p-3 text-slate-600 font-mono">${s.username}</td>
+        <td class="p-3"><span class="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg text-[11px] font-bold">${ROLE_NAMES[s.role] || s.role}</span></td>
+        <td class="p-3 text-left">
+          ${s.role !== 'super_admin' ? `<button onclick="deleteStaff(${s.id})" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">حذف دسترسی</button>` : '<span class="text-slate-400 text-[11px]">-</span>'}
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.error('خطا در دریافت لیست پرسنل:', e);
+  }
+}
+
+async function handleCreateStaff() {
+  const full_name = document.getElementById('staff-name').value.trim();
+  const username = document.getElementById('staff-username').value.trim();
+  const password = document.getElementById('staff-password').value.trim();
+  const role = document.getElementById('staff-role').value;
+
+  if (!full_name || !username || !password) {
+    return alert('لطفاً تمامی فیلدها را تکمیل نمایید.');
+  }
+  if (password.length < 5) {
+    return alert('رمز عبور باید حداقل ۵ رقم باشد.');
+  }
+
+  const res = await fetch('/api/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'add-staff', full_name, username, password, role })
+  });
+
+  if (res.ok) {
+    alert(`حساب کاربری برای ${full_name} با موفقیت ساخته شد.`);
+    document.getElementById('staff-name').value = '';
+    document.getElementById('staff-username').value = '';
+    document.getElementById('staff-password').value = '';
+    loadStaffList();
+  } else {
+    const d = await res.json();
+    alert(d.error || 'خطا در ثبت کادر جدید (شاید نام کاربری تکراری است).');
+  }
+}
+
+async function deleteStaff(staffId) {
+  if (!confirm('آیا از حذف دسترسی این کاربر اطمینان دارید؟')) return;
+  const res = await fetch('/api/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete-staff', staffId })
+  });
+  if (res.ok) loadStaffList();
+}
+
+// لیست دانش‌آموزان
 async function loadStudentsList() {
   const grade = document.getElementById('filter-grade').value;
   const classroom = document.getElementById('filter-classroom').value;
@@ -170,7 +291,6 @@ function updateFilterDropdowns(stats) {
   classSelect.innerHTML = '<option value="">همه کلاس‌ها</option>' + classes.map(c => `<option value="${c}" ${c === currentClass ? 'selected' : ''}>${c}</option>`).join('');
 }
 
-// ثبت تکی دانش‌آموز
 async function saveSingleStudent() {
   const id = document.getElementById('std-id').value.trim();
   const student_name = document.getElementById('std-name').value.trim();
@@ -186,10 +306,7 @@ async function saveSingleStudent() {
   const res = await fetch('/api/students', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'save-single',
-      id, student_name, grade, classroom, parent_phone
-    })
+    body: JSON.stringify({ action: 'save-single', id, student_name, grade, classroom, parent_phone })
   });
 
   if (res.ok) {
@@ -204,7 +321,6 @@ async function saveSingleStudent() {
   }
 }
 
-// بازنشانی رمز دانش‌آموز به ۴ رقم کد ملی توسط مشاور/مدیر
 async function resetStudentPass(studentId) {
   const last4 = studentId.slice(-4);
   if (!confirm(`آیا رمز عبور پرونده ${studentId} به ۴ رقم آخر (${last4}) بازنشانی شود؟`)) return;
@@ -226,23 +342,16 @@ async function resetStudentPass(studentId) {
   }
 }
 
-// ورود دسته‌جمعی از فایل CSV
 function handleBatchImport() {
   const fileInput = document.getElementById('csv-file-input');
   const file = fileInput.files[0];
-  if (!file) {
-    alert('لطفاً ابتدا فایل CSV را انتخاب کنید.');
-    return;
-  }
+  if (!file) return alert('لطفاً ابتدا فایل CSV را انتخاب کنید.');
 
   Papa.parse(file, {
     header: true,
     skipEmptyLines: true,
     complete: async function(results) {
-      if (!results.data || results.data.length === 0) {
-        alert('فایل انتخاب‌شده داده‌ای ندارد.');
-        return;
-      }
+      if (!results.data || results.data.length === 0) return alert('فایل انتخاب‌شده داده‌ای ندارد.');
 
       const res = await fetch('/api/students', {
         method: 'POST',
@@ -264,35 +373,27 @@ function handleBatchImport() {
 
 async function deleteStudent(id) {
   if (!confirm(`آیا از حذف کامل پرونده دانش‌آموز با کد ${id} و تمامی سوابق آزمون‌های او مطمئن هستید؟`)) return;
-
   const res = await fetch('/api/students', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'delete', id })
   });
-
   if (res.ok) await loadStudentsList();
 }
 
-// خروجی اکسل
 function exportFilteredStudentsCSV() {
-  if (!loadedStudents || loadedStudents.length === 0) {
-    alert('دانش‌آموزی برای دریافت خروجی وجود ندارد.');
-    return;
-  }
+  if (!loadedStudents || loadedStudents.length === 0) return alert('دانش‌آموزی برای دریافت خروجی وجود ندارد.');
 
   const gradeVal = document.getElementById('filter-grade').value || 'همه-پایه‌ها';
   const classVal = document.getElementById('filter-classroom').value || 'همه-کلاس‌ها';
 
   let csvContent = "\uFEFFid,student_name,grade,classroom,parent_phone\n";
-
   loadedStudents.forEach(s => {
     const id = s.id || '';
     const name = `"${(s.student_name || '').replace(/"/g, '""')}"`;
     const grade = `"${(s.grade || '').replace(/"/g, '""')}"`;
     const classroom = s.classroom ? `="${s.classroom}"` : '""';
     const phone = s.parent_phone ? `="${s.parent_phone}"` : '""';
-
     csvContent += `${id},${name},${grade},${classroom},${phone}\n`;
   });
 
@@ -322,7 +423,6 @@ function downloadSampleCSV() {
   URL.revokeObjectURL(url);
 }
 
-// متادیتای مهارت‌ها
 async function loadInitialMetadata() {
   try {
     const res = await fetch('/api/admin-reports?type=all-skills');
@@ -347,13 +447,9 @@ async function loadInitialMetadata() {
   }
 }
 
-// گزارش فردی
 async function fetchStudentReport(studentId) {
   const container = document.getElementById('student-report-results');
-  if (!studentId) {
-    container.innerHTML = '';
-    return;
-  }
+  if (!studentId) { container.innerHTML = ''; return; }
   container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">در حال دریافت نتایج...</p>';
 
   try {
@@ -382,13 +478,9 @@ async function fetchStudentReport(studentId) {
   }
 }
 
-// گزارش گروهی
 async function fetchSkillGroupReport(skillSlug) {
   const container = document.getElementById('skill-group-results');
-  if (!skillSlug) {
-    container.innerHTML = '';
-    return;
-  }
+  if (!skillSlug) { container.innerHTML = ''; return; }
   container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">در حال رتبه‌بندی...</p>';
 
   try {
@@ -429,7 +521,6 @@ async function fetchSkillGroupReport(skillSlug) {
   }
 }
 
-// مدیریت سوالات
 async function loadQuestionsForAdmin(slug) {
   currentAdminSkillSlug = slug;
   const listContainer = document.getElementById('admin-questions-list');
@@ -468,12 +559,7 @@ async function addQuestionToSkill() {
   const res = await fetch('/api/questions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'add',
-      skillSlug: currentAdminSkillSlug,
-      questionText: text,
-      displayOrder: 99
-    })
+    body: JSON.stringify({ action: 'add', skillSlug: currentAdminSkillSlug, questionText: text, displayOrder: 99 })
   });
 
   if (res.ok) {
@@ -489,12 +575,7 @@ async function updateQuestion(id, order) {
   const res = await fetch('/api/questions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'edit',
-      id: id,
-      questionText: newText,
-      displayOrder: order
-    })
+    body: JSON.stringify({ action: 'edit', id: id, questionText: newText, displayOrder: order })
   });
   if (res.ok) alert('تغییرات با موفقیت ذخیره شد.');
 }
