@@ -40,17 +40,20 @@ function showDashboard() {
   document.getElementById('user-display-name').innerText = currentStaffUser.fullName || currentStaffUser.username;
   document.getElementById('user-display-role').innerText = ROLE_NAMES[currentStaffUser.role] || currentStaffUser.role;
 
-  // اگر مدیر ارشد بود، تب پنجم (مدیریت کادر) را نمایش بده
-  if (currentStaffUser.role === 'super_admin') {
-    const staffTabBtn = document.getElementById('tab-btn-staff');
-    if (staffTabBtn) staffTabBtn.classList.remove('hidden');
+  // فرم ثبت پرسنل فقط برای مدیر ارشد باز می‌شود
+  const addStaffBox = document.getElementById('add-staff-container');
+  if (addStaffBox) {
+    if (currentStaffUser.role === 'super_admin') {
+      addStaffBox.classList.remove('hidden');
+    } else {
+      addStaffBox.classList.add('hidden');
+    }
   }
 
   loadInitialMetadata();
   loadStudentsList();
 }
 
-// ورود به سیستم
 async function handleStaffLogin() {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value.trim();
@@ -93,7 +96,6 @@ function handleStaffLogout() {
   location.reload();
 }
 
-// مودال تغییر رمز کاربر جاری
 function openChangePassModal() {
   document.getElementById('modal-old-pass').value = '';
   document.getElementById('modal-new-pass').value = '';
@@ -139,7 +141,6 @@ async function submitChangePassword() {
   }
 }
 
-// مدیریت تب‌ها
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -160,7 +161,6 @@ function switchTab(tabId) {
   }
 }
 
-// تب ۵: کادر مدرسه
 async function loadStaffList() {
   try {
     const res = await fetch('/api/auth');
@@ -172,13 +172,17 @@ async function loadStaffList() {
       return;
     }
 
+    const isSuperAdmin = currentStaffUser && currentStaffUser.role === 'super_admin';
+
     tbody.innerHTML = staffList.map(s => `
       <tr class="hover:bg-slate-50 transition">
         <td class="p-3 font-bold text-slate-800">${s.full_name}</td>
         <td class="p-3 text-slate-600 font-mono">${s.username}</td>
         <td class="p-3"><span class="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg text-[11px] font-bold">${ROLE_NAMES[s.role] || s.role}</span></td>
         <td class="p-3 text-left">
-          ${s.role !== 'super_admin' ? `<button onclick="deleteStaff(${s.id})" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">حذف دسترسی</button>` : '<span class="text-slate-400 text-[11px]">-</span>'}
+          ${(isSuperAdmin && s.role !== 'super_admin') 
+            ? `<button onclick="deleteStaff(${s.id})" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">حذف دسترسی</button>` 
+            : '<span class="text-slate-400 text-[11px]">-</span>'}
         </td>
       </tr>
     `).join('');
@@ -203,7 +207,14 @@ async function handleCreateStaff() {
   const res = await fetch('/api/auth', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'add-staff', full_name, username, password, role })
+    body: JSON.stringify({
+      action: 'add-staff',
+      requesterRole: currentStaffUser.role,
+      full_name,
+      username,
+      password,
+      role
+    })
   });
 
   if (res.ok) {
@@ -214,7 +225,7 @@ async function handleCreateStaff() {
     loadStaffList();
   } else {
     const d = await res.json();
-    alert(d.error || 'خطا در ثبت کادر جدید (شاید نام کاربری تکراری است).');
+    alert(d.error || 'خطا در ثبت کادر جدید.');
   }
 }
 
@@ -223,12 +234,20 @@ async function deleteStaff(staffId) {
   const res = await fetch('/api/auth', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'delete-staff', staffId })
+    body: JSON.stringify({
+      action: 'delete-staff',
+      requesterRole: currentStaffUser.role,
+      staffId
+    })
   });
-  if (res.ok) loadStaffList();
+  if (res.ok) {
+    loadStaffList();
+  } else {
+    const d = await res.json();
+    alert(d.error || 'خطا در حذف کاربر.');
+  }
 }
 
-// لیست دانش‌آموزان
 async function loadStudentsList() {
   const grade = document.getElementById('filter-grade').value;
   const classroom = document.getElementById('filter-classroom').value;
@@ -248,6 +267,8 @@ async function loadStudentsList() {
       return;
     }
 
+    const isSuperAdmin = currentStaffUser && currentStaffUser.role === 'super_admin';
+
     tbody.innerHTML = loadedStudents.map(s => `
       <tr class="hover:bg-slate-50 transition">
         <td class="p-3 font-bold text-slate-600">${s.id}</td>
@@ -256,12 +277,14 @@ async function loadStudentsList() {
         <td class="p-3 text-slate-600">${s.classroom || '-'}</td>
         <td class="p-3 text-slate-500 font-mono">${s.parent_phone || '-'}</td>
         <td class="p-3 text-left space-x-2 space-x-reverse">
-          <button onclick="resetStudentPass('${s.id}')" title="بازنشانی رمز به ۴ رقم آخر کد ملی" class="text-amber-600 hover:text-amber-800 text-xs font-bold bg-amber-50 px-2 py-1 rounded-lg">
-            ریست رمز
-          </button>
-          <button onclick="deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">
-            حذف
-          </button>
+          ${isSuperAdmin ? `
+            <button onclick="resetStudentPass('${s.id}')" title="بازنشانی رمز به ۴ رقم آخر کد ملی" class="text-amber-600 hover:text-amber-800 text-xs font-bold bg-amber-50 px-2 py-1 rounded-lg">
+              ریست رمز
+            </button>
+            <button onclick="deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">
+              حذف
+            </button>
+          ` : '<span class="text-slate-400 text-[11px]">-</span>'}
         </td>
       </tr>
     `).join('');
@@ -329,7 +352,11 @@ async function resetStudentPass(studentId) {
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reset-student-password', studentId })
+      body: JSON.stringify({
+        action: 'reset-student-password',
+        requesterRole: currentStaffUser.role,
+        studentId
+      })
     });
     const data = await res.json();
     if (res.ok && data.success) {
