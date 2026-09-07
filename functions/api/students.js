@@ -23,7 +23,7 @@ export async function onRequestGet(context) {
     }
 
     const { results } = await env.DB.prepare(
-      'SELECT skill_slug, total_score, q1, q2, q3, q4, answers FROM responses WHERE student_id = ?'
+      'SELECT skill_slug, answers, total_score FROM responses WHERE student_id = ?'
     ).bind(studentId).all();
 
     const displayName = student.student_name || student.name || `دانش‌آموز کد ${student.id}`;
@@ -31,6 +31,7 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify({
       id: student.id,
       name: displayName,
+      student_name: displayName,
       grade: student.grade || '',
       previousResponses: results || []
     }), {
