@@ -1,10 +1,20 @@
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
-  const type = url.searchParams.get('type'); // 'by-skill' or 'by-student' or 'all-students'
+  const type = url.searchParams.get('type');
 
   try {
-    // ۱. دریافت لیست همه دانش‌آموزان برای منوی کشویی
+    // ۱. دریافت لیست مهارت‌ها برای کرکره‌ای‌ها و فرم‌ها
+    if (type === 'all-skills') {
+      const { results } = await env.DB.prepare(
+        'SELECT slug, title, display_order FROM skills ORDER BY display_order ASC, rowid ASC'
+      ).all();
+      return new Response(JSON.stringify(results || []), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ۲. دریافت لیست همه دانش‌آموزان
     if (type === 'all-students') {
       const { results } = await env.DB.prepare(
         'SELECT id, student_name, grade FROM students ORDER BY id ASC'
@@ -14,32 +24,27 @@ export async function onRequestGet(context) {
       });
     }
 
-    // ۲. رتبه‌بندی دانش‌آموزان در یک مهارت خاص (از بیشترین به کمترین)
+    // ۳. گزارش براساس مهارت (فیلتر رتبه‌بندی دانش‌آموزان)
     if (type === 'by-skill') {
-      const skillSlug = url.searchParams.get('skill');
-      if (!skillSlug) {
+      const skill = url.searchParams.get('skill');
+      if (!skill) {
         return new Response(JSON.stringify({ error: 'مهارت مشخص نشده است.' }), { status: 400 });
       }
 
       const { results } = await env.DB.prepare(`
-        SELECT 
-          s.id, 
-          s.student_name, 
-          s.grade, 
-          r.total_score,
-          r.created_at
+        SELECT s.id, s.student_name, s.grade, r.total_score
         FROM responses r
         JOIN students s ON r.student_id = s.id
         WHERE r.skill_slug = ? AND r.total_score > 0
         ORDER BY r.total_score DESC
-      `).bind(skillSlug).all();
+      `).bind(skill).all();
 
       return new Response(JSON.stringify(results || []), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // ۳. رتبه‌بندی مهارت‌های یک دانش‌آموز خاص بر اساس امتیاز (از بیشترین به کمترین)
+    // ۴. پرونده فردی دانش‌آموز با پیوند پویا به عنوان فارسی مهارت
     if (type === 'by-student') {
       const studentId = url.searchParams.get('studentId');
       if (!studentId) {
@@ -47,10 +52,15 @@ export async function onRequestGet(context) {
       }
 
       const { results } = await env.DB.prepare(`
-        SELECT skill_slug, total_score, created_at
-        FROM responses
-        WHERE student_id = ? AND total_score > 0
-        ORDER BY total_score DESC
+        SELECT 
+          r.skill_slug, 
+          r.total_score, 
+          r.created_at,
+          COALESCE(s.title, r.skill_slug) AS skill_title
+        FROM responses r
+        LEFT JOIN skills s ON r.skill_slug = s.slug
+        WHERE r.student_id = ? AND r.total_score > 0
+        ORDER BY r.total_score DESC
       `).bind(studentId).all();
 
       return new Response(JSON.stringify(results || []), {
@@ -61,7 +71,7 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify({ error: 'نوع درخواست نامعتبر است.' }), { status: 400 });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: 'خطای سرور: ' + err.message }), {
+    return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
