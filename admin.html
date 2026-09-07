@@ -10,7 +10,37 @@
   <style>body { font-family: 'Vazirmatn FD', sans-serif; }</style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 p-4 sm:p-6">
-  <div class="max-w-6xl mx-auto space-y-6">
+
+  <!-- ۱. فرم ورود کادر مدرسه (پیش‌فرض نمایش داده می‌شود مگر اینکه لاگین کرده باشند) -->
+  <div id="login-modal" class="flex items-center justify-center min-h-[80vh]">
+    <div class="bg-white p-8 rounded-3xl shadow-lg border border-slate-200 max-w-md w-full space-y-5">
+      <div class="text-center space-y-1">
+        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 font-bold text-xl">
+          🔒
+        </div>
+        <h2 class="text-lg font-black text-slate-800">ورود کادر مدرسه و مدیریت</h2>
+        <p class="text-xs text-slate-400">جهت دسترسی به پنل، نام کاربری و رمز عبور خود را وارد نمایید.</p>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">نام کاربری</label>
+          <input type="text" id="login-username" placeholder="مثال: admin" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 transition">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">رمز عبور</label>
+          <input type="password" id="login-password" placeholder="••••••••" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 transition">
+        </div>
+        <button onclick="handleStaffLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
+          ورود به پنل مدیریت
+        </button>
+      </div>
+      <p id="login-error" class="text-xs text-red-500 text-center font-bold hidden"></p>
+    </div>
+  </div>
+
+  <!-- ۲. داشبورد اصلی (تا قبل از لاگین پنهان است) -->
+  <div id="admin-dashboard" class="hidden max-w-6xl mx-auto space-y-6">
 
     <!-- هدر -->
     <header class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
@@ -18,9 +48,15 @@
         <h1 class="text-xl font-black text-slate-800">پنل تخصصی مشاوره و سنجش استعداد</h1>
         <p class="text-xs text-slate-500 mt-1">مدیریت پرونده‌ها، کلاس‌بندی، مهارت‌ها و گزارش‌ها</p>
       </div>
-      <a href="/" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3.5 py-2 rounded-xl transition">
-        صفحه سنجش اولیا ←
-      </a>
+      <div class="flex items-center gap-3">
+        <div class="text-left">
+          <div id="user-display-name" class="text-xs font-bold text-slate-800">-</div>
+          <div id="user-display-role" class="text-[11px] text-slate-400">-</div>
+        </div>
+        <button onclick="handleStaffLogout()" class="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl transition">
+          خروج
+        </button>
+      </div>
     </header>
 
     <!-- تب‌های اصلی -->
@@ -41,13 +77,12 @@
 
     <!-- تب ۱: مدیریت دانش‌آموزان -->
     <section id="tab-content-students" class="tab-content space-y-4">
-      <!-- ابزارهای افزودن و بارگذاری فایل -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- ثبت تکی -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm md:col-span-2 space-y-3">
           <h2 class="font-bold text-slate-800 text-xs">ثبت / ویرایش سریع پرونده دانش‌آموز</h2>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <input type="text" id="std-id" placeholder="کد پرونده (الزامی)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+            <input type="text" id="std-id" placeholder="کد ملی (الزامی)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
             <input type="text" id="std-name" placeholder="نام و نام خانوادگی" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
             <input type="text" id="std-grade" placeholder="پایه (مثلاً: چهارم)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
             <input type="text" id="std-class" placeholder="نام کلاس (مثلاً: ۴/۱ یا لاله)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
@@ -58,28 +93,25 @@
           </div>
         </div>
 
-      <!-- بارگذاری دسته‌جمعی از فایل -->
-<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-  <div>
-    <h2 class="font-bold text-slate-800 text-xs mb-1">ورود دسته‌جمعی با فایل CSV / اکسل</h2>
-    <p class="text-[11px] text-slate-400 mb-3">فایل با ستون‌های: id, student_name, grade, classroom, parent_phone</p>
-  </div>
+        <!-- بارگذاری دسته‌جمعی از فایل -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <h2 class="font-bold text-slate-800 text-xs mb-1">ورود دسته‌جمعی با فایل CSV / اکسل</h2>
+            <p class="text-[11px] text-slate-400 mb-3">ستون‌ها: id, student_name, grade, classroom, parent_phone</p>
+          </div>
 
-  <!-- دکمه جدید دقیقاً اینجا قرار می‌گیرد -->
-  <button type="button" onclick="downloadSampleCSV()" class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition mb-3 w-fit">
-    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-    </svg>
-    دانلود فایل خام اکسل/CSV نمونه
-  </button>
+          <button type="button" onclick="downloadSampleCSV()" class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 bg-indigo-50 px-3 py-1.5 rounded-lg transition mb-3 w-fit">
+            دانلود فایل خام اکسل/CSV نمونه
+          </button>
 
-  <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-500 mb-2 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-  <button onclick="handleBatchImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition">
-    آپلود و ثبت در دیتابیس
-  </button>
-</div>
+          <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-500 mb-2 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+          <button onclick="handleBatchImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition">
+            آپلود و ثبت در دیتابیس
+          </button>
+        </div>
+      </div>
 
-<!-- فیلترها و جدول لیست کلی (تمام‌عرض) -->
+      <!-- فیلترها و جدول لیست کلی (تمام‌عرض) -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 w-full">
         <div class="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-100">
           <div class="flex flex-wrap items-center gap-3">
@@ -101,11 +133,7 @@
             <span id="students-count-badge" class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3.5 py-2 rounded-xl border border-indigo-100">
               تعداد: ۰
             </span>
-            <!-- دکمه دریافت خروجی اکسل از لیست فیلترشده -->
             <button onclick="exportFilteredStudentsCSV()" class="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs px-3.5 py-2 rounded-xl transition">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
               دریافت خروجی اکسل از این لیست
             </button>
           </div>
@@ -115,7 +143,7 @@
           <table class="w-full text-right text-xs">
             <thead class="bg-slate-50 text-slate-500 border-b">
               <tr>
-                <th class="p-3">کد پرونده</th>
+                <th class="p-3">کد ملی</th>
                 <th class="p-3">نام دانش‌آموز</th>
                 <th class="p-3">پایه</th>
                 <th class="p-3">کلاس</th>
@@ -127,6 +155,7 @@
           </table>
         </div>
       </div>
+    </section>
 
     <!-- تب ۲: کارنامه فردی -->
     <section id="tab-content-individual" class="tab-content hidden space-y-4">
