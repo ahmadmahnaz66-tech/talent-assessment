@@ -12,30 +12,116 @@ const RATING_OPTIONS = [
   { label: 'اصلاً', val: 0 }
 ];
 
-async function login() {
-  const codeInput = document.getElementById('student-code');
-  const errorEl = document.getElementById('login-error');
-  const code = codeInput.value.trim();
+// تبدیل اعداد فارسی و عربی به انگلیسی
+function toEnglishDigits(str) {
+  if (!str) return '';
+  return str.toString()
+            .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+            .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+}
 
-  if (!code) {
-    showError('لطفاً کد دانش‌آموز را وارد کنید.');
+// ۱. ورود دانش‌آموز (کد ملی + رمز عبور)
+async function handleStudentLogin() {
+  const idInput = document.getElementById('input-student-id');
+  const passInput = document.getElementById('input-student-pass');
+  const errBox = document.getElementById('student-login-err');
+
+  errBox.classList.add('hidden');
+  const studentId = toEnglishDigits(idInput.value.trim());
+  const password = toEnglishDigits(passInput.value.trim());
+
+  if (!studentId || !password) {
+    errBox.innerText = 'لطفاً کد ملی و رمز عبور را وارد کنید.';
+    errBox.classList.remove('hidden');
     return;
   }
 
-  errorEl.classList.add('hidden');
-
   try {
-    const res = await fetch(`/api/students?id=${encodeURIComponent(code)}`);
-    const data = await res.json();
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'student-login',
+        studentId,
+        password
+      })
+    });
 
-    if (!res.ok || !data || !data.id) {
-      throw new Error(data.error || 'دانش‌آموزی با این کد پرونده یافت نشد.');
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      errBox.innerText = data.error || 'کد ملی یا رمز عبور اشتباه است.';
+      errBox.classList.remove('hidden');
+      return;
     }
 
-    currentStudent = data;
+    currentStudent = data.student;
+
+    // بررسی الزام تغییر رمز در اولین ورود
+    if (currentStudent.mustChangePassword) {
+      document.getElementById('first-login-modal').classList.remove('hidden');
+    } else {
+      await initializeStudentQuiz();
+    }
+
+  } catch (err) {
+    errBox.innerText = 'خطا در ارتباط با سرور.';
+    errBox.classList.remove('hidden');
+  }
+}
+
+// ۲. ثبت رمز جدید در ورود اول
+async function submitFirstPasswordChange() {
+  const newPass = toEnglishDigits(document.getElementById('first-new-pass').value.trim());
+  const confirmPass = toEnglishDigits(document.getElementById('first-confirm-pass').value.trim());
+  const errBox = document.getElementById('first-change-err');
+  errBox.classList.add('hidden');
+
+  if (newPass.length < 5) {
+    errBox.innerText = 'رمز عبور جدید باید حداقل ۵ کاراکتر باشد.';
+    errBox.classList.remove('hidden');
+    return;
+  }
+
+  if (newPass !== confirmPass) {
+    errBox.innerText = 'تکرار رمز عبور یکسان نیست.';
+    errBox.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'change-student-password',
+        studentId: currentStudent.id,
+        newPassword: newPass
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      document.getElementById('first-login-modal').classList.add('hidden');
+      await initializeStudentQuiz();
+    } else {
+      errBox.innerText = data.error || 'خطا در ذخیره رمز جدید.';
+      errBox.classList.remove('hidden');
+    }
+  } catch (e) {
+    errBox.innerText = 'خطا در اتصال به سرور.';
+    errBox.classList.remove('hidden');
+  }
+}
+
+// ۳. آغاز آزمون و دریافت سوابق و مهارت‌ها
+async function initializeStudentQuiz() {
+  try {
+    // دریافت پاسخ‌های ثبت‌شده قبلی
+    const res = await fetch(`/api/students?id=${encodeURIComponent(currentStudent.id)}`);
+    const data = await res.json();
 
     savedAnswersMap = {};
-    if (Array.isArray(data.previousResponses)) {
+    if (data && Array.isArray(data.previousResponses)) {
       data.previousResponses.forEach(item => {
         try {
           const arr = typeof item.answers === 'string' ? JSON.parse(item.answers) : item.answers;
@@ -49,28 +135,28 @@ async function login() {
     await loadSkillsFromDatabase();
 
     if (!skillsList || skillsList.length === 0) {
-      throw new Error('هیچ مهارتی در سیستم تعریف نشده است.');
+      alert('هنوز مهارتی در سامانه تعریف نشده است.');
+      return;
     }
 
-    document.getElementById('login-box').classList.add('hidden');
-    document.getElementById('quiz-box').classList.remove('hidden');
+    // بستن فرم لاگین و نمایش آزمون
+    document.getElementById('student-login-box').classList.add('hidden');
+    const quizBox = document.getElementById('quiz-box');
+    if (quizBox) quizBox.classList.remove('hidden');
 
     const sName = currentStudent.name || currentStudent.student_name || 'دانش‌آموز';
     const sGrade = currentStudent.grade || '-';
-    document.getElementById('student-display').innerText = `${sName} (پایه: ${sGrade})`;
+    const displayEl = document.getElementById('student-display');
+    if (displayEl) {
+      displayEl.innerText = `${sName} (پایه: ${sGrade})`;
+    }
 
     populateSkillDropdown();
     await loadSkillQuestion(0);
 
   } catch (err) {
-    showError(err.message);
+    alert('خطا در بارگذاری سامانه آزمون: ' + err.message);
   }
-}
-
-function showError(msg) {
-  const errorEl = document.getElementById('login-error');
-  errorEl.innerText = msg;
-  errorEl.classList.remove('hidden');
 }
 
 async function loadSkillsFromDatabase() {
@@ -83,6 +169,7 @@ async function loadSkillsFromDatabase() {
 
 function populateSkillDropdown() {
   const select = document.getElementById('skill-jump-select');
+  if (!select) return;
   select.innerHTML = skillsList.map((skill, idx) => `
     <option value="${idx}">${idx + 1}. ${skill.title}</option>
   `).join('');
@@ -94,9 +181,14 @@ async function loadSkillQuestion(index) {
   currentSkillIndex = index;
   const currentSkill = skillsList[index];
 
-  document.getElementById('skill-title').innerText = currentSkill.title;
-  document.getElementById('skill-jump-select').value = index;
-  document.getElementById('btn-prev').disabled = (index === 0);
+  const titleEl = document.getElementById('skill-title');
+  if (titleEl) titleEl.innerText = currentSkill.title;
+
+  const jumpSelect = document.getElementById('skill-jump-select');
+  if (jumpSelect) jumpSelect.value = index;
+
+  const btnPrev = document.getElementById('btn-prev');
+  if (btnPrev) btnPrev.disabled = (index === 0);
 
   const container = document.getElementById('questions-container');
   container.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm">در حال بارگذاری سوالات...</div>';
@@ -212,5 +304,6 @@ async function saveResponseToDb(skillSlug, answers, totalScore) {
 async function finishAssessment() {
   await submitCurrentSkill(true);
   document.getElementById('quiz-box').classList.add('hidden');
-  document.getElementById('success-box').style.display = 'block';
+  const successBox = document.getElementById('success-box');
+  if (successBox) successBox.style.display = 'block';
 }
