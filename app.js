@@ -1,7 +1,7 @@
 let currentStudent = null;
 let skillsList = [];
 let currentSkillIndex = 0;
-let savedResponsesData = {}; // ذخیره کامل پاسخ‌ها شامل q1 تا q4
+let savedResponsesData = {};
 
 async function login() {
   const codeInput = document.getElementById('student-code');
@@ -34,7 +34,7 @@ async function login() {
 
     document.getElementById('login-box').classList.add('hidden');
     document.getElementById('quiz-box').classList.remove('hidden');
-    
+
     const studentName = currentStudent.student_name || currentStudent.name || 'دانش‌آموز';
     const studentGrade = currentStudent.grade || '-';
     document.getElementById('student-display').innerText = `${studentName} (پایه: ${studentGrade})`;
@@ -192,18 +192,23 @@ function skipCurrentSkill() {
 
 async function saveResponseToDb(skillSlug, totalScore, q1, q2, q3, q4) {
   try {
-    await fetch('/api/submit', {
+    const res = await fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         studentId: currentStudent.id,
         skillSlug: skillSlug,
         totalScore: totalScore,
-        q1, q2, q3, q4
+        q1: q1,
+        q2: q2,
+        q3: q3,
+        q4: q4
       })
     });
+    const result = await res.json();
+    if (!res.ok) console.error('خطای ذخیره در سرور:', result.error);
   } catch (err) {
-    console.error('خطا در ثبت نمره:', err);
+    console.error('خطای ارتباط شبکه:', err);
   }
 }
 
