@@ -8,6 +8,12 @@
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
   <style>
     body { font-family: Vazirmatn, sans-serif; }
+    @media print {
+      body * { visibility: hidden; }
+      #roadmap-modal, #roadmap-modal * { visibility: visible; }
+      #roadmap-modal { position: absolute; left: 0; top: 0; width: 100%; }
+      .no-print { display: none !important; }
+    }
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 p-4 md:p-8">
@@ -64,9 +70,16 @@
 
     <!-- بخش دوم: گزارش بر اساس یک دانش‌آموز خاص -->
     <section id="view-student" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hidden">
-      <div class="max-w-md mb-6">
-        <label class="block text-sm font-bold text-slate-700 mb-2">انتخاب دانش‌آموز:</label>
-        <select id="student-selector" onchange="loadStudentReport()" class="w-full border border-slate-300 p-3 rounded-xl text-sm bg-slate-50 outline-none focus:border-indigo-600 font-medium"></select>
+      <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+        <div class="max-w-md flex-1">
+          <label class="block text-sm font-bold text-slate-700 mb-2">انتخاب دانش‌آموز:</label>
+          <select id="student-selector" onchange="loadStudentReport()" class="w-full border border-slate-300 p-3 rounded-xl text-sm bg-slate-50 outline-none focus:border-indigo-600 font-medium"></select>
+        </div>
+        
+        <!-- دکمه فراخوانی هوش مصنوعی -->
+        <button id="btn-generate-ai" onclick="generateAIRoadmap()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md hover:opacity-90 transition flex items-center gap-2">
+          <span>✨ تحلیل هوشمند و تولید نقشه راه رشد (A به A1)</span>
+        </button>
       </div>
 
       <div class="overflow-x-auto">
@@ -85,6 +98,28 @@
         </table>
       </div>
     </section>
+  </div>
+
+  <!-- مدال نمایش تحلیل هوش مصنوعی و کارنامه رشد -->
+  <div id="roadmap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+      
+      <div class="p-5 bg-slate-50 border-b flex justify-between items-center no-print">
+        <div>
+          <h3 id="modal-title" class="font-bold text-indigo-900 text-lg">کارنامه تحلیلی و نقشه راه رشد فردی</h3>
+          <p class="text-xs text-slate-500">طراحی‌شده بر اساس موتور هوش مصنوعی استعدادیابی</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="window.print()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition">چاپ یا ذخیره PDF 🖨</button>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 px-2 py-1 text-lg font-bold">✕</button>
+        </div>
+      </div>
+
+      <div id="modal-content" class="p-6 overflow-y-auto text-sm leading-relaxed text-slate-700 whitespace-pre-wrap space-y-4">
+        <!-- محتوای خروجی هوش مصنوعی اینجا رندر می‌شود -->
+      </div>
+      
+    </div>
   </div>
 
   <script>
@@ -130,7 +165,6 @@
       }
     }
 
-    // مقداردهی سلکتور مهارت‌ها
     function initSkillSelect() {
       const select = document.getElementById('skill-selector');
       select.innerHTML = Object.entries(skillsMap).map(([slug, title]) => `
@@ -231,7 +265,47 @@
       }
     }
 
-    // شروع با لود اولیه
+    async function generateAIRoadmap() {
+      const studentId = document.getElementById('student-selector').value;
+      const btn = document.getElementById('btn-generate-ai');
+      const modal = document.getElementById('roadmap-modal');
+      const content = document.getElementById('modal-content');
+      const title = document.getElementById('modal-title');
+
+      if (!studentId) {
+        alert('لطفاً ابتدا یک دانش‌آموز را انتخاب کنید.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'در حال تحلیل هوشمند داده‌ها... لطفا صبر کنید...';
+
+      try {
+        const res = await fetch('/api/generate-roadmap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId: studentId })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطا در ارتباط با هوش مصنوعی.');
+
+        title.innerText = `کارنامه تحلیلی و نقشه راه رشد: ${data.studentName}`;
+        content.innerText = data.analysis;
+        modal.classList.remove('hidden');
+
+      } catch (err) {
+        alert('خطا: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>✨ تحلیل هوشمند و تولید نقشه راه رشد (A به A1)</span>';
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('roadmap-modal').classList.add('hidden');
+    }
+
     initSkillSelect();
   </script>
 </body>
