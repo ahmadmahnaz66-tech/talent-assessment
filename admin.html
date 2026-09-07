@@ -6,41 +6,51 @@
   <title>پنل پایش و گزارش‌گیری استعدادها</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
-  <!-- کتابخانه اختصاصی برای تولید مستقیم فایل PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
-    body { font-family: Vazirmatn, sans-serif; }
+    * {
+      font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    }
+
+    /* استایل اختصاصی برای چاپ و ذخیره PDF متنی واقعی و تمیز */
     @media print {
       @page {
-        size: A4;
-        margin: 15mm;
+        size: A4 portrait;
+        margin: 18mm 15mm 18mm 15mm;
       }
       body {
         background: #ffffff !important;
+        color: #1e293b !important;
         padding: 0 !important;
       }
-      body > div:first-of-type {
+      /* مخفی کردن تمام اجزای پس‌زمینه پنل مدیریت */
+      body > div.main-wrapper {
         display: none !important;
       }
+      /* تبدیل مدال به سند سرتاسری قابل چاپ */
       #roadmap-modal {
         position: static !important;
         background: none !important;
         padding: 0 !important;
         display: block !important;
+        width: 100% !important;
       }
       #roadmap-modal > div {
         max-height: none !important;
         max-width: 100% !important;
         border: none !important;
         box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
       }
       #modal-content {
         overflow: visible !important;
         height: auto !important;
         font-size: 11pt !important;
-        line-height: 1.8 !important;
-        color: #000000 !important;
+        line-height: 2 !important;
+        color: #0f172a !important;
+        white-space: pre-wrap !important;
+        word-break: normal !important;
       }
       .no-print {
         display: none !important;
@@ -50,7 +60,7 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 p-4 md:p-8">
 
-  <div class="max-w-6xl mx-auto">
+  <div class="main-wrapper max-w-6xl mx-auto">
     <header class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 flex flex-wrap justify-between items-center gap-4">
       <div>
         <h1 class="text-xl md:text-2xl font-black text-indigo-900">پنل تخصصی استعدادیابی مدرسه</h1>
@@ -134,24 +144,24 @@
   <div id="roadmap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
       
-      <!-- هدر مدال همراه با دکمه‌های تفکیک‌شده چاپ و دانلود PDF -->
+      <!-- سربرگ کارنامه -->
       <div class="p-5 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-3 no-print">
         <div>
-          <h3 id="modal-title" class="font-bold text-indigo-900 text-lg">کارنامه تحلیلی استعدادیابی</h3>
+          <h3 id="modal-title" class="font-black text-indigo-900 text-lg">کارنامه تحلیلی استعدادیابی</h3>
           <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
         </div>
         
         <div class="flex items-center gap-2">
-          <!-- دکمه ۱: چاپ مستقیم -->
-          <button onclick="window.print()" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
-            <span>🖨️</span>
-            <span>چاپ کارنامه</span>
+          <!-- دکمه ذخیره مستقیم PDF متنی -->
+          <button onclick="triggerPrintPdf()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+            <span>📥</span>
+            <span>ذخیره PDF متنی</span>
           </button>
           
-          <!-- دکمه ۲: ذخیره مستقیم PDF -->
-          <button id="btn-save-pdf" onclick="saveAsPdf()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
-            <span>📥</span>
-            <span>ذخیره PDF</span>
+          <!-- دکمه پرینت فیزیکی -->
+          <button onclick="triggerPrintPdf()" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
+            <span>🖨️</span>
+            <span>چاپ</span>
           </button>
           
           <!-- دکمه بستن -->
@@ -159,8 +169,8 @@
         </div>
       </div>
 
-      <!-- محتوای متنی کارنامه -->
-      <div id="modal-content" class="p-6 md:p-8 overflow-y-auto text-sm leading-relaxed text-slate-800 whitespace-pre-wrap font-mono"></div>
+      <!-- بدنه متن کارنامه با فونت زیبا و خطوط خوانا -->
+      <div id="modal-content" class="p-6 md:p-8 overflow-y-auto text-sm leading-8 text-slate-800 whitespace-pre-wrap font-normal selection:bg-indigo-100"></div>
     </div>
   </div>
 
@@ -220,7 +230,7 @@
         tbody.innerHTML = data.map((row, i) => `
           <tr class="hover:bg-slate-50">
             <td class="p-3 font-bold text-slate-400">#${i + 1}</td>
-            <td class="p-3 font-mono">${row.id}</td>
+            <td class="p-3 font-mono text-xs">${row.id}</td>
             <td class="p-3 font-bold text-slate-800">${row.student_name}</td>
             <td class="p-3 text-slate-500">${row.grade || '-'}</td>
             <td class="p-3 font-black text-indigo-600">${row.total_score}</td>
@@ -338,30 +348,13 @@
       }
     }
 
-    // تابع ذخیره مستقیم و فایل PDF تمیز
-    function saveAsPdf() {
-      const element = document.getElementById('modal-content');
-      const btn = document.getElementById('btn-save-pdf');
-      
-      btn.disabled = true;
-      btn.innerText = 'در حال آماده‌سازی PDF...';
-
-      const opt = {
-        margin: [12, 12, 12, 12],
-        filename: `کارنامه_استعدادیابی_${currentStudentName}_نسخه_${currentVersion}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      html2pdf().set(opt).from(element).save().then(() => {
-        btn.disabled = false;
-        btn.innerHTML = '<span>📥</span><span>ذخیره PDF</span>';
-      }).catch(err => {
-        alert('خطا در ایجاد PDF: ' + err.message);
-        btn.disabled = false;
-        btn.innerHTML = '<span>📥</span><span>ذخیره PDF</span>';
-      });
+    // ذخیره PDF به صورت متن برداری، بدون برش صفحه و با کیفیت کریستالی
+    function triggerPrintPdf() {
+      // تنظیم عنوان سند برای اینکه نام فایل دانلودشده خودکار درست باشد
+      const originalTitle = document.title;
+      document.title = `کارنامه_استعدادیابی_${currentStudentName}_نسخه_${currentVersion}`;
+      window.print();
+      document.title = originalTitle;
     }
 
     function closeModal() {
