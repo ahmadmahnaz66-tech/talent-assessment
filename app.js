@@ -1,7 +1,7 @@
 let currentStudent = null;
 let skillsList = [];
 let currentSkillIndex = 0;
-let userAnswers = {};
+let savedResponses = {}; // ذخیره پاسخ‌های ثبت‌شده قبلی دانش‌آموز
 
 async function login() {
   const codeInput = document.getElementById('student-code');
@@ -26,6 +26,7 @@ async function login() {
     currentStudent = data;
 
     await loadSkillsFromDatabase();
+    await loadStudentExistingResponses(currentStudent.id);
 
     if (!skillsList || skillsList.length === 0) {
       throw new Error('هیچ مهارتی در سیستم تعریف نشده است.');
@@ -33,7 +34,11 @@ async function login() {
 
     document.getElementById('login-box').classList.add('hidden');
     document.getElementById('quiz-box').classList.remove('hidden');
-    document.getElementById('student-display').innerText = `${currentStudent.student_name} (پایه: ${currentStudent.grade || '-'})`;
+    
+    // اصلاح نمایش پایه و نام دانش‌آموز
+    const studentName = currentStudent.student_name || currentStudent.name || 'دانش‌آموز';
+    const studentGrade = currentStudent.grade || '-';
+    document.getElementById('student-display').innerText = `${studentName} (پایه: ${studentGrade})`;
 
     populateSkillDropdown();
     loadSkillQuestion(0);
@@ -57,6 +62,22 @@ async function loadSkillsFromDatabase() {
   }
 }
 
+// دریافت پاسخ‌های قبلی دانش‌آموز از سرور
+async function loadStudentExistingResponses(studentId) {
+  try {
+    const res = await fetch(`/api/admin-reports?type=by-student&studentId=${studentId}`);
+    const data = await res.json();
+    savedResponses = {};
+    if (Array.isArray(data)) {
+      data.forEach(item => {
+        savedResponses[item.skill_slug] = item.total_score;
+      });
+    }
+  } catch (e) {
+    console.error('خطا در دریافت سوابق پاسخ‌ها:', e);
+  }
+}
+
 function populateSkillDropdown() {
   const select = document.getElementById('skill-jump-select');
   select.innerHTML = skillsList.map((skill, idx) => `
@@ -72,7 +93,6 @@ function loadSkillQuestion(index) {
 
   document.getElementById('skill-title').innerText = skill.title;
   document.getElementById('skill-jump-select').value = index;
-
   document.getElementById('btn-prev').disabled = (index === 0);
 
   const container = document.getElementById('questions-container');
@@ -127,7 +147,7 @@ async function submitCurrentSkill(isFinalizing = false) {
 
   if (q1 || q2 || q3 || q4) {
     const total = (Number(q1?.value) || 0) + (Number(q2?.value) || 0) + (Number(q3?.value) || 0) + (Number(q4?.value) || 0);
-    userAnswers[skill.slug] = total;
+    savedResponses[skill.slug] = total;
 
     await saveResponseToDb(skill.slug, total);
   }
