@@ -1,7 +1,9 @@
 let currentStudent = null;
 let currentSkillIndex = 0;
 
-// بانک کامل ۱۹ مهارت و سوالات ۱۵ گانه (مجموعاً ۲۸۵ گویه)
+// حافظه موقت برای نگهداری وضعیت پاسخ‌های والد به تمام مهارت‌ها
+const userResponses = {};
+
 const skillsData = [
   {
     slug: 'coding',
@@ -422,6 +424,7 @@ async function login() {
     document.getElementById('quiz-box').classList.remove('hidden');
     document.getElementById('student-display').innerText = currentStudent.student_name;
     
+    populateJumpSelect();
     currentSkillIndex = 0;
     renderCurrentSkill();
   } catch (err) {
@@ -430,79 +433,142 @@ async function login() {
   }
 }
 
+function populateJumpSelect() {
+  const select = document.getElementById('skill-jump-select');
+  select.innerHTML = skillsData.map((s, idx) => `
+    <option value="${idx}">${s.title}</option>
+  `).join('');
+}
+
 function renderCurrentSkill() {
   const currentSkill = skillsData[currentSkillIndex];
   document.getElementById('skill-title').innerText = `مهارت (${currentSkillIndex + 1} از ${skillsData.length}): ${currentSkill.title}`;
-  
+  document.getElementById('skill-jump-select').value = currentSkillIndex;
+
+  // تنظیم وضعیت دکمه قبل
+  const btnPrev = document.getElementById('btn-prev');
+  btnPrev.disabled = (currentSkillIndex === 0);
+
+  // تغییر متن دکمه بعدی در مهارت آخر
+  const btnNext = document.getElementById('btn-next');
+  if (currentSkillIndex === skillsData.length - 1) {
+    btnNext.innerText = "ثبت نهایی و اتمام ✓";
+    btnNext.classList.replace('bg-indigo-600', 'bg-emerald-600');
+    btnNext.classList.replace('hover:bg-indigo-700', 'hover:bg-emerald-700');
+  } else {
+    btnNext.innerText = "ثبت و مهارت بعد →";
+    btnNext.classList.replace('bg-emerald-600', 'bg-indigo-600');
+    btnNext.classList.replace('hover:bg-emerald-700', 'hover:bg-indigo-700');
+  }
+
+  // بررسی اینکه آیا این مهارت قبلاً پاسخی در حافظه داشته است یا خیر
+  const savedAnswers = userResponses[currentSkill.slug] ? userResponses[currentSkill.slug].answers : null;
+
   const container = document.getElementById('questions-container');
-  container.innerHTML = currentSkill.questions.map((q, idx) => `
-    <div class="border-b pb-4 last:border-0">
-      <p class="text-sm font-medium mb-3 text-slate-700">${idx + 1}. ${q}</p>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-        <label class="flex items-center gap-1.5 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
-          <input type="radio" name="q_${idx}" value="4" required class="text-indigo-600">
-          <span>همیشگی (۴)</span>
-        </label>
-        <label class="flex items-center gap-1.5 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
-          <input type="radio" name="q_${idx}" value="3" class="text-indigo-600">
-          <span>اغلب (۳)</span>
-        </label>
-        <label class="flex items-center gap-1.5 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
-          <input type="radio" name="q_${idx}" value="2" class="text-indigo-600">
-          <span>گاهی (۲)</span>
-        </label>
-        <label class="flex items-center gap-1.5 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
-          <input type="radio" name="q_${idx}" value="1" class="text-indigo-600">
-          <span>به‌ندرت (۱)</span>
-        </label>
+  container.innerHTML = currentSkill.questions.map((q, idx) => {
+    const savedVal = savedAnswers ? savedAnswers[idx] : null;
+    return `
+      <div class="border-b pb-4 last:border-0">
+        <p class="text-sm font-medium mb-3 text-slate-700">${idx + 1}. ${q}</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+          <label class="flex items-center gap-1.5 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
+            <input type="radio" name="q_${idx}" value="4" ${savedVal === 4 ? 'checked' : ''} class="text-indigo-600">
+            <span>همیشگی (۴)</span>
+          </label>
+          <label class="flex items-center gap-1.5 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
+            <input type="radio" name="q_${idx}" value="3" ${savedVal === 3 ? 'checked' : ''} class="text-indigo-600">
+            <span>اغلب (۳)</span>
+          </label>
+          <label class="flex items-center gap-1.5 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
+            <input type="radio" name="q_${idx}" value="2" ${savedVal === 2 ? 'checked' : ''} class="text-indigo-600">
+            <span>گاهی (۲)</span>
+          </label>
+          <label class="flex items-center gap-1.5 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
+            <input type="radio" name="q_${idx}" value="1" ${savedVal === 1 ? 'checked' : ''} class="text-indigo-600">
+            <span>به‌ندرت (۱)</span>
+          </label>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-async function submitQuiz() {
-  const currentSkill = skillsData[currentSkillIndex];
-  const answers = [];
-  let totalScore = 0;
-
-  for (let i = 0; i < currentSkill.questions.length; i++) {
-    const selected = document.querySelector(`input[name="q_${i}"]:checked`);
-    if (!selected) {
-      alert(`لطفاً به سؤال شماره ${i + 1} پاسخ دهید.`);
-      return;
-    }
-    const val = parseInt(selected.value);
-    answers.push(val);
-    totalScore += val;
-  }
-
+async function saveSkillToBackend(slug, answers, score) {
   const payload = {
     studentId: currentStudent.id,
-    skillSlug: currentSkill.slug,
+    skillSlug: slug,
     answers: answers,
-    totalScore: totalScore
+    totalScore: score
   };
 
   try {
-    const res = await fetch('/api/submit', {
+    await fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-
-    if (!res.ok) throw new Error();
-
-    currentSkillIndex++;
-    if (currentSkillIndex < skillsData.length) {
-      renderCurrentSkill();
-    } else {
-      document.getElementById('quiz-box').classList.add('hidden');
-      document.getElementById('success-box').classList.remove('hidden');
-    }
-
   } catch (err) {
-    alert('خطا در ثبت اطلاعات. لطفاً اتصال اینترنت را بررسی کنید.');
+    console.error('Auto-save error', err);
   }
+}
+
+async function submitCurrentSkill(isSkip = false) {
+  const currentSkill = skillsData[currentSkillIndex];
+  let answers = [];
+  let totalScore = 0;
+
+  if (!isSkip) {
+    // جمع‌آوری پاسخ‌ها با اعتبارسنجی
+    for (let i = 0; i < currentSkill.questions.length; i++) {
+      const selected = document.querySelector(`input[name="q_${i}"]:checked`);
+      if (!selected) {
+        alert(`لطفاً به سؤال شماره ${i + 1} پاسخ دهید یا در صورت عدم تمایل، دکمه «رد کردن این مهارت» را بزنید.`);
+        return;
+      }
+      const val = parseInt(selected.value);
+      answers.push(val);
+      totalScore += val;
+    }
+  } else {
+    // در صورت رد کردن مهارت، همه نمرات ۰ ثبت می‌شوند
+    answers = new Array(currentSkill.questions.length).fill(0);
+    totalScore = 0;
+  }
+
+  // ذخیره در حافظه موقت کلاینت
+  userResponses[currentSkill.slug] = {
+    answers: answers,
+    totalScore: totalScore,
+    skipped: isSkip
+  };
+
+  // ارسال خودکار به دیتابیس D1
+  await saveSkillToBackend(currentSkill.slug, answers, totalScore);
+
+  // رفتن به مهارت بعدی یا اتمام
+  if (currentSkillIndex < skillsData.length - 1) {
+    currentSkillIndex++;
+    renderCurrentSkill();
+  } else {
+    document.getElementById('quiz-box').classList.add('hidden');
+    document.getElementById('success-box').classList.remove('hidden');
+  }
+}
+
+function skipCurrentSkill() {
+  submitCurrentSkill(true);
+}
+
+function prevSkill() {
+  if (currentSkillIndex > 0) {
+    currentSkillIndex--;
+    renderCurrentSkill();
+  }
+}
+
+function jumpToSkill(targetIndex) {
+  currentSkillIndex = parseInt(targetIndex);
+  renderCurrentSkill();
 }
