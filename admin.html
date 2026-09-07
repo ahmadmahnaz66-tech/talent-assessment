@@ -11,7 +11,7 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 p-4 sm:p-6">
 
-  <!-- ۱. فرم ورود کادر مدرسه (پیش‌فرض نمایش داده می‌شود مگر اینکه لاگین کرده باشند) -->
+  <!-- ۱. فرم ورود کادر مدرسه -->
   <div id="login-modal" class="flex items-center justify-center min-h-[80vh]">
     <div class="bg-white p-8 rounded-3xl shadow-lg border border-slate-200 max-w-md w-full space-y-5">
       <div class="text-center space-y-1">
@@ -39,7 +39,7 @@
     </div>
   </div>
 
-  <!-- ۲. داشبورد اصلی (تا قبل از لاگین پنهان است) -->
+  <!-- ۲. داشبورد اصلی -->
   <div id="admin-dashboard" class="hidden max-w-6xl mx-auto space-y-6">
 
     <!-- هدر -->
@@ -48,18 +48,22 @@
         <h1 class="text-xl font-black text-slate-800">پنل تخصصی مشاوره و سنجش استعداد</h1>
         <p class="text-xs text-slate-500 mt-1">مدیریت پرونده‌ها، کلاس‌بندی، مهارت‌ها و گزارش‌ها</p>
       </div>
-      <div class="flex items-center gap-3">
-        <div class="text-left">
+      <div class="flex items-center gap-2">
+        <div class="text-left pl-3 border-l border-slate-200">
           <div id="user-display-name" class="text-xs font-bold text-slate-800">-</div>
           <div id="user-display-role" class="text-[11px] text-slate-400">-</div>
         </div>
+        <!-- دکمه تغییر رمز اختصاصی -->
+        <button onclick="openChangePassModal()" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-xl transition">
+          تغییر رمز
+        </button>
         <button onclick="handleStaffLogout()" class="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl transition">
           خروج
         </button>
       </div>
     </header>
 
-    <!-- تب‌های اصلی -->
+    <!-- نوار تب‌ها -->
     <nav class="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
       <button onclick="switchTab('students')" id="tab-btn-students" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white transition">
         ۱. مدیریت دانش‌آموزان و کلاس‌ها
@@ -73,12 +77,15 @@
       <button onclick="switchTab('manage')" id="tab-btn-manage" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">
         ۴. مدیریت مهارت‌ها و سوالات
       </button>
+      <!-- تب پنجم: ویژه ادمین ارشد برای تعریف پرسنل -->
+      <button onclick="switchTab('staff')" id="tab-btn-staff" class="tab-btn hidden px-4 py-2 rounded-xl text-xs font-bold bg-white text-purple-700 border border-purple-200 hover:bg-purple-50 transition">
+        ۵. مدیریت کادر و دسترسی‌ها
+      </button>
     </nav>
 
     <!-- تب ۱: مدیریت دانش‌آموزان -->
     <section id="tab-content-students" class="tab-content space-y-4">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- ثبت تکی -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm md:col-span-2 space-y-3">
           <h2 class="font-bold text-slate-800 text-xs">ثبت / ویرایش سریع پرونده دانش‌آموز</h2>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -93,17 +100,14 @@
           </div>
         </div>
 
-        <!-- بارگذاری دسته‌جمعی از فایل -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
             <h2 class="font-bold text-slate-800 text-xs mb-1">ورود دسته‌جمعی با فایل CSV / اکسل</h2>
             <p class="text-[11px] text-slate-400 mb-3">ستون‌ها: id, student_name, grade, classroom, parent_phone</p>
           </div>
-
           <button type="button" onclick="downloadSampleCSV()" class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 bg-indigo-50 px-3 py-1.5 rounded-lg transition mb-3 w-fit">
             دانلود فایل خام اکسل/CSV نمونه
           </button>
-
           <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-500 mb-2 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
           <button onclick="handleBatchImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition">
             آپلود و ثبت در دیتابیس
@@ -111,7 +115,6 @@
         </div>
       </div>
 
-      <!-- فیلترها و جدول لیست کلی (تمام‌عرض) -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 w-full">
         <div class="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-100">
           <div class="flex flex-wrap items-center gap-3">
@@ -128,7 +131,6 @@
               </select>
             </div>
           </div>
-
           <div class="flex items-center gap-3">
             <span id="students-count-badge" class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3.5 py-2 rounded-xl border border-indigo-100">
               تعداد: ۰
@@ -208,6 +210,63 @@
       </div>
     </section>
 
+    <!-- تب ۵: مدیریت کادر مدرسه و دسترسی‌ها (فقط برای super_admin) -->
+    <section id="tab-content-staff" class="tab-content hidden space-y-5">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <h2 class="font-bold text-slate-800 text-xs">تعریف حساب کاربری جدید برای کادر مدرسه</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <input type="text" id="staff-name" placeholder="نام و نام خانوادگی (مثال: خانم علوی)" class="border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          <input type="text" id="staff-username" placeholder="نام کاربری انگلیسی (مثال: alavi)" class="border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          <input type="password" id="staff-password" placeholder="رمز عبور اولیه (حداقل ۵ رقم)" class="border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          <select id="staff-role" class="border p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600">
+            <option value="counselor">مشاور تخصصی مدرسه</option>
+            <option value="principal">مدیر مدرسه</option>
+            <option value="vice_principal">معاون مدرسه</option>
+          </select>
+        </div>
+        <button onclick="handleCreateStaff()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition">
+          ثبت و ایجاد دسترسی
+        </button>
+      </div>
+
+      <!-- لیست کادر ثبت‌شده -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <h3 class="font-bold text-slate-800 text-xs">لیست کادر و نقش‌های فعال</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-50 text-slate-500 border-b">
+              <tr>
+                <th class="p-3">نام و نام خانوادگی</th>
+                <th class="p-3">نام کاربری</th>
+                <th class="p-3">نقش و سطح دسترسی</th>
+                <th class="p-3 text-left">عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="staff-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- مودال پاپ‌آپ تغییر رمز عبور خود کاربر -->
+  <div id="change-pass-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white p-6 rounded-3xl max-w-sm w-full space-y-4 shadow-xl border border-slate-100">
+      <h3 class="font-bold text-sm text-slate-800">تغییر رمز عبور حساب کاربری</h3>
+      <div class="space-y-2">
+        <input type="password" id="modal-old-pass" placeholder="رمز عبور فعلی" class="w-full border p-2.5 rounded-xl text-xs outline-none">
+        <input type="password" id="modal-new-pass" placeholder="رمز عبور جدید (حداقل ۵ رقم)" class="w-full border p-2.5 rounded-xl text-xs outline-none">
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="submitChangePassword()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-xl transition">
+          ذخیره رمز جدید
+        </button>
+        <button onclick="closeChangePassModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs px-4 py-2.5 rounded-xl transition">
+          انصراف
+        </button>
+      </div>
+    </div>
   </div>
 
   <script src="/admin.js"></script>
