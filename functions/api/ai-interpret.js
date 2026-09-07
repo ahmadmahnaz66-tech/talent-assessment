@@ -9,7 +9,7 @@ export async function onRequestPost(context) {
     if (!apiKey) {
       return new Response(JSON.stringify({ 
         success: false, 
-        error: 'کلید GEMINI_API_KEY در متغیرهای محیطی کلودفلر تعریف نشده است.' 
+        error: 'کلید GEMINI_API_KEY در متغیرهای محیطی کلودفلر یافت نشد.' 
       }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
@@ -19,36 +19,34 @@ export async function onRequestPost(context) {
 
     let audienceInstruction = '';
     if (audience === 'parents') {
-      audienceInstruction = 'مخاطب گزارش اولیای دانش‌آموز هستند. لحن باید بسیار محترمانه، روشن، دلگرم‌کننده و خالی از اصطلاحات سخت باشد. راهکارهای پرورشی خانگی ارائه بده.';
+      audienceInstruction = 'مخاطب گزارش اولیای دانش‌آموز هستند. لحن دلگرم‌کننده، بدون اصطلاحات پیچیده و با راهکارهای عملی خانگی باشد.';
     } else if (audience === 'student') {
-      audienceInstruction = 'مخاطب خود دانش‌آموز مقطع دبستان است. لحن صمیمانه، قصه مانند و بسیار انگیزشی باشد تا کودک به علایق و مهارت‌هایش افتخار کند.';
+      audienceInstruction = 'مخاطب خود دانش‌آموز مقطع دبستان است. لحن صمیمانه، داستانی و مشوق باشد.';
     } else if (audience === 'activities') {
-      audienceInstruction = 'گزارش باید مشخصاً به معرفی دوره‌های مهارتی، کلاس‌های فوق‌برنامه، بازی‌های فکری و کارگاه‌های مناسب با امتیازهای بالای دانش‌آموز بپردازد.';
+      audienceInstruction = 'گزارش متمرکز بر معرفی دوره‌ها، کارگاه‌ها و فعالیت‌های فوق‌برنامه باشد.';
     } else {
-      audienceInstruction = 'مخاطب مشاور تخصصی و مدیریت مدرسه است. لحن بالینی، تحلیلی و تخصصی باشد و به ارزیابی نقاط قوت برجسته و نیازهای هدایتی دانش‌آموز اشاره کند.';
+      audienceInstruction = 'مخاطب مشاور تخصصی مدرسه است. لحن بالینی، ساختاریافته و با تفکیک نقاط قوت و نیازهای پرورشی باشد.';
     }
 
-    const systemPrompt = `نقش: تو یک روانشناس بالینی و مشاور استعدادیابی کودکان دبستان هستی.
-چارچوب نظری: ${framework === 'gardner' ? 'هوش‌های چندگانه هوارد گاردنر' : 'رویکرد استعدادسنجی مهارتی و ترکیبی'}.
-سطح تفصیل: ${length === 'detailed' ? 'جامع، تفکیک‌شده با تیترهای مشخص' : 'کوتاه و نکات کلیدی'}.
-دستور لحن و مخاطب: ${audienceInstruction}
-پاسخ را به زبان فارسی سلیس و روان بنویس.`;
+    const systemPrompt = `تو روانشناس و متخصص استعدادیابی کودکان دبستان هستی.
+چارچوب ارزیابی: ${framework === 'gardner' ? 'هوش‌های چندگانه گاردنر' : 'رویکرد مهارتی'}.
+حجم گزارش: ${length === 'detailed' ? 'جامع و تفکیک‌شده' : 'چکیده و نکات کلیدی'}.
+دستور مخاطب: ${audienceInstruction}
+پاسخ به فارسی روان باشد.`;
 
-    const userPrompt = `نمرات ارزیابی دانش‌آموز با کد ملی ${studentId}:\n${scoresSummary}\n\nلطفاً گزارش تحلیل استعداد را تدوین کن.`;
+    const userPrompt = `نمرات دانش‌آموز با شناسه ${studentId}:\n${scoresSummary}\n\nتحلیل استعداد و راهکارهای رشدی را صادر کن.`;
 
-    // فراخوانی مستقیم Gemini 1.5 Flash
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // آدرس مسیردهی از طریق درگاه ساخته‌شده (AI Gateway)
+    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const geminiRes = await fetch(geminiUrl, {
+    const res = await fetch(gatewayUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemPrompt }]
-        },
         contents: [
           {
-            parts: [{ text: userPrompt }]
+            role: 'user',
+            parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
           }
         ],
         generationConfig: {
@@ -58,17 +56,17 @@ export async function onRequestPost(context) {
       })
     });
 
-    const geminiData = await geminiRes.json();
+    const resData = await res.json();
 
-    if (!geminiRes.ok) {
-      const errDetail = geminiData.error?.message || 'خطای سرور جمنای';
-      return new Response(JSON.stringify({ success: false, error: errDetail }), { 
-        status: geminiRes.status,
+    if (!res.ok) {
+      const msg = resData.error?.message || 'خطای پردازش هوش مصنوعی';
+      return new Response(JSON.stringify({ success: false, error: msg }), { 
+        status: res.status,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    const outputText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'پاسخی از جمنای دریافت نشد.';
+    const outputText = resData.candidates?.[0]?.content?.parts?.[0]?.text || 'پاسخی دریافت نشد.';
 
     return new Response(JSON.stringify({ success: true, analysis: outputText }), {
       headers: { 'Content-Type': 'application/json' }
