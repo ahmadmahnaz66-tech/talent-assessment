@@ -1,79 +1,367 @@
-export async function onRequestGet(context) {
-  const { request, env } = context;
-  const url = new URL(request.url);
-  const type = url.searchParams.get('type');
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>پنل پایش و گزارش‌گیری استعدادها</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
 
-  try {
-    // ۱. دریافت لیست مهارت‌ها برای کرکره‌ای‌ها و فرم‌ها
-    if (type === 'all-skills') {
-      const { results } = await env.DB.prepare(
-        'SELECT slug, title, display_order FROM skills ORDER BY display_order ASC, rowid ASC'
-      ).all();
-      return new Response(JSON.stringify(results || []), {
-        headers: { 'Content-Type': 'application/json' }
-      });
+  <style>
+    * {
+      font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
 
-    // ۲. دریافت لیست همه دانش‌آموزان
-    if (type === 'all-students') {
-      const { results } = await env.DB.prepare(
-        'SELECT id, student_name, grade FROM students ORDER BY id ASC'
-      ).all();
-      return new Response(JSON.stringify(results || []), {
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    // ۳. گزارش براساس مهارت (فیلتر رتبه‌بندی دانش‌آموزان)
-    if (type === 'by-skill') {
-      const skill = url.searchParams.get('skill');
-      if (!skill) {
-        return new Response(JSON.stringify({ error: 'مهارت مشخص نشده است.' }), { status: 400 });
+    /* استایل اختصاصی برای چاپ و ذخیره PDF متنی واقعی و تمیز */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 18mm 15mm 18mm 15mm;
       }
-
-      const { results } = await env.DB.prepare(`
-        SELECT s.id, s.student_name, s.grade, r.total_score
-        FROM responses r
-        JOIN students s ON r.student_id = s.id
-        WHERE r.skill_slug = ? AND r.total_score > 0
-        ORDER BY r.total_score DESC
-      `).bind(skill).all();
-
-      return new Response(JSON.stringify(results || []), {
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    // ۴. پرونده فردی دانش‌آموز با پیوند پویا به عنوان فارسی مهارت
-    if (type === 'by-student') {
-      const studentId = url.searchParams.get('studentId');
-      if (!studentId) {
-        return new Response(JSON.stringify({ error: 'کد دانش‌آموز مشخص نشده است.' }), { status: 400 });
+      body {
+        background: #ffffff !important;
+        color: #1e293b !important;
+        padding: 0 !important;
       }
+      /* مخفی کردن تمام اجزای پس‌زمینه پنل مدیریت */
+      body > div.main-wrapper {
+        display: none !important;
+      }
+      /* تبدیل مدال به سند سرتاسری قابل چاپ */
+      #roadmap-modal {
+        position: static !important;
+        background: none !important;
+        padding: 0 !important;
+        display: block !important;
+        width: 100% !important;
+      }
+      #roadmap-modal > div {
+        max-height: none !important;
+        max-width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      #modal-content {
+        overflow: visible !important;
+        height: auto !important;
+        font-size: 11pt !important;
+        line-height: 2 !important;
+        color: #0f172a !important;
+        white-space: pre-wrap !important;
+        word-break: normal !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 p-4 md:p-8">
 
-      const { results } = await env.DB.prepare(`
-        SELECT 
-          r.skill_slug, 
-          r.total_score, 
-          r.created_at,
-          COALESCE(s.title, r.skill_slug) AS skill_title
-        FROM responses r
-        LEFT JOIN skills s ON r.skill_slug = s.slug
-        WHERE r.student_id = ? AND r.total_score > 0
-        ORDER BY r.total_score DESC
-      `).bind(studentId).all();
+  <div class="main-wrapper max-w-6xl mx-auto">
+    <header class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 flex flex-wrap justify-between items-center gap-4">
+      <div>
+        <h1 class="text-xl md:text-2xl font-black text-indigo-900">پنل تخصصی استعدادیابی مدرسه</h1>
+        <p class="text-xs md:text-sm text-slate-500 mt-1">سامانه تحلیل و مدیریت سوابق رشد (A به A1)</p>
+      </div>
+      <a href="/" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition">
+        مشاهده فرم اولیا ↗
+      </a>
+    </header>
 
-      return new Response(JSON.stringify(results || []), {
-        headers: { 'Content-Type': 'application/json' }
-      });
+    <div class="flex gap-3 mb-6">
+      <button id="tab-skill-btn" onclick="switchTab('skill')" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition">
+        ۱. تحلیل بر اساس مهارت (غربالگری گروهی)
+      </button>
+      <button id="tab-student-btn" onclick="switchTab('student')" class="bg-white text-slate-600 border border-slate-200 px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition">
+        ۲. پرونده فردی و سوابق تحلیل هوشمند
+      </button>
+    </div>
+
+    <!-- نمای مهارت -->
+    <section id="view-skill" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+      <div class="max-w-md mb-6">
+        <label class="block text-sm font-bold text-slate-700 mb-2">انتخاب مهارت:</label>
+        <select id="skill-selector" onchange="loadSkillReport()" class="w-full border border-slate-300 p-3 rounded-xl text-sm bg-slate-50 outline-none focus:border-indigo-600 font-medium"></select>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-right text-sm">
+          <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs">
+            <tr>
+              <th class="p-3">رتبه</th>
+              <th class="p-3">کد</th>
+              <th class="p-3">نام دانش‌آموز</th>
+              <th class="p-3">پایه</th>
+              <th class="p-3">امتیاز (از ۶۰)</th>
+              <th class="p-3">سطح تمایل</th>
+            </tr>
+          </thead>
+          <tbody id="skill-table-body" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- نمای دانش‌آموز -->
+    <section id="view-student" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hidden space-y-6">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div class="max-w-md flex-1">
+          <label class="block text-sm font-bold text-slate-700 mb-2">انتخاب دانش‌آموز:</label>
+          <select id="student-selector" onchange="onStudentChanged()" class="w-full border border-slate-300 p-3 rounded-xl text-sm bg-slate-50 outline-none focus:border-indigo-600 font-medium"></select>
+        </div>
+        <button id="btn-generate-ai" onclick="generateNewAnalysis()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-3 rounded-xl font-bold text-sm shadow hover:opacity-90 transition">
+          ✨ ثبت و صدور تحلیل جدید (نسخه جدید)
+        </button>
+      </div>
+
+      <!-- بخش سوابق تحلیل‌های قبلی -->
+      <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4">
+        <h3 class="text-sm font-bold text-indigo-900 mb-3">📁 تاریخچه اسناد تحلیل هوش مصنوعی (سوابق):</h3>
+        <div id="history-container" class="flex flex-wrap gap-2 text-xs">
+          <span class="text-slate-400">در حال بررسی سوابق...</span>
+        </div>
+      </div>
+
+      <!-- جدول اولویت مهارت‌ها -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-right text-sm">
+          <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs">
+            <tr>
+              <th class="p-3">اولویت</th>
+              <th class="p-3">عنوان مهارت</th>
+              <th class="p-3">امتیاز (از ۶۰)</th>
+              <th class="p-3">وضعیت استعداد</th>
+            </tr>
+          </thead>
+          <tbody id="student-table-body" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- مدال نمایش کارنامه و نقشه راه -->
+  <div id="roadmap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+      
+      <!-- سربرگ کارنامه -->
+      <div class="p-5 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-3 no-print">
+        <div>
+          <h3 id="modal-title" class="font-black text-indigo-900 text-lg">کارنامه تحلیلی استعدادیابی</h3>
+          <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <!-- دکمه ذخیره مستقیم PDF متنی -->
+          <button onclick="triggerPrintPdf()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+            <span>📥</span>
+            <span>ذخیره PDF متنی</span>
+          </button>
+          
+          <!-- دکمه پرینت فیزیکی -->
+          <button onclick="triggerPrintPdf()" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
+            <span>🖨️</span>
+            <span>چاپ</span>
+          </button>
+          
+          <!-- دکمه بستن -->
+          <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 px-2 py-1 text-lg font-bold">✕</button>
+        </div>
+      </div>
+
+      <!-- بدنه متن کارنامه با فونت زیبا و خطوط خوانا -->
+      <div id="modal-content" class="p-6 md:p-8 overflow-y-auto text-sm leading-8 text-slate-800 whitespace-pre-wrap font-normal selection:bg-indigo-100"></div>
+    </div>
+  </div>
+
+  <script>
+    let cachedSkills = {};
+    let cachedHistory = [];
+    let currentStudentName = '';
+    let currentVersion = '1';
+
+    function switchTab(tab) {
+      const vSkill = document.getElementById('view-skill');
+      const vStudent = document.getElementById('view-student');
+      const bSkill = document.getElementById('tab-skill-btn');
+      const bStudent = document.getElementById('tab-student-btn');
+
+      if (tab === 'skill') {
+        vSkill.classList.remove('hidden');
+        vStudent.classList.add('hidden');
+        bSkill.className = "bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition";
+        bStudent.className = "bg-white text-slate-600 border border-slate-200 px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition";
+      } else {
+        vSkill.classList.add('hidden');
+        vStudent.classList.remove('hidden');
+        bStudent.className = "bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition";
+        bSkill.className = "bg-white text-slate-600 border border-slate-200 px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition";
+        loadStudentsList();
+      }
     }
 
-    return new Response(JSON.stringify({ error: 'نوع درخواست نامعتبر است.' }), { status: 400 });
+    async function initSkills() {
+      const select = document.getElementById('skill-selector');
+      try {
+        const res = await fetch('/api/admin-reports?type=all-skills');
+        const list = await res.json();
+        if (list && list.length) {
+          select.innerHTML = list.map(s => `<option value="${s.slug}">${s.title}</option>`).join('');
+          list.forEach(s => { cachedSkills[s.slug] = s.title; });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      loadSkillReport();
+    }
 
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-}
+    async function loadSkillReport() {
+      const skill = document.getElementById('skill-selector').value;
+      const tbody = document.getElementById('skill-table-body');
+      if (!skill) return;
+      tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>';
+      try {
+        const res = await fetch(`/api/admin-reports?type=by-skill&skill=${skill}`);
+        const data = await res.json();
+        if (!data || !data.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">هیچ پاسخی ثبت نشده است.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.map((row, i) => `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 font-bold text-slate-400">#${i + 1}</td>
+            <td class="p-3 font-mono text-xs">${row.id}</td>
+            <td class="p-3 font-bold text-slate-800">${row.student_name}</td>
+            <td class="p-3 text-slate-500">${row.grade || '-'}</td>
+            <td class="p-3 font-black text-indigo-600">${row.total_score}</td>
+            <td class="p-3"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${row.total_score >= 45 ? 'bg-emerald-100 text-emerald-700' : row.total_score >= 30 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">${row.total_score >= 45 ? 'علاقه بالا' : row.total_score >= 30 ? 'متوسط' : 'کم'}</span></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500">${err.message}</td></tr>`;
+      }
+    }
+
+    async function loadStudentsList() {
+      const select = document.getElementById('student-selector');
+      if (select.children.length > 0) return;
+      try {
+        const res = await fetch('/api/admin-reports?type=all-students');
+        const students = await res.json();
+        select.innerHTML = students.map(s => `<option value="${s.id}">${s.student_name} (کد: ${s.id})</option>`).join('');
+        if (students.length > 0) onStudentChanged();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function onStudentChanged() {
+      loadStudentReport();
+      loadRoadmapHistory();
+    }
+
+    async function loadStudentReport() {
+      const studentId = document.getElementById('student-selector').value;
+      const tbody = document.getElementById('student-table-body');
+      tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">در حال دریافت داده‌ها...</td></tr>';
+      try {
+        const res = await fetch(`/api/admin-reports?type=by-student&studentId=${studentId}`);
+        const data = await res.json();
+        if (!data || !data.length) {
+          tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">ارزیابی ثبت نشده است.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.map((row, i) => `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 font-bold text-slate-400">#${i + 1}</td>
+            <td class="p-3 font-bold text-slate-800">${row.skill_title || cachedSkills[row.skill_slug] || row.skill_slug}</td>
+            <td class="p-3 font-black text-indigo-600">${row.total_score}</td>
+            <td class="p-3"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${row.total_score >= 45 ? 'bg-emerald-100 text-emerald-700' : row.total_score >= 30 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">${row.total_score >= 45 ? 'اولویت طلایی (A1)' : row.total_score >= 30 ? 'اولویت رشد (A)' : 'پتانسیل ثانویه'}</span></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">${err.message}</td></tr>`;
+      }
+    }
+
+    async function loadRoadmapHistory() {
+      const studentId = document.getElementById('student-selector').value;
+      const box = document.getElementById('history-container');
+      box.innerHTML = '<span class="text-slate-400">در حال جستجوی سوابق...</span>';
+
+      try {
+        const res = await fetch(`/api/generate-roadmap?studentId=${studentId}`);
+        cachedHistory = await res.json();
+
+        if (!cachedHistory || cachedHistory.length === 0) {
+          box.innerHTML = '<span class="text-slate-500 italic">هنوز تحلیلی برای این دانش‌آموز ثبت نشده است. برای اولین تحلیل، دکمه بالا را بزنید.</span>';
+          return;
+        }
+
+        box.innerHTML = cachedHistory.map((item, idx) => `
+          <button onclick="viewHistoricalRoadmap(${idx})" class="bg-white border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-600 hover:text-white transition flex items-center gap-1">
+            <span>📄 نسخه ${item.version}</span>
+            <span class="text-[10px] opacity-70">(${new Date(item.created_at).toLocaleDateString('fa-IR')})</span>
+          </button>
+        `).join('');
+      } catch (e) {
+        box.innerHTML = '<span class="text-red-500">خطا در دریافت سوابق</span>';
+      }
+    }
+
+    function viewHistoricalRoadmap(index) {
+      const item = cachedHistory[index];
+      const sSelect = document.getElementById('student-selector');
+      currentStudentName = sSelect.selectedOptions[0]?.text.split('(')[0].trim() || 'دانش‌آموز';
+      currentVersion = item.version;
+
+      document.getElementById('modal-title').innerText = `کارنامه و نقشه راه رشد - ${currentStudentName}`;
+      document.getElementById('modal-subtitle').innerText = `نسخه شماره ${item.version} (ثبت شده در: ${new Date(item.created_at).toLocaleString('fa-IR')})`;
+      document.getElementById('modal-content').innerText = item.analysis;
+      document.getElementById('roadmap-modal').classList.remove('hidden');
+    }
+
+    async function generateNewAnalysis() {
+      const studentId = document.getElementById('student-selector').value;
+      const btn = document.getElementById('btn-generate-ai');
+      if (!studentId) return alert('دانش‌آموز را انتخاب کنید.');
+
+      btn.disabled = true;
+      btn.innerText = 'در حال تحلیل با جمنای و ثبت سند جدید...';
+
+      try {
+        const res = await fetch('/api/generate-roadmap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطا در صدور سند');
+
+        await loadRoadmapHistory();
+        viewHistoricalRoadmap(0);
+      } catch (e) {
+        alert('خطا: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '✨ ثبت و صدور تحلیل جدید (نسخه جدید)';
+      }
+    }
+
+    // ذخیره PDF به صورت متن برداری، بدون برش صفحه و با کیفیت کریستالی
+    function triggerPrintPdf() {
+      // تنظیم عنوان سند برای اینکه نام فایل دانلودشده خودکار درست باشد
+      const originalTitle = document.title;
+      document.title = `کارنامه_استعدادیابی_${currentStudentName}_نسخه_${currentVersion}`;
+      window.print();
+      document.title = originalTitle;
+    }
+
+    function closeModal() {
+      document.getElementById('roadmap-modal').classList.add('hidden');
+    }
+
+    initSkills();
+  </script>
+</body>
+</html>
