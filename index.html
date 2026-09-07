@@ -11,13 +11,46 @@
 <body class="bg-slate-50 text-slate-800 p-4 md:p-8">
   <div class="max-w-2xl mx-auto">
     
-    <!-- فرم لاگین -->
-    <div id="login-box" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-      <h1 class="text-xl font-bold mb-4 text-center">ورود به سامانه پایش مهارت</h1>
-      <p class="text-sm text-slate-500 mb-6 text-center">کد پرونده فرزند خود را وارد کنید</p>
-      <input type="text" id="student-code" placeholder="کد دانش‌آموز (مثال: 101)" class="w-full border p-3 rounded-xl mb-4 text-center font-bold text-lg outline-none focus:border-indigo-600">
-      <button onclick="login()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition">ورود</button>
-      <p id="login-error" class="text-red-500 text-sm mt-3 text-center hidden"></p>
+<!-- بخش لاگین دانش‌آموز / والد -->
+    <div id="student-login-box" class="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+      <div class="text-center space-y-1">
+        <h2 class="text-lg font-black text-slate-800">ورود به سامانه پایش مهارت و استعداد</h2>
+        <p class="text-xs text-slate-400">کد ملی دانش‌آموز و رمز عبور را وارد نمایید</p>
+      </div>
+
+      <div class="space-y-3 pt-2">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">کد ملی دانش‌آموز</label>
+          <input type="text" id="input-student-id" placeholder="مثال: 0921234567" class="w-full border border-slate-200 p-3 rounded-xl text-xs outline-none focus:border-indigo-600 transition text-center font-mono">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">رمز عبور</label>
+          <input type="password" id="input-student-pass" placeholder="پیش‌فرض: ۴ رقم آخر کد ملی" class="w-full border border-slate-200 p-3 rounded-xl text-xs outline-none focus:border-indigo-600 transition text-center font-mono">
+        </div>
+        <button onclick="handleStudentLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
+          ورود به سامانه
+        </button>
+      </div>
+      <p id="student-login-err" class="text-xs text-red-500 text-center font-bold hidden"></p>
+    </div>
+
+    <!-- مودال اجباری تغییر رمز عبور در اولین ورود -->
+    <div id="first-login-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-white p-6 sm:p-8 rounded-3xl max-w-sm w-full space-y-4 shadow-xl border border-slate-100">
+        <div class="text-center space-y-1">
+          <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto text-lg font-bold">🔑</div>
+          <h3 class="font-black text-sm text-slate-800">تغییر رمز عبور در اولین ورود</h3>
+          <p class="text-[11px] text-slate-400">به منظور امنیت پرونده فرزندتان، لطفاً یک رمز عبور جدید (حداقل ۵ کاراکتر) تعیین نمایید.</p>
+        </div>
+        <div class="space-y-2">
+          <input type="password" id="first-new-pass" placeholder="رمز عبور جدید" class="w-full border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          <input type="password" id="first-confirm-pass" placeholder="تکرار رمز عبور جدید" class="w-full border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+        </div>
+        <p id="first-change-err" class="text-xs text-red-500 font-bold hidden"></p>
+        <button onclick="submitFirstPasswordChange()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-xl transition">
+          ثبت رمز جدید و شروع ارزیابی
+        </button>
+      </div>
     </div>
 
 <!-- فرم ارزیابی -->
