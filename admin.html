@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>پنل پایش و گزارش‌گیری استعدادها</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+  <style>
+    body { font-family: Vazirmatn, sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 p-4 md:p-8">
+
+  <div class="max-w-6xl mx-auto">
+    <!-- هدر پنل -->
+    <header class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 flex flex-wrap justify-between items-center gap-4">
+      <div>
+        <h1 class="text-xl md:text-2xl font-black text-indigo-900">پنل تخصصی استعدادیابی مدرسه</h1>
+        <p class="text-xs md:text-sm text-slate-500 mt-1">سامانه تحلیل و گروه‌بندی مهارت‌ها ویژه مدیر و مشاور</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="/" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition">
+          مشاهده فرم اولیا ↗
+        </a>
+      </div>
+    </header>
+
+    <!-- تب‌های انتخاب نما -->
+    <div class="flex gap-3 mb-6">
+      <button id="tab-skill-btn" onclick="switchTab('skill')" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition">
+        ۱. تحلیل بر اساس مهارت (غربالگری گروهی)
+      </button>
+      <button id="tab-student-btn" onclick="switchTab('student')" class="bg-white text-slate-600 border border-slate-200 px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition">
+        ۲. تحلیل پرونده فردی دانش‌آموز (اولویت علایق)
+      </button>
+    </div>
+
+    <!-- بخش اول: گزارش بر اساس یک مهارت خاص -->
+    <section id="view-skill" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+      <div class="max-w-md mb-6">
+        <label class="block text-sm font-bold text-slate-700 mb-2">انتخاب مهارت برای رتبه‌بندی دانش‌آموزان:</label>
+        <select id="skill-selector" onchange="loadSkillReport()" class="w-full border border-slate-300 p-3 rounded-xl text-sm bg-slate-50 outline-none focus:border-indigo-600 font-medium"></select>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-right text-sm">
+          <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs">
+            <tr>
+              <th class="p-3">رتبه</th>
+              <th class="p-3">کد پرونده</th>
+              <th class="p-3">نام دانش‌آموز</th>
+              <th class="p-3">پایه تحصیلی</th>
+              <th class="p-3">امتیاز (از ۶۰)</th>
+              <th class="p-3">سطح تمایل</th>
+            </tr>
+          </thead>
+          <tbody id="skill-table-body" class="divide-y divide-slate-100">
+            <tr><td colspan="6" class="p-4 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- بخش دوم: گزارش بر اساس یک دانش‌آموز خاص -->
+    <section id="view-student" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hidden">
+      <div class="max-w-md mb-6">
+        <label class="block text-sm font-bold text-slate-700 mb-2">انتخاب دانش‌آموز:</label>
+        <select id="student-selector" onchange="loadStudentReport()" class="w-full border border-slate-300 p-3 rounded-xl text-sm bg-slate-50 outline-none focus:border-indigo-600 font-medium"></select>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-right text-sm">
+          <thead class="bg-slate-50 text-slate-500 border-b border-slate-200 text-xs">
+            <tr>
+              <th class="p-3">اولویت</th>
+              <th class="p-3">عنوان مهارت</th>
+              <th class="p-3">امتیاز کسب‌شده (از ۶۰)</th>
+              <th class="p-3">وضعیت استعداد</th>
+            </tr>
+          </thead>
+          <tbody id="student-table-body" class="divide-y divide-slate-100">
+            <tr><td colspan="4" class="p-4 text-center text-slate-400">لطفاً یک دانش‌آموز را انتخاب کنید.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const skillsMap = {
+      'coding': '۱. برنامه‌نویسی',
+      'carpentry': '۲. نجاری و ساخت‌وساز دستی',
+      'ai': '۳. هوش مصنوعی و ابزارهای نوین',
+      'gardening': '۴. باغبانی و طبیعت‌پژوهی',
+      'robotics': '۵. رباتیک و مکاترونیک',
+      'theater': '۶. تئاتر و بازیگری',
+      'public_speaking': '۷. سخنوری و فن بیان',
+      'comedy': '۸. کمدی و طنزپردازی',
+      'football': '۹. فوتبال و کار تیمی زمینی',
+      'volleyball': '۱۰. والیبال و هماهنگی هوایی',
+      'basketball': '۱۱. بسکتبال و هماهنگی پرتابی',
+      'badminton': '۱۲. بدمینتون و چابکی راکتی',
+      'swimming': '۱۳. شنا و ورزش‌های آبی',
+      'climbing': '۱۴. صخره‌نوردی و سنگ‌نوردی',
+      'tennis': '۱۵. تنیس و چابکی جهشی',
+      'chess': '۱۶. شطرنج و تفکر استراتژیک',
+      'drawing': '۱۷. نقاشی و هنرهای تجسمی',
+      'calligraphy': '۱۸. خطاطی و خوش‌نویسی',
+      'music': '۱۹. موسیقی و ریتم'
+    };
+
+    function switchTab(tab) {
+      const viewSkill = document.getElementById('view-skill');
+      const viewStudent = document.getElementById('view-student');
+      const btnSkill = document.getElementById('tab-skill-btn');
+      const btnStudent = document.getElementById('tab-student-btn');
+
+      if (tab === 'skill') {
+        viewSkill.classList.remove('hidden');
+        viewStudent.classList.add('hidden');
+        btnSkill.className = "bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition";
+        btnStudent.className = "bg-white text-slate-600 border border-slate-200 px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition";
+      } else {
+        viewSkill.classList.add('hidden');
+        viewStudent.classList.remove('hidden');
+        btnStudent.className = "bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition";
+        btnSkill.className = "bg-white text-slate-600 border border-slate-200 px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition";
+        loadStudentsList();
+      }
+    }
+
+    // مقداردهی سلکتور مهارت‌ها
+    function initSkillSelect() {
+      const select = document.getElementById('skill-selector');
+      select.innerHTML = Object.entries(skillsMap).map(([slug, title]) => `
+        <option value="${slug}">${title}</option>
+      `).join('');
+      loadSkillReport();
+    }
+
+    async function loadSkillReport() {
+      const skill = document.getElementById('skill-selector').value;
+      const tbody = document.getElementById('skill-table-body');
+      tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>';
+
+      try {
+        const res = await fetch(`/api/admin-reports?type=by-skill&skill=${skill}`);
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">هیچ پاسخی برای این مهارت ثبت نشده است.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.map((row, index) => {
+          const badgeClass = row.total_score >= 45 ? 'bg-emerald-100 text-emerald-700' :
+                             row.total_score >= 30 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600';
+          const levelText = row.total_score >= 45 ? 'علاقه/استعداد بسیار بالا' :
+                            row.total_score >= 30 ? 'متوسط و قابل پرورش' : 'علاقه کم';
+
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 font-bold text-slate-400">#${index + 1}</td>
+              <td class="p-3 font-mono">${row.id}</td>
+              <td class="p-3 font-bold text-slate-800">${row.student_name}</td>
+              <td class="p-3 text-slate-500">${row.grade || '-'}</td>
+              <td class="p-3 font-black text-indigo-600">${row.total_score}</td>
+              <td class="p-3"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeClass}">${levelText}</span></td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500">خطا در بارگذاری داده‌ها: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function loadStudentsList() {
+      const select = document.getElementById('student-selector');
+      if (select.children.length > 0) return;
+
+      try {
+        const res = await fetch('/api/admin-reports?type=all-students');
+        const students = await res.json();
+
+        select.innerHTML = students.map(s => `
+          <option value="${s.id}">${s.student_name} (کد: ${s.id})</option>
+        `).join('');
+
+        if (students.length > 0) {
+          loadStudentReport();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function loadStudentReport() {
+      const studentId = document.getElementById('student-selector').value;
+      const tbody = document.getElementById('student-table-body');
+      tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">در حال دریافت داده‌ها...</td></tr>';
+
+      try {
+        const res = await fetch(`/api/admin-reports?type=by-student&studentId=${studentId}`);
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">هیچ ارزیابی برای این دانش‌آموز ثبت نشده است.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.map((row, index) => {
+          const badgeClass = row.total_score >= 45 ? 'bg-emerald-100 text-emerald-700' :
+                             row.total_score >= 30 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600';
+          const levelText = row.total_score >= 45 ? 'اولویت طلایی (A1)' :
+                            row.total_score >= 30 ? 'اولویت رشد (A)' : 'پتانسیل ثانویه';
+
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 font-bold text-slate-400">#${index + 1}</td>
+              <td class="p-3 font-bold text-slate-800">${skillsMap[row.skill_slug] || row.skill_slug}</td>
+              <td class="p-3 font-black text-indigo-600">${row.total_score}</td>
+              <td class="p-3"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeClass}">${levelText}</span></td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">خطا: ${err.message}</td></tr>`;
+      }
+    }
+
+    // شروع با لود اولیه
+    initSkillSelect();
+  </script>
+</body>
+</html>
