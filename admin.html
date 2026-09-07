@@ -6,15 +6,43 @@
   <title>پنل پایش و گزارش‌گیری استعدادها</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
-  <style>
+<style>
     body { font-family: Vazirmatn, sans-serif; }
     @media print {
-      body * { visibility: hidden; }
-      #roadmap-modal, #roadmap-modal * { visibility: visible; }
-      #roadmap-modal { position: absolute; left: 0; top: 0; width: 100%; }
-      .no-print { display: none !important; }
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+      }
+      /* مخفی کردن تمام اجزای پس‌زمینه پنل */
+      body > div:first-of-type {
+        display: none !important;
+      }
+      /* تنظیم مدال به عنوان سند اصلی چاپ */
+      #roadmap-modal {
+        position: static !important;
+        background: none !important;
+        padding: 0 !important;
+        display: block !important;
+      }
+      #roadmap-modal > div {
+        max-height: none !important;
+        max-width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+      #modal-content {
+        overflow: visible !important;
+        height: auto !important;
+        font-size: 13pt !important;
+        line-height: 2 !important;
+        color: #000000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
     }
   </style>
+  
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 p-4 md:p-8">
 
