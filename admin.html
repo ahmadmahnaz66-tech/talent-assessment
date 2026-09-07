@@ -58,18 +58,26 @@
           </div>
         </div>
 
-        <!-- بارگذاری دسته‌جمعی از فایل -->
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div>
-            <h2 class="font-bold text-slate-800 text-xs mb-1">ورود دسته‌جمعی با فایل CSV / اکسل</h2>
-            <p class="text-[11px] text-slate-400 mb-3">فایل با ستون‌های: id, student_name, grade, classroom, parent_phone</p>
-          </div>
-          <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-500 mb-2 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-          <button onclick="handleBatchImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition">
-            آپلود و ثبت در دیتابیس
-          </button>
-        </div>
-      </div>
+      <!-- بارگذاری دسته‌جمعی از فایل -->
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+  <div>
+    <h2 class="font-bold text-slate-800 text-xs mb-1">ورود دسته‌جمعی با فایل CSV / اکسل</h2>
+    <p class="text-[11px] text-slate-400 mb-3">فایل با ستون‌های: id, student_name, grade, classroom, parent_phone</p>
+  </div>
+
+  <!-- دکمه جدید دقیقاً اینجا قرار می‌گیرد -->
+  <button type="button" onclick="downloadSampleCSV()" class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition mb-3 w-fit">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+    </svg>
+    دانلود فایل خام اکسل/CSV نمونه
+  </button>
+
+  <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-500 mb-2 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+  <button onclick="handleBatchImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition">
+    آپلود و ثبت در دیتابیس
+  </button>
+</div>
 
       <!-- فیلترها و جدول لیست کلی -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
