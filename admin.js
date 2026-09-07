@@ -1,12 +1,12 @@
 let allSkills = [];
-let allStudents = [];
+let loadedStudents = [];
 let currentAdminSkillSlug = '';
 
-window.addEventListener('DOMContentLoaded', () => {
-  loadInitialMetadata();
+window.addEventListener('DOMContentLoaded', async () => {
+  await loadInitialMetadata();
+  await loadStudentsList();
 });
 
-// سوئیچ بین تب‌ها
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -21,65 +21,178 @@ function switchTab(tabId) {
 
   if (tabId === 'manage') {
     const manageSelect = document.getElementById('manage-skill-select');
-    if (manageSelect && manageSelect.value) {
-      loadQuestionsForAdmin(manageSelect.value);
-    }
+    if (manageSelect && manageSelect.value) loadQuestionsForAdmin(manageSelect.value);
   }
 }
 
-// لود مستقل و خطاناپذیر مهارت‌ها و دانش‌آموزان
+// لود و مدیریت دانش‌آموزان
+async function loadStudentsList() {
+  const grade = document.getElementById('filter-grade').value;
+  const classroom = document.getElementById('filter-classroom').value;
+
+  try {
+    const res = await fetch(`/api/students?grade=${encodeURIComponent(grade)}&classroom=${encodeURIComponent(classroom)}`);
+    const data = await res.json();
+    loadedStudents = data.students || [];
+
+    // پر کردن فیلترهای پایه و کلاس در صورت نیاز
+    if (data.stats) updateFilterDropdowns(data.stats);
+
+    // به‌روزرسانی جدول
+    const tbody = document.getElementById('students-table-body');
+    document.getElementById('students-count-badge').innerText = `تعداد: ${loadedStudents.length}`;
+
+    if (loadedStudents.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">دانش‌آموزی با این مشخصات یافت نشد.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = loadedStudents.map(s => `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="p-3 font-bold text-slate-600">${s.id}</td>
+        <td class="p-3 font-bold text-slate-800">${s.student_name}</td>
+        <td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[11px]">${s.grade}</span></td>
+        <td class="p-3 text-slate-600">${s.classroom || '-'}</td>
+        <td class="p-3 text-slate-500 font-mono">${s.parent_phone || '-'}</td>
+        <td class="p-3 text-left">
+          <button onclick="deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold">حذف</button>
+        </td>
+      </tr>
+    `).join('');
+
+    // همگام‌سازی دراپ‌داون کارنامه فردی
+    const studentSelect = document.getElementById('student-select');
+    if (studentSelect) {
+      studentSelect.innerHTML = '<option value="">انتخاب پرونده...</option>' +
+        loadedStudents.map(s => `<option value="${s.id}">${s.student_name} (${s.id}) - پایه ${s.grade}</option>`).join('');
+    }
+
+  } catch (err) {
+    console.error('خطا در دریافت لیست دانش‌آموزان:', err);
+  }
+}
+
+function updateFilterDropdowns(stats) {
+  const gradeSelect = document.getElementById('filter-grade');
+  const classSelect = document.getElementById('filter-classroom');
+
+  const currentGrade = gradeSelect.value;
+  const currentClass = classSelect.value;
+
+  const grades = [...new Set(stats.map(s => s.grade).filter(Boolean))];
+  const classes = [...new Set(stats.map(s => s.classroom).filter(Boolean))];
+
+  gradeSelect.innerHTML = '<option value="">همه پایه‌ها</option>' + grades.map(g => `<option value="${g}" ${g === currentGrade ? 'selected' : ''}>${g}</option>`).join('');
+  classSelect.innerHTML = '<option value="">همه کلاس‌ها</option>' + classes.map(c => `<option value="${c}" ${c === currentClass ? 'selected' : ''}>${c}</option>`).join('');
+}
+
+// ثبت تکی دانش‌آموز
+async function saveSingleStudent() {
+  const id = document.getElementById('std-id').value.trim();
+  const student_name = document.getElementById('std-name').value.trim();
+  const grade = document.getElementById('std-grade').value.trim();
+  const classroom = document.getElementById('std-class').value.trim();
+  const parent_phone = document.getElementById('std-phone').value.trim();
+
+  if (!id || !student_name || !grade) {
+    alert('کد پرونده، نام و پایه تحصیلی الزامی هستند.');
+    return;
+  }
+
+  const res = await fetch('/api/students', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'save-single',
+      id, student_name, grade, classroom, parent_phone
+    })
+  });
+
+  if (res.ok) {
+    document.getElementById('std-id').value = '';
+    document.getElementById('std-name').value = '';
+    document.getElementById('std-class').value = '';
+    document.getElementById('std-phone').value = '';
+    await loadStudentsList();
+  } else {
+    alert('خطا در ذخیره پرونده دانش‌آموز.');
+  }
+}
+
+// ورود دسته‌جمعی از فایل CSV
+function handleBatchImport() {
+  const fileInput = document.getElementById('csv-file-input');
+  const file = fileInput.files[0];
+  if (!file) {
+    alert('لطفاً ابتدا فایل CSV را انتخاب کنید.');
+    return;
+  }
+
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: async function(results) {
+      if (!results.data || results.data.length === 0) {
+        alert('فایل انتخاب‌شده داده‌ای ندارد.');
+        return;
+      }
+
+      const res = await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'import-batch', list: results.data })
+      });
+
+      if (res.ok) {
+        const out = await res.json();
+        alert(`${out.count} پرونده دانش‌آموز با موفقیت وارد سیستم شد.`);
+        fileInput.value = '';
+        await loadStudentsList();
+      } else {
+        alert('خطا در ورود دسته‌جمعی دانش‌آموزان.');
+      }
+    }
+  });
+}
+
+async function deleteStudent(id) {
+  if (!confirm(`آیا از حذف کامل پرونده دانش‌آموز با کد ${id} و تمامی سوابق آزمون‌های او مطمئن هستید؟`)) return;
+
+  const res = await fetch('/api/students', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete', id })
+  });
+
+  if (res.ok) await loadStudentsList();
+}
+
+// متادیتای مهارت‌ها
 async function loadInitialMetadata() {
-  // ۱. دریافت مهارت‌ها
   try {
     const res = await fetch('/api/admin-reports?type=all-skills');
-    const data = await res.json();
-    if (Array.isArray(data)) {
-      allSkills = data;
-      renderSkillsDropdowns();
+    allSkills = await res.json();
+
+    const groupSelect = document.getElementById('skill-filter-select');
+    if (groupSelect) {
+      groupSelect.innerHTML = '<option value="">انتخاب مهارت...</option>' +
+        allSkills.map(s => `<option value="${s.slug}">${s.title}</option>`).join('');
+    }
+
+    const manageSelect = document.getElementById('manage-skill-select');
+    if (manageSelect) {
+      manageSelect.innerHTML = allSkills.map(s => `<option value="${s.slug}">${s.title}</option>`).join('');
+      if (allSkills.length > 0 && !currentAdminSkillSlug) {
+        currentAdminSkillSlug = allSkills[0].slug;
+        loadQuestionsForAdmin(allSkills[0].slug);
+      }
     }
   } catch (e) {
     console.error('خطا در دریافت مهارت‌ها:', e);
   }
-
-  // ۲. دریافت دانش‌آموزان
-  try {
-    const res = await fetch('/api/admin-reports?type=all-students');
-    const data = await res.json();
-    if (Array.isArray(data)) {
-      allStudents = data;
-      renderStudentsDropdown();
-    }
-  } catch (e) {
-    console.error('خطا در دریافت دانش‌آموزان:', e);
-  }
 }
 
-function renderSkillsDropdowns() {
-  const groupSelect = document.getElementById('skill-filter-select');
-  if (groupSelect) {
-    groupSelect.innerHTML = '<option value="">انتخاب مهارت...</option>' +
-      allSkills.map(s => `<option value="${s.slug}">${s.title}</option>`).join('');
-  }
-
-  const manageSelect = document.getElementById('manage-skill-select');
-  if (manageSelect) {
-    manageSelect.innerHTML = allSkills.map(s => `<option value="${s.slug}">${s.title}</option>`).join('');
-    if (allSkills.length > 0 && !currentAdminSkillSlug) {
-      currentAdminSkillSlug = allSkills[0].slug;
-      loadQuestionsForAdmin(allSkills[0].slug);
-    }
-  }
-}
-
-function renderStudentsDropdown() {
-  const studentSelect = document.getElementById('student-select');
-  if (studentSelect) {
-    studentSelect.innerHTML = '<option value="">انتخاب پرونده دانش‌آموز...</option>' +
-      allStudents.map(s => `<option value="${s.id}">${s.student_name} (${s.id}) - پایه ${s.grade || '-'}</option>`).join('');
-  }
-}
-
-// تب ۱: گزارش دانش‌آموز
+// تب ۲: گزارش فردی
 async function fetchStudentReport(studentId) {
   const container = document.getElementById('student-report-results');
   if (!studentId) {
@@ -114,7 +227,7 @@ async function fetchStudentReport(studentId) {
   }
 }
 
-// تب ۲: گزارش گروهی بر اساس مهارت
+// تب ۳: گزارش گروهی بر اساس مهارت
 async function fetchSkillGroupReport(skillSlug) {
   const container = document.getElementById('skill-group-results');
   if (!skillSlug) {
@@ -161,7 +274,7 @@ async function fetchSkillGroupReport(skillSlug) {
   }
 }
 
-// تب ۳: مدیریت سوالات
+// تب ۴: مدیریت سوالات
 async function loadQuestionsForAdmin(slug) {
   currentAdminSkillSlug = slug;
   const listContainer = document.getElementById('admin-questions-list');
