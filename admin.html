@@ -6,18 +6,50 @@
   <title>پنل پایش و گزارش‌گیری استعدادها</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
-<style>
+  <!-- کتابخانه تبدیل خودکار مارک‌داون به متن زیبا -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+  <style>
     body { font-family: Vazirmatn, sans-serif; }
+    
+    /* استایل رندر مارک‌داون داخل کارنامه */
+    .report-prose h3 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #1e1b4b;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      border-right: 4px solid #4f46e5;
+      padding-right: 0.5rem;
+    }
+    .report-prose ul {
+      list-style-type: disc;
+      padding-right: 1.25rem;
+      margin-bottom: 1rem;
+      space-y: 0.5rem;
+    }
+    .report-prose li {
+      margin-bottom: 0.5rem;
+      line-height: 1.8;
+    }
+    .report-prose strong {
+      color: #312e81;
+      font-weight: 700;
+    }
+
+    /* تنظیمات اختصاصی پرینت و ذخیره PDF تمیز */
     @media print {
+      @page {
+        margin: 12mm 15mm;
+        size: A4;
+      }
       body {
         background: #ffffff !important;
         padding: 0 !important;
       }
-      /* مخفی کردن تمام اجزای پس‌زمینه پنل */
       body > div:first-of-type {
         display: none !important;
       }
-      /* تنظیم مدال به عنوان سند اصلی چاپ */
       #roadmap-modal {
         position: static !important;
         background: none !important;
@@ -33,16 +65,23 @@
       #modal-content {
         overflow: visible !important;
         height: auto !important;
-        font-size: 13pt !important;
-        line-height: 2 !important;
+        font-size: 11pt !important;
+        line-height: 1.9 !important;
+        color: #111827 !important;
+      }
+      .report-prose h3 {
+        break-after: avoid;
         color: #000000 !important;
+        border-right-color: #000000 !important;
       }
       .no-print {
         display: none !important;
       }
+      .print-header {
+        display: block !important;
+      }
     }
   </style>
-  
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 p-4 md:p-8">
 
@@ -60,7 +99,7 @@
       </div>
     </header>
 
-    <!-- تب‌های انتخاب نما -->
+    <!-- تب‌ها -->
     <div class="flex gap-3 mb-6">
       <button id="tab-skill-btn" onclick="switchTab('skill')" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition">
         ۱. تحلیل بر اساس مهارت (غربالگری گروهی)
@@ -70,7 +109,7 @@
       </button>
     </div>
 
-    <!-- بخش اول: گزارش بر اساس یک مهارت خاص -->
+    <!-- بخش اول: مهارت خاص -->
     <section id="view-skill" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
       <div class="max-w-md mb-6">
         <label class="block text-sm font-bold text-slate-700 mb-2">انتخاب مهارت برای رتبه‌بندی دانش‌آموزان:</label>
@@ -96,7 +135,7 @@
       </div>
     </section>
 
-    <!-- بخش دوم: گزارش بر اساس یک دانش‌آموز خاص -->
+    <!-- بخش دوم: دانش‌آموز خاص -->
     <section id="view-student" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hidden">
       <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
         <div class="max-w-md flex-1">
@@ -104,7 +143,6 @@
           <select id="student-selector" onchange="loadStudentReport()" class="w-full border border-slate-300 p-3 rounded-xl text-sm bg-slate-50 outline-none focus:border-indigo-600 font-medium"></select>
         </div>
         
-        <!-- دکمه فراخوانی هوش مصنوعی -->
         <button id="btn-generate-ai" onclick="generateAIRoadmap()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md hover:opacity-90 transition flex items-center gap-2">
           <span>✨ تحلیل هوشمند و تولید نقشه راه رشد (A به A1)</span>
         </button>
@@ -128,23 +166,39 @@
     </section>
   </div>
 
-  <!-- مدال نمایش تحلیل هوش مصنوعی و کارنامه رشد -->
+  <!-- مدال کارنامه تحلیلی -->
   <div id="roadmap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
       
-      <div class="p-5 bg-slate-50 border-b flex justify-between items-center no-print">
-        <div>
-          <h3 id="modal-title" class="font-bold text-indigo-900 text-lg">کارنامه تحلیلی و نقشه راه رشد فردی</h3>
-          <p class="text-xs text-slate-500">طراحی‌شده بر اساس موتور هوش مصنوعی استعدادیابی</p>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="window.print()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition">چاپ یا ذخیره PDF 🖨</button>
-          <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 px-2 py-1 text-lg font-bold">✕</button>
+      <!-- سربرگ چاپی رسمی (فقط در PDF یا پرینت ظاهر می‌شود) -->
+      <div class="print-header hidden p-6 pb-4 border-b-2 border-slate-800 mb-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="text-xl font-black">کارنامه تخصصی پایش و استعدادیابی دانش‌آموز</h2>
+            <p class="text-xs text-slate-600 mt-1">طرح جامع کشف و پرورش استعدادهای ۱۹ گانه - مقطع ابتدایی</p>
+          </div>
+          <div class="text-left text-xs space-y-1">
+            <p>تاریخ صدور: <span class="font-bold">۱۴۰۵</span></p>
+            <p>وضعیت: <span class="font-bold text-emerald-700">تحلیل نهایی و تایید مشاور</span></p>
+          </div>
         </div>
       </div>
 
-      <div id="modal-content" class="p-6 overflow-y-auto text-sm leading-relaxed text-slate-700 whitespace-pre-wrap space-y-4">
-        <!-- محتوای خروجی هوش مصنوعی اینجا رندر می‌شود -->
+      <!-- هدر مدال در حالت عادی مرورگر -->
+      <div class="p-5 bg-slate-50 border-b flex justify-between items-center no-print">
+        <div>
+          <h3 id="modal-title" class="font-bold text-indigo-900 text-lg">کارنامه تحلیلی و نقشه راه رشد فردی</h3>
+          <p class="text-xs text-slate-500">تحلیل مبتنی بر هوش مصنوعی جمنای</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="window.print()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm transition">چاپ یا ذخیره PDF 🖨</button>
+          <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 px-3 py-1 text-xl font-bold">✕</button>
+        </div>
+      </div>
+
+      <!-- بدنه محتوای کارنامه -->
+      <div id="modal-content" class="p-8 overflow-y-auto report-prose text-slate-800 bg-white">
+        <!-- محتوا به‌صورت HTML شکیل اینجا تزریق می‌شود -->
       </div>
       
     </div>
@@ -152,25 +206,12 @@
 
   <script>
     const skillsMap = {
-      'coding': '۱. برنامه‌نویسی',
-      'carpentry': '۲. نجاری و ساخت‌وساز دستی',
-      'ai': '۳. هوش مصنوعی و ابزارهای نوین',
-      'gardening': '۴. باغبانی و طبیعت‌پژوهی',
-      'robotics': '۵. رباتیک و مکاترونیک',
-      'theater': '۶. تئاتر و بازیگری',
-      'public_speaking': '۷. سخنوری و فن بیان',
-      'comedy': '۸. کمدی و طنزپردازی',
-      'football': '۹. فوتبال و کار تیمی زمینی',
-      'volleyball': '۱۰. والیبال و هماهنگی هوایی',
-      'basketball': '۱۱. بسکتبال و هماهنگی پرتابی',
-      'badminton': '۱۲. بدمینتون و چابکی راکتی',
-      'swimming': '۱۳. شنا و ورزش‌های آبی',
-      'climbing': '۱۴. صخره‌نوردی و سنگ‌نوردی',
-      'tennis': '۱۵. تنیس و چابکی جهشی',
-      'chess': '۱۶. شطرنج و تفکر استراتژیک',
-      'drawing': '۱۷. نقاشی و هنرهای تجسمی',
-      'calligraphy': '۱۸. خطاطی و خوش‌نویسی',
-      'music': '۱۹. موسیقی و ریتم'
+      'coding': '۱. برنامه‌نویسی', 'carpentry': '۲. نجاری و ساخت‌وساز دستی', 'ai': '۳. هوش مصنوعی و ابزارهای نوین',
+      'gardening': '۴. باغبانی و طبیعت‌پژوهی', 'robotics': '۵. رباتیک و مکاترونیک', 'theater': '۶. تئاتر و بازیگری',
+      'public_speaking': '۷. سخنوری و فن بیان', 'comedy': '۸. کمدی و طنزپردازی', 'football': '۹. فوتبال و کار تیمی زمینی',
+      'volleyball': '۱۰. والیبال و هماهنگی هوایی', 'basketball': '۱۱. بسکتبال و هماهنگی پرتابی', 'badminton': '۱۲. بدمینتون و چابکی راکتی',
+      'swimming': '۱۳. شنا و ورزش‌های آبی', 'climbing': '۱۴. صخره‌نوردی و سنگ‌نوردی', 'tennis': '۱۵. تنیس و چابکی جهشی',
+      'chess': '۱۶. شطرنج و تفکر استراتژیک', 'drawing': '۱۷. نقاشی و هنرهای تجسمی', 'calligraphy': '۱۸. خطاطی و خوش‌نویسی', 'music': '۱۹. موسیقی و ریتم'
     };
 
     function switchTab(tab) {
@@ -234,7 +275,7 @@
         }).join('');
 
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500">خطا در بارگذاری داده‌ها: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500">خطا: ${err.message}</td></tr>`;
       }
     }
 
@@ -250,9 +291,7 @@
           <option value="${s.id}">${s.student_name} (کد: ${s.id})</option>
         `).join('');
 
-        if (students.length > 0) {
-          loadStudentReport();
-        }
+        if (students.length > 0) loadStudentReport();
       } catch (e) {
         console.error(e);
       }
@@ -306,7 +345,7 @@
       }
 
       btn.disabled = true;
-      btn.innerText = 'در حال تحلیل هوشمند داده‌ها... لطفا صبر کنید...';
+      btn.innerText = 'در حال پردازش هوشمند...';
 
       try {
         const res = await fetch('/api/generate-roadmap', {
@@ -319,7 +358,9 @@
         if (!res.ok) throw new Error(data.error || 'خطا در ارتباط با هوش مصنوعی.');
 
         title.innerText = `کارنامه تحلیلی و نقشه راه رشد: ${data.studentName}`;
-        content.innerText = data.analysis;
+        
+        // تبدیل مارک‌داون جمنای به HTML ساختارمند با marked
+        content.innerHTML = marked.parse(data.analysis);
         modal.classList.remove('hidden');
 
       } catch (err) {
