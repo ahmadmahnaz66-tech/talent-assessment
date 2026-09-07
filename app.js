@@ -406,35 +406,67 @@ const skillsData = [
   }
 ];
 
-async function login() {
-  const code = document.getElementById('student-code').value.trim();
+window.login = async function() {
+  const inputEl = document.getElementById('student-code');
+  const code = inputEl ? inputEl.value.trim() : '';
   const errorEl = document.getElementById('login-error');
-  errorEl.classList.add('hidden');
 
-  if (!code) return;
+  if (errorEl) {
+    errorEl.innerText = '';
+    errorEl.classList.add('hidden');
+  }
+
+  if (!code) {
+    alert('لطفاً کد پرونده دانش‌آموز را وارد کنید.');
+    return;
+  }
 
   try {
     const res = await fetch(`/api/student?id=${encodeURIComponent(code)}`);
     const data = await res.json();
 
-    if (!res.ok) throw new Error(data.error || 'خطا در ورود');
+    if (!res.ok) {
+      throw new Error(data.error || 'کد دانش‌آموز در سیستم یافت نشد.');
+    }
 
-    currentStudent = data;
+    currentStudent = data.student || data;
+    userResponses = {};
+
+    if (data.previousResponses && Array.isArray(data.previousResponses)) {
+      data.previousResponses.forEach(r => {
+        try {
+          userResponses[r.skill_slug] = {
+            answers: typeof r.answers === 'string' ? JSON.parse(r.answers) : r.answers,
+            totalScore: r.total_score,
+            skipped: (r.total_score === 0)
+          };
+        } catch (e) {
+          console.warn("خطا در بازخوانی:", e);
+        }
+      });
+    }
+
     document.getElementById('login-box').classList.add('hidden');
     document.getElementById('quiz-box').classList.remove('hidden');
-    document.getElementById('student-display').innerText = currentStudent.student_name;
-    
+    document.getElementById('student-display').innerText = currentStudent.name || currentStudent.student_name || code;
+
     populateJumpSelect();
     currentSkillIndex = 0;
     renderCurrentSkill();
+
   } catch (err) {
-    errorEl.innerText = err.message;
-    errorEl.classList.remove('hidden');
+    if (errorEl) {
+      errorEl.innerText = err.message;
+      errorEl.classList.remove('hidden');
+    } else {
+      alert(err.message);
+    }
   }
-}
+};
 
 function populateJumpSelect() {
   const select = document.getElementById('skill-jump-select');
+  if (!select) return;
   select.innerHTML = skillsData.map((s, idx) => `
     <option value="${idx}">${s.title}</option>
   `).join('');
@@ -442,27 +474,29 @@ function populateJumpSelect() {
 
 function renderCurrentSkill() {
   const currentSkill = skillsData[currentSkillIndex];
+  const isLast = (currentSkillIndex === skillsData.length - 1);
+
   document.getElementById('skill-title').innerText = `مهارت (${currentSkillIndex + 1} از ${skillsData.length}): ${currentSkill.title}`;
-  document.getElementById('skill-jump-select').value = currentSkillIndex;
+  
+  const jumpSelect = document.getElementById('skill-jump-select');
+  if (jumpSelect) jumpSelect.value = currentSkillIndex;
 
-  // تنظیم وضعیت دکمه قبل
   const btnPrev = document.getElementById('btn-prev');
-  btnPrev.disabled = (currentSkillIndex === 0);
+  if (btnPrev) btnPrev.disabled = (currentSkillIndex === 0);
 
-  // تغییر متن دکمه بعدی در مهارت آخر
   const btnNext = document.getElementById('btn-next');
-  if (currentSkillIndex === skillsData.length - 1) {
-    btnNext.innerText = "ثبت نهایی و اتمام ✓";
-    btnNext.classList.replace('bg-indigo-600', 'bg-emerald-600');
-    btnNext.classList.replace('hover:bg-indigo-700', 'hover:bg-emerald-700');
-  } else {
-    btnNext.innerText = "ثبت و مهارت بعد →";
-    btnNext.classList.replace('bg-emerald-600', 'bg-indigo-600');
-    btnNext.classList.replace('hover:bg-emerald-700', 'hover:bg-indigo-700');
+  if (btnNext) {
+    if (isLast) {
+      btnNext.innerText = "ثبت نهایی و اتمام ✓";
+      btnNext.className = "w-2/3 bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition text-sm shadow-md shadow-emerald-100";
+    } else {
+      btnNext.innerText = "ثبت و مهارت بعد →";
+      btnNext.className = "w-2/3 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition text-sm shadow-md shadow-indigo-100";
+    }
   }
 
-  // بررسی اینکه آیا این مهارت قبلاً پاسخی در حافظه داشته است یا خیر
-  const savedAnswers = userResponses[currentSkill.slug] ? userResponses[currentSkill.slug].answers : null;
+  const savedData = userResponses[currentSkill.slug];
+  const savedAnswers = (savedData && !savedData.skipped) ? savedData.answers : null;
 
   const container = document.getElementById('questions-container');
   container.innerHTML = currentSkill.questions.map((q, idx) => {
@@ -510,21 +544,21 @@ async function saveSkillToBackend(slug, answers, score) {
       body: JSON.stringify(payload)
     });
   } catch (err) {
-    console.error('Auto-save error', err);
+    console.error('خطای ارتباط در ذخیره:', err);
   }
 }
 
-async function submitCurrentSkill(isSkip = false) {
+window.submitCurrentSkill = async function(isSkip = false) {
   const currentSkill = skillsData[currentSkillIndex];
+  const isLast = (currentSkillIndex === skillsData.length - 1);
   let answers = [];
   let totalScore = 0;
 
   if (!isSkip) {
-    // جمع‌آوری پاسخ‌ها با اعتبارسنجی
     for (let i = 0; i < currentSkill.questions.length; i++) {
       const selected = document.querySelector(`input[name="q_${i}"]:checked`);
       if (!selected) {
-        alert(`لطفاً به سؤال شماره ${i + 1} پاسخ دهید یا در صورت عدم تمایل، دکمه «رد کردن این مهارت» را بزنید.`);
+        alert(`لطفاً به سؤال شماره ${i + 1} پاسخ دهید یا دکمه «رد کردن این مهارت» را بزنید.`);
         return;
       }
       const val = parseInt(selected.value);
@@ -532,43 +566,48 @@ async function submitCurrentSkill(isSkip = false) {
       totalScore += val;
     }
   } else {
-    // در صورت رد کردن مهارت، همه نمرات ۰ ثبت می‌شوند
     answers = new Array(currentSkill.questions.length).fill(0);
     totalScore = 0;
   }
 
-  // ذخیره در حافظه موقت کلاینت
   userResponses[currentSkill.slug] = {
     answers: answers,
     totalScore: totalScore,
     skipped: isSkip
   };
 
-  // ارسال خودکار به دیتابیس D1
   await saveSkillToBackend(currentSkill.slug, answers, totalScore);
 
-  // رفتن به مهارت بعدی یا اتمام
-  if (currentSkillIndex < skillsData.length - 1) {
+  if (!isLast) {
     currentSkillIndex++;
     renderCurrentSkill();
   } else {
-    document.getElementById('quiz-box').classList.add('hidden');
-    document.getElementById('success-box').classList.remove('hidden');
+    showSuccessScreen();
   }
-}
+};
 
-function skipCurrentSkill() {
-  submitCurrentSkill(true);
-}
+window.skipCurrentSkill = function() {
+  window.submitCurrentSkill(true);
+};
 
-function prevSkill() {
+window.prevSkill = function() {
   if (currentSkillIndex > 0) {
     currentSkillIndex--;
     renderCurrentSkill();
   }
-}
+};
 
-function jumpToSkill(targetIndex) {
+window.jumpToSkill = function(targetIndex) {
   currentSkillIndex = parseInt(targetIndex);
   renderCurrentSkill();
+};
+
+function showSuccessScreen() {
+  const quizBox = document.getElementById('quiz-box');
+  const successBox = document.getElementById('success-box');
+  
+  if (quizBox) quizBox.classList.add('hidden');
+  if (successBox) successBox.classList.remove('hidden');
+  
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
