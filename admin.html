@@ -5,102 +5,159 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>پنل مدیریت و هدایت استعدادها</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet">
-  <style>
-    body { font-family: 'Vazirmatn FD', sans-serif; }
-  </style>
+  <style>body { font-family: 'Vazirmatn FD', sans-serif; }</style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 p-4 sm:p-6">
-  <div class="max-w-5xl mx-auto space-y-6">
+  <div class="max-w-6xl mx-auto space-y-6">
 
-    <!-- نوار عنوان -->
+    <!-- هدر -->
     <header class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 class="text-xl font-black text-slate-800">پنل تخصصی مشاوره و سنجش استعداد</h1>
-        <p class="text-xs text-slate-500 mt-1">مدیریت گزارش‌ها، دانش‌آموزان، مهارت‌ها و گویه‌ها</p>
+        <p class="text-xs text-slate-500 mt-1">مدیریت پرونده‌ها، کلاس‌بندی، مهارت‌ها و گزارش‌ها</p>
       </div>
       <a href="/" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3.5 py-2 rounded-xl transition">
-        مشاهده صفحه سنجش دانش‌آموزان ←
+        صفحه سنجش اولیا ←
       </a>
     </header>
 
-    <!-- تب‌های ناوبری -->
+    <!-- تب‌های اصلی -->
     <nav class="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-      <button onclick="switchTab('individual')" id="tab-btn-individual" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white transition">
-        ۱. کارنامه و تحلیل فردی
+      <button onclick="switchTab('students')" id="tab-btn-students" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white transition">
+        ۱. مدیریت دانش‌آموزان و کلاس‌ها
       </button>
-      <button onclick="switchTab('group')" id="tab-btn-group" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition">
-        ۲. گزارش و غربالگری گروهی
+      <button onclick="switchTab('individual')" id="tab-btn-individual" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">
+        ۲. کارنامه و تحلیل فردی
       </button>
-      <button onclick="switchTab('manage')" id="tab-btn-manage" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition">
-        ۳. مدیریت مهارت‌ها و سوالات
+      <button onclick="switchTab('group')" id="tab-btn-group" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">
+        ۳. غربالگری گروهی
+      </button>
+      <button onclick="switchTab('manage')" id="tab-btn-manage" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">
+        ۴. مدیریت مهارت‌ها و سوالات
       </button>
     </nav>
 
-    <!-- محتوای تب ۱: کارنامه فردی -->
-    <section id="tab-content-individual" class="tab-content space-y-4">
+    <!-- تب ۱: مدیریت دانش‌آموزان -->
+    <section id="tab-content-students" class="tab-content space-y-4">
+      <!-- ابزارهای افزودن و بارگذاری فایل -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- ثبت تکی -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm md:col-span-2 space-y-3">
+          <h2 class="font-bold text-slate-800 text-xs">ثبت / ویرایش سریع پرونده دانش‌آموز</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <input type="text" id="std-id" placeholder="کد پرونده (الزامی)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+            <input type="text" id="std-name" placeholder="نام و نام خانوادگی" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+            <input type="text" id="std-grade" placeholder="پایه (مثلاً: چهارم)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+            <input type="text" id="std-class" placeholder="نام کلاس (مثلاً: ۴/۱ یا لاله)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+            <input type="text" id="std-phone" placeholder="شماره تماس ولی" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+            <button onclick="saveSingleStudent()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl py-2 transition">
+              ذخیره پرونده
+            </button>
+          </div>
+        </div>
+
+        <!-- بارگذاری دسته‌جمعی از فایل -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <h2 class="font-bold text-slate-800 text-xs mb-1">ورود دسته‌جمعی با فایل CSV / اکسل</h2>
+            <p class="text-[11px] text-slate-400 mb-3">فایل با ستون‌های: id, student_name, grade, classroom, parent_phone</p>
+          </div>
+          <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-500 mb-2 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+          <button onclick="handleBatchImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition">
+            آپلود و ثبت در دیتابیس
+          </button>
+        </div>
+      </div>
+
+      <!-- فیلترها و جدول لیست کلی -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">فیلتر پایه:</label>
+            <select id="filter-grade" onchange="loadStudentsList()" class="border p-1.5 rounded-xl text-xs bg-slate-50 outline-none">
+              <option value="">همه پایه‌ها</option>
+            </select>
+            <label class="text-xs font-bold text-slate-600 mr-2">کلاس:</label>
+            <select id="filter-classroom" onchange="loadStudentsList()" class="border p-1.5 rounded-xl text-xs bg-slate-50 outline-none">
+              <option value="">همه کلاس‌ها</option>
+            </select>
+          </div>
+          <span id="students-count-badge" class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-xl">تعداد: ۰</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-50 text-slate-500 border-b">
+              <tr>
+                <th class="p-3">کد پرونده</th>
+                <th class="p-3">نام دانش‌آموز</th>
+                <th class="p-3">پایه</th>
+                <th class="p-3">کلاس</th>
+                <th class="p-3">تماس ولی</th>
+                <th class="p-3 text-left">عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="students-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- تب ۲: کارنامه فردی -->
+    <section id="tab-content-individual" class="tab-content hidden space-y-4">
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-3">
-        <label class="text-xs font-bold text-slate-700">انتخاب پرونده دانش‌آموز:</label>
-        <select id="student-select" onchange="fetchStudentReport(this.value)" class="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 min-w-[220px]">
-          <option value="">در حال بارگذاری...</option>
+        <label class="text-xs font-bold text-slate-700">انتخاب دانش‌آموز:</label>
+        <select id="student-select" onchange="fetchStudentReport(this.value)" class="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none min-w-[220px]">
+          <option value="">انتخاب پرونده...</option>
         </select>
       </div>
       <div id="student-report-results" class="space-y-3"></div>
     </section>
 
-    <!-- محتوای تب ۲: گزارش گروهی -->
+    <!-- تب ۳: گزارش گروهی -->
     <section id="tab-content-group" class="tab-content hidden space-y-4">
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-3">
-        <label class="text-xs font-bold text-slate-700">فیلتر بر اساس مهارت:</label>
-        <select id="skill-filter-select" onchange="fetchSkillGroupReport(this.value)" class="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 min-w-[220px]">
+        <label class="text-xs font-bold text-slate-700">فیلتر مهارت:</label>
+        <select id="skill-filter-select" onchange="fetchSkillGroupReport(this.value)" class="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none min-w-[220px]">
           <option value="">انتخاب مهارت...</option>
         </select>
       </div>
       <div id="skill-group-results" class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm"></div>
     </section>
 
-    <!-- محتوای تب ۳: مدیریت مهارت‌ها و سوالات -->
+    <!-- تب ۴: مدیریت مهارت‌ها و سوالات -->
     <section id="tab-content-manage" class="tab-content hidden space-y-5">
-      <!-- تعریف مهارت جدید -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-        <h2 class="font-bold text-slate-800 text-sm mb-3">تعریف حوزه مهارتی جدید</h2>
+        <h2 class="font-bold text-slate-800 text-sm mb-3">تعریف مهارت جدید</h2>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <input type="text" id="new-skill-slug" placeholder="شناسه انگلیسی یکتا (مثال: astronomy)" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
-          <input type="text" id="new-skill-title" placeholder="عنوان فارسی (مثال: نجوم و فضا)" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
-          <button onclick="createNewSkill()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold py-2.5 transition">
-            ثبت مهارت جدید +
-          </button>
+          <input type="text" id="new-skill-slug" placeholder="شناسه انگلیسی (مثال: astronomy)" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          <input type="text" id="new-skill-title" placeholder="عنوان فارسی (مثال: نجوم و فضا)" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          <button onclick="createNewSkill()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold py-2.5 transition">ثبت مهارت</button>
         </div>
       </div>
 
-      <!-- مدیریت سوالات مهارت انتخاب‌شده -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div class="flex items-center gap-2">
             <label class="text-xs font-bold text-slate-700">مهارت فعال:</label>
-            <select id="manage-skill-select" onchange="loadQuestionsForAdmin(this.value)" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600"></select>
+            <select id="manage-skill-select" onchange="loadQuestionsForAdmin(this.value)" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none"></select>
           </div>
-          <button onclick="deleteSelectedSkill()" class="text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 px-3 py-1.5 rounded-lg transition">
-            حذف این مهارت و سوالات آن
-          </button>
+          <button onclick="deleteSelectedSkill()" class="text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 px-3 py-1.5 rounded-lg transition">حذف این مهارت</button>
         </div>
 
-        <!-- فرم افزودن سوال -->
         <div class="flex gap-2">
-          <input type="text" id="new-question-text" placeholder="متن گویه/سوال جدید را بنویسید..." class="flex-1 border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
-          <button onclick="addQuestionToSkill()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 rounded-xl text-xs font-bold transition">
-            افزودن گویه +
-          </button>
+          <input type="text" id="new-question-text" placeholder="متن گویه جدید..." class="flex-1 border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          <button onclick="addQuestionToSkill()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 rounded-xl text-xs font-bold transition">افزودن گویه +</button>
         </div>
 
-        <!-- لیست سوالات -->
         <div id="admin-questions-list" class="space-y-2 pt-2"></div>
       </div>
     </section>
 
   </div>
 
-  <!-- فراخوانی اسکریپت کنترلر مجزا -->
   <script src="/admin.js"></script>
 </body>
 </html>
