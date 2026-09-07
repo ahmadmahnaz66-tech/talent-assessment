@@ -409,29 +409,35 @@ async function deleteStudent(id) {
 }
 
 function exportFilteredStudentsCSV() {
-  if (!loadedStudents || loadedStudents.length === 0) return alert('دانش‌آموزی برای دریافت خروجی وجود ندارد.');
+  if (!loadedStudents || loadedStudents.length === 0) {
+    alert('دانش‌آموزی برای دریافت خروجی وجود ندارد.');
+    return;
+  }
 
-  const gradeVal = document.getElementById('filter-grade').value || 'همه-پایه‌ها';
-  const classVal = document.getElementById('filter-classroom').value || 'همه-کلاس‌ها';
+  const gradeVal = document.getElementById('filter-grade')?.value || 'همه';
+  const classVal = document.getElementById('filter-classroom')?.value || 'همه';
 
-  let csvContent = "\uFEFFid,student_name,grade,classroom,parent_phone\n";
-  loadedStudents.forEach(s => {
-    const id = s.id || '';
-    const name = `"${(s.student_name || '').replace(/"/g, '""')}"`;
-    const grade = `"${(s.grade || '').replace(/"/g, '""')}"`;
-    const classroom = s.classroom ? `="${s.classroom}"` : '""';
-    const phone = s.parent_phone ? `="${s.parent_phone}"` : '""';
-    csvContent += `${id},${name},${grade},${classroom},${phone}\n`;
-  });
+  const headers = ['کد ملی', 'نام و نام خانوادگی', 'پایه', 'کلاس', 'شماره تماس ولی'];
+  const rows = loadedStudents.map(s => [
+    s.id || '',
+    `"${(s.student_name || '').replace(/"/g, '""')}"`,
+    `"${(s.grade || '').replace(/"/g, '""')}"`,
+    `"${(s.classroom || '').replace(/"/g, '""')}"`,
+    `"${(s.parent_phone || '').replace(/"/g, '""')}"`
+  ]);
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const csvRows = [headers.join(','), ...rows.map(r => r.join(','))];
+  const csvString = '\uFEFF' + csvRows.join('\r\n');
+
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const downloadLink = document.createElement('a');
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `لیست_دانش‌آموزان_${gradeVal}_${classVal}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+
+  downloadLink.href = url;
+  downloadLink.download = `لیست_دانش‌آموزان_${gradeVal}_${classVal}.csv`;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
   URL.revokeObjectURL(url);
 }
 
