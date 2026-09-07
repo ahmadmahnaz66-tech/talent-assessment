@@ -4,32 +4,37 @@ export async function onRequestGet(context) {
   const studentId = url.searchParams.get('id');
 
   if (!studentId) {
-    return new Response(JSON.stringify({ error: 'کد دانش‌آموز ارسال نشده است.' }), {
+    return new Response(JSON.stringify({ error: 'کد پرونده ارسال نشده است.' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' }
     });
   }
 
   try {
-    // دریافت مشخصات دانش‌آموز
+    // استخراج اطلاعات دانش‌آموز
     const student = await env.DB.prepare(
-      'SELECT id, student_name, grade FROM students WHERE id = ?'
+      'SELECT * FROM students WHERE id = ?'
     ).bind(studentId).first();
 
     if (!student) {
-      return new Response(JSON.stringify({ error: 'دانش‌آموزی با این کد یافت نشد.' }), {
+      return new Response(JSON.stringify({ error: 'دانش‌آموزی با این کد پرونده یافت نشد.' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // دریافت تمامی پاسخ‌های قبلی ثبت‌شده برای این دانش‌آموز
+    // استخراج تمام پاسخ‌های ثبت‌شده قبلی
     const { results } = await env.DB.prepare(
       'SELECT skill_slug, answers, total_score FROM responses WHERE student_id = ?'
     ).bind(studentId).all();
 
+    // یکپارچه‌سازی نام دانش‌آموز (پوشش هر دو نوع نام‌گذاری ستون)
+    const displayName = student.student_name || student.name || `دانش‌آموز کد ${student.id}`;
+
     return new Response(JSON.stringify({
-      student: student,
+      id: student.id,
+      name: displayName,
+      grade: student.grade || '',
       previousResponses: results || []
     }), {
       status: 200,
@@ -37,7 +42,7 @@ export async function onRequestGet(context) {
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: 'خطای پایگاه داده: ' + err.message }), {
+    return new Response(JSON.stringify({ error: 'خطای سرور: ' + err.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
