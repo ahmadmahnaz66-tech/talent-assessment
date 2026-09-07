@@ -53,7 +53,6 @@
           <div id="user-display-name" class="text-xs font-bold text-slate-800">-</div>
           <div id="user-display-role" class="text-[11px] text-slate-400">-</div>
         </div>
-        <!-- دکمه تغییر رمز اختصاصی -->
         <button onclick="openChangePassModal()" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-xl transition">
           تغییر رمز
         </button>
@@ -77,12 +76,11 @@
       <button onclick="switchTab('manage')" id="tab-btn-manage" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">
         ۴. مدیریت مهارت‌ها و سوالات
       </button>
-
-      <!-- دکمه تب ۵ در نوار بالا (برای همه عوامل قابل مشاهده است) -->
       <button onclick="switchTab('staff')" id="tab-btn-staff" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-purple-700 border border-purple-200 hover:bg-purple-50 transition">
         ۵. کادر و پرسنل مدرسه
       </button>
-      
+    </nav>
+
     <!-- تب ۱: مدیریت دانش‌آموزان -->
     <section id="tab-content-students" class="tab-content space-y-4">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -210,7 +208,7 @@
       </div>
     </section>
 
-<!-- تب ۵: مشاهده و مدیریت کادر مدرسه -->
+    <!-- تب ۵: مشاهده و مدیریت کادر مدرسه -->
     <section id="tab-content-staff" class="tab-content hidden space-y-5">
       <!-- فرم افزودن کادر (فقط با لاگین مدیر ارشد نمایش داده می‌شود) -->
       <div id="add-staff-container" class="hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
@@ -248,7 +246,8 @@
         </div>
       </div>
     </section>
-      
+
+  </div>
 
   <!-- مودال پاپ‌آپ تغییر رمز عبور خود کاربر -->
   <div id="change-pass-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
