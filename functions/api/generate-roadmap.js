@@ -67,8 +67,8 @@ ${scoresList}
 `;
 
     // ۴. فراخوانی مدل Workers AI
-    const aiResponse = await env.AI.run('@cf/meta/llama-3.3-70b-instruct', {
-      messages: [
+const aiResponse = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
+  messages: [
         { role: 'system', content: 'شما یک دستیار مشاور روانشناختی و استعدادیابی مدارس هستید و همواره تحلیل‌های جامع و دقیق به زبان فارسی ارائه می‌دهید.' },
         { role: 'user', content: prompt }
       ]
