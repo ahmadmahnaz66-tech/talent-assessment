@@ -4,7 +4,6 @@ export async function onRequestGet(context) {
   const type = url.searchParams.get('type');
 
   try {
-    // ۱. دریافت لیست مهارت‌ها برای کرکره‌ای‌ها و فرم‌ها
     if (type === 'all-skills') {
       const { results } = await env.DB.prepare(
         'SELECT slug, title, display_order FROM skills ORDER BY display_order ASC, rowid ASC'
@@ -14,7 +13,6 @@ export async function onRequestGet(context) {
       });
     }
 
-    // ۲. دریافت لیست همه دانش‌آموزان
     if (type === 'all-students') {
       const { results } = await env.DB.prepare(
         'SELECT id, student_name, grade FROM students ORDER BY id ASC'
@@ -24,7 +22,6 @@ export async function onRequestGet(context) {
       });
     }
 
-    // ۳. گزارش براساس مهارت (فیلتر رتبه‌بندی دانش‌آموزان)
     if (type === 'by-skill') {
       const skill = url.searchParams.get('skill');
       if (!skill) {
@@ -44,7 +41,6 @@ export async function onRequestGet(context) {
       });
     }
 
-    // ۴. پرونده فردی دانش‌آموز با پیوند پویا به عنوان فارسی مهارت
     if (type === 'by-student') {
       const studentId = url.searchParams.get('studentId');
       if (!studentId) {
