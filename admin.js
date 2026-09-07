@@ -385,8 +385,9 @@ async function deleteSelectedSkill() {
 }
 
 function downloadSampleCSV() {
+  // استفاده از علامت ="..." اکسل را مجبور می‌کند ستون را صرفاً متنی بخواند
   const csvContent = "\uFEFFid,student_name,grade,classroom,parent_phone\n" +
-                     "101,نام و نام خانوادگی نمونه,چهارم,۴/۱,09123456789\n";
+                     '101,نام و نام خانوادگی نمونه,چهارم,="۴/۱",="09123456789"\n';
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
