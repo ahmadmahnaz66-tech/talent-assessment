@@ -399,3 +399,36 @@ function downloadSampleCSV() {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+// خروجی اکسل/CSV از لیست فیلترشده دانش‌آموزان
+function exportFilteredStudentsCSV() {
+  if (!loadedStudents || loadedStudents.length === 0) {
+    alert('دانش‌آموزی برای دریافت خروجی وجود ندارد.');
+    return;
+  }
+
+  const gradeVal = document.getElementById('filter-grade').value || 'همه-پایه‌ها';
+  const classVal = document.getElementById('filter-classroom').value || 'همه-کلاس‌ها';
+
+  let csvContent = "\uFEFFid,student_name,grade,classroom,parent_phone\n";
+
+  loadedStudents.forEach(s => {
+    const id = s.id || '';
+    const name = `"${(s.student_name || '').replace(/"/g, '""')}"`;
+    const grade = `"${(s.grade || '').replace(/"/g, '""')}"`;
+    const classroom = s.classroom ? `="${s.classroom}"` : '""';
+    const phone = s.parent_phone ? `="${s.parent_phone}"` : '""';
+
+    csvContent += `${id},${name},${grade},${classroom},${phone}\n`;
+  });
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `لیست_دانش‌آموزان_${gradeVal}_${classVal}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
