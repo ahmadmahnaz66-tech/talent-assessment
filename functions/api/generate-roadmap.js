@@ -56,28 +56,23 @@ export async function onRequestPost(context) {
     const nextVersion = (lastRoadmap?.max_v || 0) + 1;
 
     // استخراج نمرات
-    const { results } = await env.DB.prepare(`
-      SELECT skill_slug, total_score 
-      FROM responses 
-      WHERE student_id = ? AND total_score > 0 
-      ORDER BY total_score DESC
+   const { results } = await env.DB.prepare(`
+      SELECT 
+        r.skill_slug, 
+        r.total_score, 
+        COALESCE(s.title, r.skill_slug) AS skill_title
+      FROM responses r
+      LEFT JOIN skills s ON r.skill_slug = s.slug
+      WHERE r.student_id = ? AND r.total_score > 0 
+      ORDER BY r.total_score DESC
     `).bind(studentId).all();
 
     if (!results || results.length === 0) {
       return new Response(JSON.stringify({ error: 'پاسخی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
     }
 
-    const skillsMap = {
-      'coding': 'برنامه‌نویسی', 'carpentry': 'نجاری', 'ai': 'هوش مصنوعی',
-      'gardening': 'باغبانی', 'robotics': 'رباتیک', 'theater': 'تئاتر',
-      'public_speaking': 'سخنوری', 'comedy': 'کمدی', 'football': 'فوتبال',
-      'volleyball': 'والیبال', 'basketball': 'بسکتبال', 'badminton': 'بدمینتون',
-      'swimming': 'شنا', 'climbing': 'صخره‌نوردی', 'tennis': 'تنیس',
-      'chess': 'شطرنج', 'drawing': 'نقاشی', 'calligraphy': 'خطاطی', 'music': 'موسیقی'
-    };
-
-    const scoresList = results.map((r, i) => `${i + 1}. ${skillsMap[r.skill_slug] || r.skill_slug}: نمره ${r.total_score} از ۶۰`).join('\n');
-
+   const scoresList = results.map((r, i) => `${i + 1}. ${r.skill_title}:${r.total_score} از ۶۰`).join('\n');
+    
     const promptText = `
 شما یک مشاور و متخصص استعدادیابی کودک در دبستان هستید.
 مشخصات پرونده:
