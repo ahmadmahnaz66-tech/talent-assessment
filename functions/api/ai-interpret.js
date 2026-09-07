@@ -5,48 +5,79 @@ export async function onRequestPost(context) {
 
     const { audience = 'counselor', framework = 'gardner', length = 'detailed' } = options || {};
 
-    const scoresSummary = reportData.map(r => `- ${r.skill_title}: ${r.total_score} امتیاز`).join('\n');
+    const apiKey = env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'کلید GEMINI_API_KEY در متغیرهای محیطی کلودفلر تعریف نشده است.' 
+      }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
 
-    let audiencePrompt = '';
+    const scoresSummary = (reportData || [])
+      .map(r => `- ${r.skill_title}: ${r.total_score} امتیاز`)
+      .join('\n');
+
+    let audienceInstruction = '';
     if (audience === 'parents') {
-      audiencePrompt = 'مخاطب این گزارش اولیای دانش‌آموز هستند. لحن باید بسیار محترمانه، روشن، امیدبخش و فاقد اصطلاحات پیچیده بالینی باشد. راهکارهای تقویتی خانگی ارائه بده.';
+      audienceInstruction = 'مخاطب گزارش اولیای دانش‌آموز هستند. لحن باید بسیار محترمانه، روشن، دلگرم‌کننده و خالی از اصطلاحات سخت باشد. راهکارهای پرورشی خانگی ارائه بده.';
     } else if (audience === 'student') {
-      audiencePrompt = 'مخاطب این متن خود دانش‌آموز دبستانی است. لحن باید کاملاً خودمانی، صمیمانه، داستانی و انگیزشی باشد تا کودک به علایق و استعدادهای خود افتخار کند.';
+      audienceInstruction = 'مخاطب خود دانش‌آموز مقطع دبستان است. لحن صمیمانه، قصه مانند و بسیار انگیزشی باشد تا کودک به علایق و مهارت‌هایش افتخار کند.';
     } else if (audience === 'activities') {
-      audiencePrompt = 'تمرکز گزارش بر معرفی دقیق کلاس‌ها، بازی‌ها، کتاب‌ها، کارگاه‌ها و فعالیت‌های فوق‌برنامه باشد تا مدرسه و خانواده بدانند کودک را در چه فضاهایی ثبت‌نام کنند.';
+      audienceInstruction = 'گزارش باید مشخصاً به معرفی دوره‌های مهارتی، کلاس‌های فوق‌برنامه، بازی‌های فکری و کارگاه‌های مناسب با امتیازهای بالای دانش‌آموز بپردازد.';
     } else {
-      audiencePrompt = 'مخاطب مشاور تخصصی و کادر مدرسه است. لحن کاملاً بالینی، دقیق و تحلیلی باشد و به جنبه‌های رفتاری و نقاط اوج و نیاز به تقویت توجه کند.';
+      audienceInstruction = 'مخاطب مشاور تخصصی و مدیریت مدرسه است. لحن بالینی، تحلیلی و تخصصی باشد و به ارزیابی نقاط قوت برجسته و نیازهای هدایتی دانش‌آموز اشاره کند.';
     }
 
-    const systemPrompt = `تو یک روانشناس و مشاور ارشد استعدادیابی کودکان و نوجوانان هستی.
-وظیفه تو تحلیل داده‌های آزمون استعدادیابی دانش‌آموز دبستانی و نگارش کارنامه توصیفی است.
-چارچوب نظری ارزیابی: ${framework === 'gardner' ? 'نظریه هوش‌های چندگانه گاردنر' : 'رویکرد استعدادسنجی مهارتی و روانشناختی'}.
-دستورالعمل سطح تفصیل: ${length === 'detailed' ? 'جامع، کامل و با بخش‌بندی منظم' : 'کوتاه، چکیده و کاربردی'}.
-${audiencePrompt}
-فقط به زبان فارسی شیوا و با ساختار تیتربندی منظم پاسخ بده.`;
+    const systemPrompt = `نقش: تو یک روانشناس بالینی و مشاور استعدادیابی کودکان دبستان هستی.
+چارچوب نظری: ${framework === 'gardner' ? 'هوش‌های چندگانه هوارد گاردنر' : 'رویکرد استعدادسنجی مهارتی و ترکیبی'}.
+سطح تفصیل: ${length === 'detailed' ? 'جامع، تفکیک‌شده با تیترهای مشخص' : 'کوتاه و نکات کلیدی'}.
+دستور لحن و مخاطب: ${audienceInstruction}
+پاسخ را به زبان فارسی سلیس و روان بنویس.`;
 
-    const userMessage = `نمرات ارزیابی دانش‌آموز (کد: ${studentId}):\n${scoresSummary}\n\nلطفاً گزارش تحلیل استعداد و پیشنهادات راهبردی را تدوین کن.`;
+    const userPrompt = `نمرات ارزیابی دانش‌آموز با کد ملی ${studentId}:\n${scoresSummary}\n\nلطفاً گزارش تحلیل استعداد را تدوین کن.`;
 
-    // اتصال به هوش مصنوعی کلودفلر (Workers AI) یا Gateway
-    let aiResponseText = '';
-    if (env.AI) {
-      const aiResult = await env.AI.run('@cf/meta/llama-3-8b-instruct', {
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage }
-        ]
+    // فراخوانی مستقیم Gemini 1.5 Flash
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const geminiRes = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        contents: [
+          {
+            parts: [{ text: userPrompt }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2000
+        }
+      })
+    });
+
+    const geminiData = await geminiRes.json();
+
+    if (!geminiRes.ok) {
+      const errDetail = geminiData.error?.message || 'خطای سرور جمنای';
+      return new Response(JSON.stringify({ success: false, error: errDetail }), { 
+        status: geminiRes.status,
+        headers: { 'Content-Type': 'application/json' }
       });
-      aiResponseText = aiResult.response;
-    } else {
-      // فال‌بک نمونه ساختاریافته در صورت عدم اتصال توکن AI
-      aiResponseText = `گزارش استعدادیابی دانش‌آموز (${studentId})\n\nتحلیل کلی مهارت‌ها:\nبر اساس نمرات ثبت‌شده، استعداد برجسته کودک در حوزه‌های با امتیاز بالا مشهود است.\n\nپیشنهادات راهبردی:\n۱. تقویت و غنی‌سازی توانمندی‌های شاخص از طریق پروژه‌های عملی مدرسه.\n۲. ایجاد انگیزه و شرکت در کارگاه‌های مهارت‌محور گروهی.`;
     }
 
-    return new Response(JSON.stringify({ success: true, analysis: aiResponseText }), {
+    const outputText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'پاسخی از جمنای دریافت نشد.';
+
+    return new Response(JSON.stringify({ success: true, analysis: outputText }), {
       headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ success: false, error: err.message }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
