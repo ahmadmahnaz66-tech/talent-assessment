@@ -25,8 +25,32 @@ async function login() {
 
     currentStudent = data;
 
+    savedResponsesData = {};
+    if (Array.isArray(data.previousResponses)) {
+      data.previousResponses.forEach(item => {
+        let q1 = Number(item.q1) || 0;
+        let q2 = Number(item.q2) || 0;
+        let q3 = Number(item.q3) || 0;
+        let q4 = Number(item.q4) || 0;
+
+        if ((!q1 && !q2 && !q3 && !q4) && item.answers) {
+          try {
+            const parsed = JSON.parse(item.answers);
+            q1 = Number(parsed.q1) || 0;
+            q2 = Number(parsed.q2) || 0;
+            q3 = Number(parsed.q3) || 0;
+            q4 = Number(parsed.q4) || 0;
+          } catch(e) {}
+        }
+
+        savedResponsesData[item.skill_slug] = {
+          total_score: Number(item.total_score) || 0,
+          q1, q2, q3, q4
+        };
+      });
+    }
+
     await loadSkillsFromDatabase();
-    await loadStudentExistingResponses(currentStudent.id);
 
     if (!skillsList || skillsList.length === 0) {
       throw new Error('هیچ مهارتی در سیستم تعریف نشده است.');
@@ -35,7 +59,7 @@ async function login() {
     document.getElementById('login-box').classList.add('hidden');
     document.getElementById('quiz-box').classList.remove('hidden');
 
-    const studentName = currentStudent.student_name || currentStudent.name || 'دانش‌آموز';
+    const studentName = currentStudent.name || currentStudent.student_name || 'دانش‌آموز';
     const studentGrade = currentStudent.grade || '-';
     document.getElementById('student-display').innerText = `${studentName} (پایه: ${studentGrade})`;
 
@@ -58,27 +82,6 @@ async function loadSkillsFromDatabase() {
   const data = await res.json();
   if (Array.isArray(data)) {
     skillsList = data;
-  }
-}
-
-async function loadStudentExistingResponses(studentId) {
-  try {
-    const res = await fetch(`/api/admin-reports?type=by-student&studentId=${studentId}`);
-    const data = await res.json();
-    savedResponsesData = {};
-    if (Array.isArray(data)) {
-      data.forEach(item => {
-        savedResponsesData[item.skill_slug] = {
-          total_score: item.total_score,
-          q1: item.q1,
-          q2: item.q2,
-          q3: item.q3,
-          q4: item.q4
-        };
-      });
-    }
-  } catch (e) {
-    console.error('خطا در دریافت سوابق:', e);
   }
 }
 
@@ -136,7 +139,7 @@ function renderRatingRadio(slug, qKey, savedVal) {
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
       ${options.map(opt => `
         <label class="border p-2.5 rounded-lg flex items-center gap-2 cursor-pointer hover:bg-white hover:border-indigo-300 transition">
-          <input type="radio" name="${slug}_${qKey}" value="${opt.val}" ${savedVal == opt.val ? 'checked' : ''} class="text-indigo-600 focus:ring-0">
+          <input type="radio" name="${slug}_${qKey}" value="${opt.val}" ${Number(savedVal) === opt.val ? 'checked' : ''} class="text-indigo-600 focus:ring-0">
           <span>${opt.label}</span>
         </label>
       `).join('')}
@@ -159,7 +162,6 @@ async function submitCurrentSkill(isFinalizing = false) {
   if (v1 || v2 || v3 || v4) {
     const total = v1 + v2 + v3 + v4;
     savedResponsesData[skill.slug] = { total_score: total, q1: v1, q2: v2, q3: v3, q4: v4 };
-
     await saveResponseToDb(skill.slug, total, v1, v2, v3, v4);
   }
 
@@ -172,11 +174,13 @@ async function submitCurrentSkill(isFinalizing = false) {
   }
 }
 
-function jumpToSkill(val) {
+async function jumpToSkill(val) {
+  await submitCurrentSkill(true);
   loadSkillQuestion(Number(val));
 }
 
-function prevSkill() {
+async function prevSkill() {
+  await submitCurrentSkill(true);
   if (currentSkillIndex > 0) {
     loadSkillQuestion(currentSkillIndex - 1);
   }
@@ -205,10 +209,12 @@ async function saveResponseToDb(skillSlug, totalScore, q1, q2, q3, q4) {
         q4: q4
       })
     });
-    const result = await res.json();
-    if (!res.ok) console.error('خطای ذخیره در سرور:', result.error);
+    if (!res.ok) {
+      const err = await res.json();
+      console.error('خطا در ثبت پایگاه داده:', err);
+    }
   } catch (err) {
-    console.error('خطای ارتباط شبکه:', err);
+    console.error('خطای شبکه:', err);
   }
 }
 
