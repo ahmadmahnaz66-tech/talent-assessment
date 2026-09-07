@@ -419,11 +419,11 @@ function exportFilteredStudentsCSV() {
 
   const headers = ['کد ملی', 'نام و نام خانوادگی', 'پایه', 'کلاس', 'شماره تماس ولی'];
   const rows = loadedStudents.map(s => [
-    s.id || '',
-    `"${(s.student_name || '').replace(/"/g, '""')}"`,
-    `"${(s.grade || '').replace(/"/g, '""')}"`,
-    `"${(s.classroom || '').replace(/"/g, '""')}"`,
-    `"${(s.parent_phone || '').replace(/"/g, '""')}"`
+    `"${String(s.id ?? '').replace(/"/g, '""')}"`,
+    `"${String(s.student_name ?? '').replace(/"/g, '""')}"`,
+    `"${String(s.grade ?? '').replace(/"/g, '""')}"`,
+    `"${String(s.classroom ?? '').replace(/"/g, '""')}"`,
+    `"${String(s.parent_phone ?? '').replace(/"/g, '""')}"`
   ]);
 
   const csvRows = [headers.join(','), ...rows.map(r => r.join(','))];
