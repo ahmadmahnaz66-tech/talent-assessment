@@ -1,9 +1,8 @@
 let currentStudent = null;
 let skillsList = [];
 let currentSkillIndex = 0;
-let userAnswers = {}; // ذخیره موقت پاسخ‌ها: { skill_slug: total_score }
+let userAnswers = {};
 
-// دریافت اطلاعات دانش‌آموز و ورود به سامانه
 async function login() {
   const codeInput = document.getElementById('student-code');
   const errorEl = document.getElementById('login-error');
@@ -26,14 +25,12 @@ async function login() {
 
     currentStudent = data;
 
-    // بارگذاری لیست مهارت‌ها مستقیماً از جدول دیتابیس
     await loadSkillsFromDatabase();
 
     if (!skillsList || skillsList.length === 0) {
       throw new Error('هیچ مهارتی در سیستم تعریف نشده است.');
     }
 
-    // تغییر نما از ورود به آزمون
     document.getElementById('login-box').classList.add('hidden');
     document.getElementById('quiz-box').classList.remove('hidden');
     document.getElementById('student-display').innerText = `${currentStudent.student_name} (پایه: ${currentStudent.grade || '-'})`;
@@ -52,16 +49,14 @@ function showError(msg) {
   errorEl.classList.remove('hidden');
 }
 
-// واکشی پویا از جدول skills دیتابیس D1
 async function loadSkillsFromDatabase() {
   const res = await fetch('/api/admin-reports?type=all-skills');
   const data = await res.json();
   if (Array.isArray(data)) {
-    skillsList = data; // شامل آرایه‌ای از { slug: "...", title: "..." }
+    skillsList = data;
   }
 }
 
-// پر کردن منوی کشویی پرش سریع
 function populateSkillDropdown() {
   const select = document.getElementById('skill-jump-select');
   select.innerHTML = skillsList.map((skill, idx) => `
@@ -69,7 +64,6 @@ function populateSkillDropdown() {
   `).join('');
 }
 
-// بارگذاری سوالات یک مهارت بر اساس ایندکس
 function loadSkillQuestion(index) {
   if (index < 0 || index >= skillsList.length) return;
 
@@ -79,10 +73,8 @@ function loadSkillQuestion(index) {
   document.getElementById('skill-title').innerText = skill.title;
   document.getElementById('skill-jump-select').value = index;
 
-  // تنظیم وضعیت دکمه قبلی
   document.getElementById('btn-prev').disabled = (index === 0);
 
-  // نمایش فرم ۴ سنجه استاندارد ارزیابی مهارت
   const container = document.getElementById('questions-container');
   container.innerHTML = `
     <div class="space-y-5">
@@ -126,7 +118,6 @@ function renderRatingRadio(slug, qKey) {
   `;
 }
 
-// ثبت پاسخ مهارت فعلی و رفتن به بعدی
 async function submitCurrentSkill(isFinalizing = false) {
   const skill = skillsList[currentSkillIndex];
   const q1 = document.querySelector(`input[name="${skill.slug}_q1"]:checked`);
@@ -134,12 +125,10 @@ async function submitCurrentSkill(isFinalizing = false) {
   const q3 = document.querySelector(`input[name="${skill.slug}_q3"]:checked`);
   const q4 = document.querySelector(`input[name="${skill.slug}_q4"]:checked`);
 
-  // اگر حتی یک گزینه انتخاب شده باشد، مجموع محاسبه و ثبت موقت می‌شود
   if (q1 || q2 || q3 || q4) {
     const total = (Number(q1?.value) || 0) + (Number(q2?.value) || 0) + (Number(q3?.value) || 0) + (Number(q4?.value) || 0);
     userAnswers[skill.slug] = total;
 
-    // ارسال مستقیم به API ثبت پاسخ
     await saveResponseToDb(skill.slug, total);
   }
 
@@ -152,19 +141,16 @@ async function submitCurrentSkill(isFinalizing = false) {
   }
 }
 
-// پرش مستقیم از منوی کشویی
 function jumpToSkill(val) {
   loadSkillQuestion(Number(val));
 }
 
-// رفتن به مهارت قبلی
 function prevSkill() {
   if (currentSkillIndex > 0) {
     loadSkillQuestion(currentSkillIndex - 1);
   }
 }
 
-// رد کردن مهارت
 function skipCurrentSkill() {
   if (currentSkillIndex < skillsList.length - 1) {
     loadSkillQuestion(currentSkillIndex + 1);
@@ -173,7 +159,6 @@ function skipCurrentSkill() {
   }
 }
 
-// ارسال پاسخ به سرور برای ذخیره در جدول responses
 async function saveResponseToDb(skillSlug, totalScore) {
   try {
     await fetch('/api/responses', {
@@ -190,7 +175,6 @@ async function saveResponseToDb(skillSlug, totalScore) {
   }
 }
 
-// ثبت نهایی و نمایش کارت موفقیت
 async function finishAssessment() {
   await submitCurrentSkill(true);
   document.getElementById('quiz-box').classList.add('hidden');
