@@ -36,10 +36,6 @@ export async function onRequestPost(context) {
 
     const userPrompt = `نمرات دانش‌آموز با شناسه ${studentId}:\n${scoresSummary}\n\nتحلیل استعداد و راهکارهای رشدی را صادر کن.`;
 
-    // آدرس مسیردهی از طریق درگاه ساخته‌شده (AI Gateway)
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
- // آدرس تمیز درگاه AI Gateway بدون پارامترهای اضافی
     const gatewayUrl = 'https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-1.5-flash:generateContent';
 
     const res = await fetch(gatewayUrl, {
