@@ -6,15 +6,45 @@
   <title>پنل پایش و گزارش‌گیری استعدادها</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+  <!-- کتابخانه اختصاصی برای تولید مستقیم فایل PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
   <style>
     body { font-family: Vazirmatn, sans-serif; }
     @media print {
-      body { background: #ffffff !important; padding: 0 !important; }
-      body > div:first-of-type { display: none !important; }
-      #roadmap-modal { position: static !important; background: none !important; padding: 0 !important; display: block !important; }
-      #roadmap-modal > div { max-height: none !important; max-width: 100% !important; border: none !important; box-shadow: none !important; }
-      #modal-content { overflow: visible !important; height: auto !important; font-size: 13pt !important; line-height: 2 !important; color: #000000 !important; }
-      .no-print { display: none !important; }
+      @page {
+        size: A4;
+        margin: 15mm;
+      }
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+      }
+      body > div:first-of-type {
+        display: none !important;
+      }
+      #roadmap-modal {
+        position: static !important;
+        background: none !important;
+        padding: 0 !important;
+        display: block !important;
+      }
+      #roadmap-modal > div {
+        max-height: none !important;
+        max-width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+      #modal-content {
+        overflow: visible !important;
+        height: auto !important;
+        font-size: 11pt !important;
+        line-height: 1.8 !important;
+        color: #000000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
     }
   </style>
 </head>
@@ -103,31 +133,42 @@
   <!-- مدال نمایش کارنامه و نقشه راه -->
   <div id="roadmap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
-      <div class="p-5 bg-slate-50 border-b flex justify-between items-center no-print">
+      
+      <!-- هدر مدال همراه با دکمه‌های تفکیک‌شده چاپ و دانلود PDF -->
+      <div class="p-5 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-3 no-print">
         <div>
           <h3 id="modal-title" class="font-bold text-indigo-900 text-lg">کارنامه تحلیلی استعدادیابی</h3>
-          <p id="modal-subtitle" class="text-xs text-slate-500"></p>
+          <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
         </div>
-        <div class="flex gap-2">
-          <button onclick="window.print()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition">چاپ یا ذخیره PDF 🖨</button>
+        
+        <div class="flex items-center gap-2">
+          <!-- دکمه ۱: چاپ مستقیم -->
+          <button onclick="window.print()" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
+            <span>🖨️</span>
+            <span>چاپ کارنامه</span>
+          </button>
+          
+          <!-- دکمه ۲: ذخیره مستقیم PDF -->
+          <button id="btn-save-pdf" onclick="saveAsPdf()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
+            <span>📥</span>
+            <span>ذخیره PDF</span>
+          </button>
+          
+          <!-- دکمه بستن -->
           <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 px-2 py-1 text-lg font-bold">✕</button>
         </div>
       </div>
-      <div id="modal-content" class="p-6 overflow-y-auto text-sm leading-relaxed text-slate-700 whitespace-pre-wrap"></div>
+
+      <!-- محتوای متنی کارنامه -->
+      <div id="modal-content" class="p-6 md:p-8 overflow-y-auto text-sm leading-relaxed text-slate-800 whitespace-pre-wrap font-mono"></div>
     </div>
   </div>
 
   <script>
-    const skillsMap = {
-      'coding': '۱. برنامه‌نویسی', 'carpentry': '۲. نجاری', 'ai': '۳. هوش مصنوعی',
-      'gardening': '۴. باغبانی', 'robotics': '۵. رباتیک', 'theater': '۶. تئاتر',
-      'public_speaking': '۷. سخنوری', 'comedy': '۸. کمدی', 'football': '۹. فوتبال',
-      'volleyball': '۱۰. والیبال', 'basketball': '۱۱. بسکتبال', 'badminton': '۱۲. بدمینتون',
-      'swimming': '۱۳. شنا', 'climbing': '۱۴. صخره‌نوردی', 'tennis': '۱۵. تنیس',
-      'chess': '۱۶. شطرنج', 'drawing': '۱۷. نقاشی', 'calligraphy': '۱۸. خطاطی', 'music': '۱۹. موسیقی'
-    };
-
+    let cachedSkills = {};
     let cachedHistory = [];
+    let currentStudentName = '';
+    let currentVersion = '1';
 
     function switchTab(tab) {
       const vSkill = document.getElementById('view-skill');
@@ -149,15 +190,25 @@
       }
     }
 
-    function initSkillSelect() {
+    async function initSkills() {
       const select = document.getElementById('skill-selector');
-      select.innerHTML = Object.entries(skillsMap).map(([slug, title]) => `<option value="${slug}">${title}</option>`).join('');
+      try {
+        const res = await fetch('/api/admin-reports?type=all-skills');
+        const list = await res.json();
+        if (list && list.length) {
+          select.innerHTML = list.map(s => `<option value="${s.slug}">${s.title}</option>`).join('');
+          list.forEach(s => { cachedSkills[s.slug] = s.title; });
+        }
+      } catch (e) {
+        console.error(e);
+      }
       loadSkillReport();
     }
 
     async function loadSkillReport() {
       const skill = document.getElementById('skill-selector').value;
       const tbody = document.getElementById('skill-table-body');
+      if (!skill) return;
       tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">در حال دریافت اطلاعات...</td></tr>';
       try {
         const res = await fetch(`/api/admin-reports?type=by-skill&skill=${skill}`);
@@ -213,7 +264,7 @@
         tbody.innerHTML = data.map((row, i) => `
           <tr class="hover:bg-slate-50">
             <td class="p-3 font-bold text-slate-400">#${i + 1}</td>
-            <td class="p-3 font-bold text-slate-800">${skillsMap[row.skill_slug] || row.skill_slug}</td>
+            <td class="p-3 font-bold text-slate-800">${row.skill_title || cachedSkills[row.skill_slug] || row.skill_slug}</td>
             <td class="p-3 font-black text-indigo-600">${row.total_score}</td>
             <td class="p-3"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${row.total_score >= 45 ? 'bg-emerald-100 text-emerald-700' : row.total_score >= 30 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">${row.total_score >= 45 ? 'اولویت طلایی (A1)' : row.total_score >= 30 ? 'اولویت رشد (A)' : 'پتانسیل ثانویه'}</span></td>
           </tr>
@@ -250,8 +301,11 @@
 
     function viewHistoricalRoadmap(index) {
       const item = cachedHistory[index];
-      const sName = document.getElementById('student-selector').selectedOptions[0].text;
-      document.getElementById('modal-title').innerText = `کارنامه و نقشه راه رشد - ${sName}`;
+      const sSelect = document.getElementById('student-selector');
+      currentStudentName = sSelect.selectedOptions[0]?.text.split('(')[0].trim() || 'دانش‌آموز';
+      currentVersion = item.version;
+
+      document.getElementById('modal-title').innerText = `کارنامه و نقشه راه رشد - ${currentStudentName}`;
       document.getElementById('modal-subtitle').innerText = `نسخه شماره ${item.version} (ثبت شده در: ${new Date(item.created_at).toLocaleString('fa-IR')})`;
       document.getElementById('modal-content').innerText = item.analysis;
       document.getElementById('roadmap-modal').classList.remove('hidden');
@@ -284,11 +338,37 @@
       }
     }
 
+    // تابع ذخیره مستقیم و فایل PDF تمیز
+    function saveAsPdf() {
+      const element = document.getElementById('modal-content');
+      const btn = document.getElementById('btn-save-pdf');
+      
+      btn.disabled = true;
+      btn.innerText = 'در حال آماده‌سازی PDF...';
+
+      const opt = {
+        margin: [12, 12, 12, 12],
+        filename: `کارنامه_استعدادیابی_${currentStudentName}_نسخه_${currentVersion}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      html2pdf().set(opt).from(element).save().then(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<span>📥</span><span>ذخیره PDF</span>';
+      }).catch(err => {
+        alert('خطا در ایجاد PDF: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<span>📥</span><span>ذخیره PDF</span>';
+      });
+    }
+
     function closeModal() {
       document.getElementById('roadmap-modal').classList.add('hidden');
     }
 
-    initSkillSelect();
+    initSkills();
   </script>
 </body>
 </html>
