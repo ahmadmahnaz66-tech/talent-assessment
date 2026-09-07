@@ -1,7 +1,5 @@
 let currentStudent = null;
 let currentSkillIndex = 0;
-
-// حافظه موقت برای نگهداری وضعیت پاسخ‌های والد به تمام مهارت‌ها
 let userResponses = {};
 
 const skillsData = [
@@ -487,11 +485,9 @@ function renderCurrentSkill() {
   const btnNext = document.getElementById('btn-next');
   if (btnNext) {
     if (isLast) {
-      btnNext.innerText = "ثبت نهایی و اتمام ✓";
-      btnNext.className = "w-2/3 bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition text-sm shadow-md shadow-emerald-100";
+      btnNext.innerText = "ثبت این مهارت آخر";
     } else {
-      btnNext.innerText = "ثبت و مهارت بعد →";
-      btnNext.className = "w-2/3 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition text-sm shadow-md shadow-indigo-100";
+      btnNext.innerText = "ثبت این مهارت و بعدی →";
     }
   }
 
@@ -582,6 +578,12 @@ window.submitCurrentSkill = async function(isSkip = false) {
     currentSkillIndex++;
     renderCurrentSkill();
   } else {
+    alert('پاسخ‌های این مهارت ثبت شد. اکنون می‌توانید دکمه «ثبت نهایی و اتمام ارزیابی» را برای خروج بزنید.');
+  }
+};
+
+window.finishAssessment = async function() {
+  if (confirm("آیا از پایان ارزیابی و ثبت نهایی تمام پاسخ‌ها اطمینان دارید؟")) {
     showSuccessScreen();
   }
 };
@@ -606,8 +608,15 @@ function showSuccessScreen() {
   const quizBox = document.getElementById('quiz-box');
   const successBox = document.getElementById('success-box');
   
-  if (quizBox) quizBox.classList.add('hidden');
-  if (successBox) successBox.classList.remove('hidden');
+  if (quizBox) {
+    quizBox.style.display = 'none';
+    quizBox.classList.add('hidden');
+  }
+  
+  if (successBox) {
+    successBox.style.display = 'block';
+    successBox.classList.remove('hidden');
+  }
   
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
