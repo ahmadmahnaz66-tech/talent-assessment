@@ -9,7 +9,10 @@ export async function onRequestGet(context) {
         'SELECT slug, title, display_order FROM skills ORDER BY display_order ASC, rowid ASC'
       ).all();
       return new Response(JSON.stringify(results || []), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json; charset=utf-8',
+          'Access-Control-Allow-Origin': '*'
+        }
       });
     }
 
@@ -18,14 +21,20 @@ export async function onRequestGet(context) {
         'SELECT id, student_name, grade FROM students ORDER BY id ASC'
       ).all();
       return new Response(JSON.stringify(results || []), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json; charset=utf-8',
+          'Access-Control-Allow-Origin': '*'
+        }
       });
     }
 
     if (type === 'by-skill') {
       const skill = url.searchParams.get('skill');
       if (!skill) {
-        return new Response(JSON.stringify({ error: 'مهارت مشخص نشده است.' }), { status: 400 });
+        return new Response(JSON.stringify({ error: 'مهارت مشخص نشده است.' }), { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json; charset=utf-8' }
+        });
       }
 
       const { results } = await env.DB.prepare(`
@@ -37,14 +46,20 @@ export async function onRequestGet(context) {
       `).bind(skill).all();
 
       return new Response(JSON.stringify(results || []), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json; charset=utf-8',
+          'Access-Control-Allow-Origin': '*'
+        }
       });
     }
 
     if (type === 'by-student') {
       const studentId = url.searchParams.get('studentId');
       if (!studentId) {
-        return new Response(JSON.stringify({ error: 'کد دانش‌آموز مشخص نشده است.' }), { status: 400 });
+        return new Response(JSON.stringify({ error: 'کد دانش‌آموز مشخص نشده است.' }), { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json; charset=utf-8' }
+        });
       }
 
       const { results } = await env.DB.prepare(`
@@ -60,16 +75,25 @@ export async function onRequestGet(context) {
       `).bind(studentId).all();
 
       return new Response(JSON.stringify(results || []), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json; charset=utf-8',
+          'Access-Control-Allow-Origin': '*'
+        }
       });
     }
 
-    return new Response(JSON.stringify({ error: 'نوع درخواست نامعتبر است.' }), { status: 400 });
+    return new Response(JSON.stringify({ error: 'نوع درخواست نامعتبر است.' }), { 
+      status: 400,
+      headers: { 'Content-Type': 'application/json; charset=utf-8' }
+    });
 
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*'
+      }
     });
   }
 }
