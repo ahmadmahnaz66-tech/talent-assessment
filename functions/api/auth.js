@@ -1,9 +1,23 @@
-// تابع کمکی برای تولید هش امن SHA-256 با استاندارد Web Crypto
 async function sha256(message) {
   const msgBuffer = new TextEncoder().encode(message);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function onRequestGet(context) {
+  const { request, env } = context;
+  const corsHeaders = { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' };
+  
+  // دریافت لیست کادر مدرسه برای ادمین ارشد
+  try {
+    const { results } = await env.DB.prepare(
+      'SELECT id, username, full_name, role, created_at FROM staff_users ORDER BY id ASC'
+    ).all();
+    return new Response(JSON.stringify(results || []), { headers: corsHeaders });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+  }
 }
 
 export async function onRequestPost(context) {
@@ -17,7 +31,7 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { action } = body;
 
-    // ۱. ورود کادر مدرسه (ادمین، مشاور، مدیر، معاون)
+    // ۱. ورود کادر مدرسه
     if (action === 'staff-login') {
       const { username, password } = body;
       if (!username || !password) {
@@ -44,7 +58,54 @@ export async function onRequestPost(context) {
       }), { headers: corsHeaders });
     }
 
-    // ۲. ورود دانش‌آموز (کد ملی و رمز عبور)
+    // ۲. تغییر رمز عبور کادر / ادمین
+    if (action === 'change-staff-password') {
+      const { username, oldPassword, newPassword } = body;
+      if (!username || !oldPassword || !newPassword || newPassword.trim().length < 5) {
+        return new Response(JSON.stringify({ error: 'رمز جدید باید حداقل ۵ رقم/کاراکتر باشد.' }), { status: 400, headers: corsHeaders });
+      }
+
+      const oldHash = await sha256(oldPassword.trim());
+      const staff = await env.DB.prepare(
+        'SELECT id FROM staff_users WHERE username = ? AND password_hash = ?'
+      ).bind(username.trim(), oldHash).first();
+
+      if (!staff) {
+        return new Response(JSON.stringify({ error: 'رمز عبور فعلی نادرست است.' }), { status: 400, headers: corsHeaders });
+      }
+
+      const newHash = await sha256(newPassword.trim());
+      await env.DB.prepare(
+        'UPDATE staff_users SET password_hash = ? WHERE username = ?'
+      ).bind(newHash, username.trim()).run();
+
+      return new Response(JSON.stringify({ success: true, message: 'رمز عبور با موفقیت به‌روزرسانی شد.' }), { headers: corsHeaders });
+    }
+
+    // ۳. افزودن عضو جدید به کادر مدرسه (توسط ادمین ارشد)
+    if (action === 'add-staff') {
+      const { username, password, full_name, role } = body;
+      if (!username || !password || !full_name || !role) {
+        return new Response(JSON.stringify({ error: 'تمام فیلدها الزامی هستند.' }), { status: 400, headers: corsHeaders });
+      }
+
+      const passHash = await sha256(password.trim());
+      await env.DB.prepare(`
+        INSERT INTO staff_users (username, password_hash, full_name, role)
+        VALUES (?, ?, ?, ?)
+      `).bind(username.trim(), passHash, full_name.trim(), role.trim()).run();
+
+      return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+    }
+
+    // ۴. حذف یکی از پرسنل
+    if (action === 'delete-staff') {
+      const { staffId } = body;
+      await env.DB.prepare('DELETE FROM staff_users WHERE id = ? AND role != "super_admin"').bind(staffId).run();
+      return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+    }
+
+    // ۵. ورود دانش‌آموز (کد ملی و رمز عبور)
     if (action === 'student-login') {
       const { studentId, password } = body;
       if (!studentId || !password) {
@@ -60,13 +121,11 @@ export async function onRequestPost(context) {
         return new Response(JSON.stringify({ error: 'دانش‌آموزی با این مشخصات یافت نشد.' }), { status: 404, headers: corsHeaders });
       }
 
-      // تعیین رمز پیش‌فرض (۴ رقم آخر کد ملی)
       const defaultPass = cleanId.slice(-4);
       const inputHash = await sha256(password.trim());
 
       let isPasswordValid = false;
       if (!student.password_hash) {
-        // اگر هنوز رمزی ست نشده باشد، با ۴ رقم آخر بررسی می‌شود
         isPasswordValid = (password.trim() === defaultPass || inputHash === await sha256(defaultPass));
       } else {
         isPasswordValid = (student.password_hash === inputHash);
@@ -88,7 +147,7 @@ export async function onRequestPost(context) {
       }), { headers: corsHeaders });
     }
 
-    // ۳. تغییر رمز دانش‌آموز (اجباری در ورود اول یا اختیاری)
+    // ۶. تغییر رمز دانش‌آموز
     if (action === 'change-student-password') {
       const { studentId, newPassword } = body;
       if (!studentId || !newPassword || newPassword.trim().length < 5) {
@@ -103,13 +162,9 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true, message: 'رمز عبور با موفقیت به‌روزرسانی شد.' }), { headers: corsHeaders });
     }
 
-    // ۴. بازنشانی رمز توسط مشاور یا ادمین به ۴ رقم آخر کد ملی
+    // ۷. بازنشانی رمز دانش‌آموز به ۴ رقم آخر کد ملی
     if (action === 'reset-student-password') {
       const { studentId } = body;
-      if (!studentId) {
-        return new Response(JSON.stringify({ error: 'کد دانش‌آموز الزامی است.' }), { status: 400, headers: corsHeaders });
-      }
-
       const defaultPass = studentId.trim().slice(-4);
       const defaultHash = await sha256(defaultPass);
 
@@ -123,7 +178,7 @@ export async function onRequestPost(context) {
       }), { headers: corsHeaders });
     }
 
-    return new Response(JSON.stringify({ error: 'اکشن نامعتبر است.' }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: 'عملیات نامعتبر است.' }), { status: 400, headers: corsHeaders });
 
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
