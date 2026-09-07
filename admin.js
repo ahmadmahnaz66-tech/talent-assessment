@@ -1,11 +1,93 @@
 let allSkills = [];
 let loadedStudents = [];
 let currentAdminSkillSlug = '';
+let currentStaffUser = null;
+
+// نقش‌های فارسی
+const ROLE_NAMES = {
+  super_admin: 'مدیر ارشد سامانه',
+  counselor: 'مشاور تخصصی',
+  principal: 'مدیر مدرسه',
+  vice_principal: 'معاون مدرسه'
+};
 
 window.addEventListener('DOMContentLoaded', async () => {
-  await loadInitialMetadata();
-  await loadStudentsList();
+  checkAuthSession();
 });
+
+// بررسی وضعیت لاگین
+function checkAuthSession() {
+  const savedUser = sessionStorage.getItem('staffUser');
+  if (savedUser) {
+    try {
+      currentStaffUser = JSON.parse(savedUser);
+      showDashboard();
+      return;
+    } catch (e) {
+      sessionStorage.removeItem('staffUser');
+    }
+  }
+  showLoginForm();
+}
+
+function showLoginForm() {
+  document.getElementById('login-modal').classList.remove('hidden');
+  document.getElementById('admin-dashboard').classList.add('hidden');
+}
+
+function showDashboard() {
+  document.getElementById('login-modal').classList.add('hidden');
+  document.getElementById('admin-dashboard').classList.remove('hidden');
+
+  document.getElementById('user-display-name').innerText = currentStaffUser.fullName || currentStaffUser.username;
+  document.getElementById('user-display-role').innerText = ROLE_NAMES[currentStaffUser.role] || currentStaffUser.role;
+
+  loadInitialMetadata();
+  loadStudentsList();
+}
+
+// ارسال درخواست ورود به API
+async function handleStaffLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value.trim();
+  const errBox = document.getElementById('login-error');
+  errBox.classList.add('hidden');
+
+  if (!username || !password) {
+    errBox.innerText = 'نام کاربری و رمز عبور را وارد کنید.';
+    errBox.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'staff-login', username, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      errBox.innerText = data.error || 'نام کاربری یا رمز نادرست است.';
+      errBox.classList.remove('hidden');
+      return;
+    }
+
+    sessionStorage.setItem('staffUser', JSON.stringify(data.user));
+    currentStaffUser = data.user;
+    showDashboard();
+
+  } catch (err) {
+    errBox.innerText = 'خطا در ارتباط با سرور.';
+    errBox.classList.remove('hidden');
+  }
+}
+
+function handleStaffLogout() {
+  sessionStorage.removeItem('staffUser');
+  currentStaffUser = null;
+  location.reload();
+}
 
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -25,7 +107,7 @@ function switchTab(tabId) {
   }
 }
 
-// لود و مدیریت دانش‌آموزان
+// دریافت لیست دانش‌آموزان
 async function loadStudentsList() {
   const grade = document.getElementById('filter-grade').value;
   const classroom = document.getElementById('filter-classroom').value;
@@ -35,10 +117,8 @@ async function loadStudentsList() {
     const data = await res.json();
     loadedStudents = data.students || [];
 
-    // پر کردن فیلترهای پایه و کلاس در صورت نیاز
     if (data.stats) updateFilterDropdowns(data.stats);
 
-    // به‌روزرسانی جدول
     const tbody = document.getElementById('students-table-body');
     document.getElementById('students-count-badge').innerText = `تعداد: ${loadedStudents.length}`;
 
@@ -54,13 +134,17 @@ async function loadStudentsList() {
         <td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[11px]">${s.grade}</span></td>
         <td class="p-3 text-slate-600">${s.classroom || '-'}</td>
         <td class="p-3 text-slate-500 font-mono">${s.parent_phone || '-'}</td>
-        <td class="p-3 text-left">
-          <button onclick="deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold">حذف</button>
+        <td class="p-3 text-left space-x-2 space-x-reverse">
+          <button onclick="resetStudentPass('${s.id}')" title="بازنشانی رمز به ۴ رقم آخر کد ملی" class="text-amber-600 hover:text-amber-800 text-xs font-bold bg-amber-50 px-2 py-1 rounded-lg">
+            ریست رمز
+          </button>
+          <button onclick="deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">
+            حذف
+          </button>
         </td>
       </tr>
     `).join('');
 
-    // همگام‌سازی دراپ‌داون کارنامه فردی
     const studentSelect = document.getElementById('student-select');
     if (studentSelect) {
       studentSelect.innerHTML = '<option value="">انتخاب پرونده...</option>' +
@@ -95,7 +179,7 @@ async function saveSingleStudent() {
   const parent_phone = document.getElementById('std-phone').value.trim();
 
   if (!id || !student_name || !grade) {
-    alert('کد پرونده، نام و پایه تحصیلی الزامی هستند.');
+    alert('کد ملی، نام و پایه تحصیلی الزامی هستند.');
     return;
   }
 
@@ -111,11 +195,34 @@ async function saveSingleStudent() {
   if (res.ok) {
     document.getElementById('std-id').value = '';
     document.getElementById('std-name').value = '';
+    document.getElementById('std-grade').value = '';
     document.getElementById('std-class').value = '';
     document.getElementById('std-phone').value = '';
     await loadStudentsList();
   } else {
     alert('خطا در ذخیره پرونده دانش‌آموز.');
+  }
+}
+
+// بازنشانی رمز دانش‌آموز به ۴ رقم کد ملی توسط مشاور/مدیر
+async function resetStudentPass(studentId) {
+  const last4 = studentId.slice(-4);
+  if (!confirm(`آیا رمز عبور پرونده ${studentId} به ۴ رقم آخر (${last4}) بازنشانی شود؟`)) return;
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset-student-password', studentId })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert(data.message);
+    } else {
+      alert(data.error || 'خطا در بازنشانی رمز.');
+    }
+  } catch (e) {
+    alert('خطا در ارتباط با سرور.');
   }
 }
 
@@ -145,7 +252,7 @@ function handleBatchImport() {
 
       if (res.ok) {
         const out = await res.json();
-        alert(`${out.count} پرونده دانش‌آموز با موفقیت وارد سیستم شد.`);
+        alert(`${out.count} پرونده دانش‌آموز با موفقیت وارد شد.`);
         fileInput.value = '';
         await loadStudentsList();
       } else {
@@ -165,6 +272,54 @@ async function deleteStudent(id) {
   });
 
   if (res.ok) await loadStudentsList();
+}
+
+// خروجی اکسل
+function exportFilteredStudentsCSV() {
+  if (!loadedStudents || loadedStudents.length === 0) {
+    alert('دانش‌آموزی برای دریافت خروجی وجود ندارد.');
+    return;
+  }
+
+  const gradeVal = document.getElementById('filter-grade').value || 'همه-پایه‌ها';
+  const classVal = document.getElementById('filter-classroom').value || 'همه-کلاس‌ها';
+
+  let csvContent = "\uFEFFid,student_name,grade,classroom,parent_phone\n";
+
+  loadedStudents.forEach(s => {
+    const id = s.id || '';
+    const name = `"${(s.student_name || '').replace(/"/g, '""')}"`;
+    const grade = `"${(s.grade || '').replace(/"/g, '""')}"`;
+    const classroom = s.classroom ? `="${s.classroom}"` : '""';
+    const phone = s.parent_phone ? `="${s.parent_phone}"` : '""';
+
+    csvContent += `${id},${name},${grade},${classroom},${phone}\n`;
+  });
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `لیست_دانش‌آموزان_${gradeVal}_${classVal}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function downloadSampleCSV() {
+  const csvContent = "\uFEFFid,student_name,grade,classroom,parent_phone\n" +
+                     '101,نام و نام خانوادگی نمونه,چهارم,="۴/۱",="09123456789"\n';
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'نمونه_دانش_آموزان.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 // متادیتای مهارت‌ها
@@ -192,7 +347,7 @@ async function loadInitialMetadata() {
   }
 }
 
-// تب ۲: گزارش فردی
+// گزارش فردی
 async function fetchStudentReport(studentId) {
   const container = document.getElementById('student-report-results');
   if (!studentId) {
@@ -227,7 +382,7 @@ async function fetchStudentReport(studentId) {
   }
 }
 
-// تب ۳: گزارش گروهی بر اساس مهارت
+// گزارش گروهی
 async function fetchSkillGroupReport(skillSlug) {
   const container = document.getElementById('skill-group-results');
   if (!skillSlug) {
@@ -250,7 +405,7 @@ async function fetchSkillGroupReport(skillSlug) {
         <thead class="bg-slate-50 text-slate-500 border-b">
           <tr>
             <th class="p-3">رتبه</th>
-            <th class="p-3">کد</th>
+            <th class="p-3">کد ملی</th>
             <th class="p-3">نام دانش‌آموز</th>
             <th class="p-3">پایه</th>
             <th class="p-3 text-left">امتیاز</th>
@@ -274,7 +429,7 @@ async function fetchSkillGroupReport(skillSlug) {
   }
 }
 
-// تب ۴: مدیریت سوالات
+// مدیریت سوالات
 async function loadQuestionsForAdmin(slug) {
   currentAdminSkillSlug = slug;
   const listContainer = document.getElementById('admin-questions-list');
@@ -382,53 +537,4 @@ async function deleteSelectedSkill() {
     body: JSON.stringify({ action: 'delete-skill', slug: currentAdminSkillSlug })
   });
   if (res.ok) await loadInitialMetadata();
-}
-
-function downloadSampleCSV() {
-  // استفاده از علامت ="..." اکسل را مجبور می‌کند ستون را صرفاً متنی بخواند
-  const csvContent = "\uFEFFid,student_name,grade,classroom,parent_phone\n" +
-                     '101,نام و نام خانوادگی نمونه,چهارم,="۴/۱",="09123456789"\n';
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', 'نمونه_دانش_آموزان.csv');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-// خروجی اکسل/CSV از لیست فیلترشده دانش‌آموزان
-function exportFilteredStudentsCSV() {
-  if (!loadedStudents || loadedStudents.length === 0) {
-    alert('دانش‌آموزی برای دریافت خروجی وجود ندارد.');
-    return;
-  }
-
-  const gradeVal = document.getElementById('filter-grade').value || 'همه-پایه‌ها';
-  const classVal = document.getElementById('filter-classroom').value || 'همه-کلاس‌ها';
-
-  let csvContent = "\uFEFFid,student_name,grade,classroom,parent_phone\n";
-
-  loadedStudents.forEach(s => {
-    const id = s.id || '';
-    const name = `"${(s.student_name || '').replace(/"/g, '""')}"`;
-    const grade = `"${(s.grade || '').replace(/"/g, '""')}"`;
-    const classroom = s.classroom ? `="${s.classroom}"` : '""';
-    const phone = s.parent_phone ? `="${s.parent_phone}"` : '""';
-
-    csvContent += `${id},${name},${grade},${classroom},${phone}\n`;
-  });
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `لیست_دانش‌آموزان_${gradeVal}_${classVal}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 }
