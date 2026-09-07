@@ -2,7 +2,7 @@ let currentStudent = null;
 let currentSkillIndex = 0;
 
 // حافظه موقت برای نگهداری وضعیت پاسخ‌های والد به تمام مهارت‌ها
-const userResponses = {};
+let userResponses = {};
 
 const skillsData = [
   {
