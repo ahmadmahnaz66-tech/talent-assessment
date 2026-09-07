@@ -166,18 +166,64 @@
             <option value="">انتخاب پرونده...</option>
           </select>
         </div>
-        <button id="btn-ai-analyze" onclick="generateAIReport()" class="hidden inline-flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition">
-          ✨ تحلیل جامع با هوش مصنوعی
-        </button>
       </div>
 
-      <!-- کادر اختصاصی خروجی هوش مصنوعی -->
-      <div id="ai-analysis-box" class="hidden bg-gradient-to-br from-indigo-50/60 to-purple-50/60 p-5 rounded-2xl border border-indigo-100 space-y-2">
-        <div class="flex items-center justify-between border-b border-indigo-100/80 pb-2">
-          <span class="text-xs font-black text-indigo-900 flex items-center gap-1.5">
-            🤖 تفسیر تخصصی و گزارش بالینی استعداد (هوش مصنوعی)
-          </span>
-          <button onclick="window.print()" class="text-[11px] font-bold text-indigo-600 hover:underline">چاپ یا ذخیره گزارش</button>
+      <!-- جعبه ابزار و تنظیمات تحلیل هوش مصنوعی -->
+      <div id="ai-controls-card" class="hidden bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">✨</span>
+            <div>
+              <h3 class="font-bold text-xs text-slate-800">موتور تحلیل تخصصی و صدور کارنامه هوشمند</h3>
+              <p class="text-[11px] text-slate-400">تنظیم مخاطب، لحن نگارش و مدل تحلیل بالینی</p>
+            </div>
+          </div>
+          <button id="btn-ai-analyze" onclick="generateAIReport()" class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md shadow-indigo-100 transition flex items-center gap-1.5">
+            ⚡ صدور و نگارش تحلیل
+          </button>
+        </div>
+
+        <!-- آپشن‌های تحلیلی -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">مخاطب و نوع گزارش:</label>
+            <select id="ai-target-audience" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 font-medium">
+              <option value="counselor">گزارش تخصصی مشاور و کادر مدرسه</option>
+              <option value="parents">کارنامه توصیفی و راهبردی ویژه اولیا</option>
+              <option value="student">نامه انگیزشی و بازخورد فردی به دانش‌آموز</option>
+              <option value="activities">نقشه راه و معرفی کارگاه‌ها و فعالیت‌ها</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">عمق و چارچوب روانشناختی:</label>
+            <select id="ai-framework" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 font-medium">
+              <option value="gardner">هوش‌های چندگانه هوارد گاردنر</option>
+              <option value="holland">مدل رغبت‌سنجی شغلی و مهارتی هالند</option>
+              <option value="comprehensive">تحلیل ترکیبی (عملکردی، هیجانی و استعدادی)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">حجم و تفصیل خروجی:</label>
+            <select id="ai-length" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 font-medium">
+              <option value="detailed">جامع و تحلیلی (همراه با راهکارهای توسعه)</option>
+              <option value="summary">خلاصه مدیریتی و نکات کلیدی</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- کادر نمایش کارنامه صادرشده -->
+      <div id="ai-analysis-box" class="hidden bg-white p-6 rounded-2xl border border-indigo-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-black text-indigo-900" id="ai-report-badge">نتیجه تحلیل هوشمند استعداد</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="copyAIReport()" class="text-xs text-slate-600 hover:text-indigo-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 transition">کپی متن</button>
+            <button onclick="window.print()" class="text-xs text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 font-bold transition">چاپ کارنامه</button>
+          </div>
         </div>
         <div id="ai-analysis-content" class="text-xs leading-relaxed text-slate-700 whitespace-pre-line pt-2"></div>
       </div>
