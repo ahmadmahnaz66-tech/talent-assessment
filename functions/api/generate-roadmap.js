@@ -11,7 +11,15 @@ export async function onRequestPost(context) {
       });
     }
 
-    // ۱. دریافت اطلاعات دانش‌آموز
+    const apiKey = env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'کلید GEMINI_API_KEY در کلادفلر تنظیم نشده است.' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ۱. دریافت مشخصات دانش‌آموز از دیتابیس
     const student = await env.DB.prepare(
       'SELECT id, student_name, grade FROM students WHERE id = ?'
     ).bind(studentId).first();
@@ -20,7 +28,7 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'دانش‌آموز یافت نشد.' }), { status: 404 });
     }
 
-    // ۲. دریافت ریزنمرات سورت‌شده (از بیشترین امتیاز به کمترین)
+    // ۲. دریافت ریزنمرات سورت‌شده از بیشترین به کمترین
     const { results } = await env.DB.prepare(`
       SELECT skill_slug, total_score 
       FROM responses 
@@ -29,10 +37,9 @@ export async function onRequestPost(context) {
     `).bind(studentId).all();
 
     if (!results || results.length === 0) {
-      return new Response(JSON.stringify({ error: 'برای این دانش‌آموز هیچ پاسخی ثبت نشده است.' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'هنوز پاسخی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
     }
 
-    // نگاشت نام مهارتی
     const skillsMap = {
       'coding': 'برنامه‌نویسی', 'carpentry': 'نجاری و ساخت‌وساز', 'ai': 'هوش مصنوعی',
       'gardening': 'باغبانی و طبیعت‌پژوهی', 'robotics': 'رباتیک و مکاترونیک',
@@ -43,47 +50,59 @@ export async function onRequestPost(context) {
       'drawing': 'نقاشی و هنرهای تجسمی', 'calligraphy': 'خطاطی و خوش‌نویسی', 'music': 'موسیقی و ریتم'
     };
 
-    const scoresList = results.map(r => `- ${skillsMap[r.skill_slug] || r.skill_slug}: نمره ${r.total_score} از ۶۰`).join('\n');
+    const scoresList = results.map((r, i) => `${i + 1}. ${skillsMap[r.skill_slug] || r.skill_slug}: نمره ${r.total_score} از ۶۰`).join('\n');
 
-    // ۳. تدوین پرامپت تحلیلی برای هوش مصنوعی
-    const prompt = `
-شما یک مشاور ارشد و متخصص استعدادیابی کودک و نوجوان در مدرسه هستید.
-اطلاعات پایش یک دانش‌آموز دوره دبستان به شرح زیر است:
+    const promptText = `
+شما یک مشاور ارشد و متخصص استعدادیابی کودک و نوجوان در مقطع دبستان هستید.
+اطلاعات پایش مهارت‌های دانش‌آموز به شرح زیر است:
 نام: ${student.student_name}
+کد پرونده: ${student.id}
 پایه: ${student.grade || 'نامشخص'}
-امتیازات کسب‌شده در مهارت‌ها (به ترتیب اولویت از بیشترین به کمترین):
+
+نمرات کسب‌شده در ۱۹ مهارت (سورت‌شده از بیشترین علاقه تا کمترین):
 ${scoresList}
 
-بر اساس این داده‌ها، یک کارنامه تحلیل روانشناختی و استعدادیابی رسمی و دقیق به زبان فارسی با ساختار دقیق زیر تولید کنید:
-۱. تحلیل کلی سبک یادگیری و الگوهای رفتاری برجسته این دانش‌آموز (تمرکز بر ۳ مهارت صدر جدول).
-۲. جدول یا بخش مسیر رشد A به A1:
-   - سطح A (وضعیت علایق فعلی کودک بر اساس پایش اولیا)
-   - سطح A1 (جهش استعدادی: افق دست‌یافتنی و مهارت تکمیلی با آموزش صحیح)
-   - اقدام عملی گام‌به‌گام (Step-by-step action) برای رسیدن از A به A1
-۳. توصیه‌های کلیدی و کاربردی برای والدین در محیط خانه.
-۴. پیشنهادات اجرایی ویژه برای مشاور و معلمان مدرسه در کلاس درس و فعالیت‌های فوق‌برنامه.
+لطفاً یک کارنامه روانشناختی-مهارتی و نقشه راه رشد فردی دقیق، کاربردی و انگیزه‌بخش به زبان فارسی تولید کنید با ساختار زیر:
+۱. تحلیل نیم‌رخ یادگیری و کانون استعدادها (تحلیل چند مهارت برتر صدر جدول).
+۲. نقشه راه رشد A به A1:
+   - وضعیت A (تمایلات و استعداد پایه فعلی دانش‌آموز)
+   - افق جهش A1 (مهارت‌های تکمیلی و خروجی عملی مورد انتظار پس از هدایت هدفمند)
+   - مسیر و گام‌های عملیاتی برای رسیدن از A به A1.
+۳. توصیه‌های کلیدی و فعالیت‌های تقویتی در محیط خانه ویژه اولیا.
+۴. راهنمای عملی ویژه معلمان و مشاور مدرسه برای کلاس درس و فعالیت‌های فوق‌برنامه.
 
-لحن تحلیل باید علمی، حمایتی، انگیزه‌بخش، کاملاً بدون کلی‌گویی و متناسب با سن دبستان باشد.
+تحلیل باید بدون کلی‌گویی و کاملاً اختصاصی و متناسب با سن دبستان باشد.
 `;
 
-    // ۴. فراخوانی مدل Workers AI
-const aiResponse = await env.AI.run('@cf/qwen/qwen2.5-7b-instruct', {
-    messages: [
-        { role: 'system', content: 'شما یک دستیار مشاور روانشناختی و استعدادیابی مدارس هستید و همواره تحلیل‌های جامع و دقیق به زبان فارسی ارائه می‌دهید.' },
-        { role: 'user', content: prompt }
-      ]
+    // ۳. ارسال درخواست به جمنای
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: promptText }] }]
+      })
     });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'خطا در ارتباط با سرور جمنای');
+    }
+
+    const outputText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'تحلیلی دریافت نشد.';
 
     return new Response(JSON.stringify({
       studentName: student.student_name,
-      analysis: aiResponse.response
+      analysis: outputText
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: 'خطا در پردازش هوش مصنوعی: ' + err.message }), {
+    return new Response(JSON.stringify({ error: 'خطا: ' + err.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
