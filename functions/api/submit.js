@@ -1,10 +1,14 @@
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
-    const { studentId, skillSlug, totalScore, q1, q2, q3, q4 } = await request.json();
+    const data = await request.json();
+    const { studentId, skillSlug, totalScore, q1, q2, q3, q4 } = data;
 
     if (!studentId || !skillSlug) {
-      return new Response(JSON.stringify({ error: 'اطلاعات ناقص است.' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'اطلاعات ارسالی ناقص است.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
+      });
     }
 
     await env.DB.prepare(`
@@ -18,19 +22,26 @@ export async function onRequestPost(context) {
         q4 = excluded.q4,
         created_at = datetime('now')
     `).bind(
-      studentId, 
-      skillSlug, 
-      totalScore || 0, 
-      q1 || 0, 
-      q2 || 0, 
-      q3 || 0, 
-      q4 || 0
+      Number(studentId),
+      skillSlug,
+      Number(totalScore) || 0,
+      Number(q1) || 0,
+      Number(q2) || 0,
+      Number(q3) || 0,
+      Number(q4) || 0
     ).run();
 
     return new Response(JSON.stringify({ success: true }), {
+      headers: { 
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
       headers: { 'Content-Type': 'application/json; charset=utf-8' }
     });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 }
