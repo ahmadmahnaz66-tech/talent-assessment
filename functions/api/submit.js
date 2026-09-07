@@ -11,10 +11,18 @@ export async function onRequestPost(context) {
       });
     }
 
+    const answersJson = JSON.stringify({
+      q1: Number(q1) || 0,
+      q2: Number(q2) || 0,
+      q3: Number(q3) || 0,
+      q4: Number(q4) || 0
+    });
+
     await env.DB.prepare(`
-      INSERT INTO responses (student_id, skill_slug, total_score, q1, q2, q3, q4, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      INSERT INTO responses (student_id, skill_slug, answers, total_score, q1, q2, q3, q4, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       ON CONFLICT(student_id, skill_slug) DO UPDATE SET
+        answers = excluded.answers,
         total_score = excluded.total_score,
         q1 = excluded.q1,
         q2 = excluded.q2,
@@ -22,8 +30,9 @@ export async function onRequestPost(context) {
         q4 = excluded.q4,
         created_at = datetime('now')
     `).bind(
-      Number(studentId),
+      String(studentId),
       skillSlug,
+      answersJson,
       Number(totalScore) || 0,
       Number(q1) || 0,
       Number(q2) || 0,
