@@ -6,10 +6,9 @@ async function sha256(message) {
 }
 
 export async function onRequestGet(context) {
-  const { request, env } = context;
+  const { env } = context;
   const corsHeaders = { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' };
   
-  // دریافت لیست کادر مدرسه برای ادمین ارشد
   try {
     const { results } = await env.DB.prepare(
       'SELECT id, username, full_name, role, created_at FROM staff_users ORDER BY id ASC'
@@ -29,7 +28,7 @@ export async function onRequestPost(context) {
 
   try {
     const body = await request.json();
-    const { action } = body;
+    const { action, requesterRole } = body;
 
     // ۱. ورود کادر مدرسه
     if (action === 'staff-login') {
@@ -58,11 +57,11 @@ export async function onRequestPost(context) {
       }), { headers: corsHeaders });
     }
 
-    // ۲. تغییر رمز عبور کادر / ادمین
+    // ۲. تغییر رمز عبور شخصی کادر
     if (action === 'change-staff-password') {
       const { username, oldPassword, newPassword } = body;
       if (!username || !oldPassword || !newPassword || newPassword.trim().length < 5) {
-        return new Response(JSON.stringify({ error: 'رمز جدید باید حداقل ۵ رقم/کاراکتر باشد.' }), { status: 400, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: 'رمز جدید باید حداقل ۵ رقم باشد.' }), { status: 400, headers: corsHeaders });
       }
 
       const oldHash = await sha256(oldPassword.trim());
@@ -71,7 +70,7 @@ export async function onRequestPost(context) {
       ).bind(username.trim(), oldHash).first();
 
       if (!staff) {
-        return new Response(JSON.stringify({ error: 'رمز عبور فعلی نادرست است.' }), { status: 400, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: 'رمز عبور فعلی نادرست است.' }), { status: 401, headers: corsHeaders });
       }
 
       const newHash = await sha256(newPassword.trim());
@@ -82,8 +81,12 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true, message: 'رمز عبور با موفقیت به‌روزرسانی شد.' }), { headers: corsHeaders });
     }
 
-    // ۳. افزودن عضو جدید به کادر مدرسه (توسط ادمین ارشد)
+    // ۳. افزودن عضو جدید به کادر مدرسه (فقط مدیر ارشد)
     if (action === 'add-staff') {
+      if (requesterRole !== 'super_admin') {
+        return new Response(JSON.stringify({ error: 'دسترسی غیرمجاز: فقط مدیر ارشد مجاز به افزودن کادر است.' }), { status: 403, headers: corsHeaders });
+      }
+
       const { username, password, full_name, role } = body;
       if (!username || !password || !full_name || !role) {
         return new Response(JSON.stringify({ error: 'تمام فیلدها الزامی هستند.' }), { status: 400, headers: corsHeaders });
@@ -98,14 +101,18 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
     }
 
-    // ۴. حذف یکی از پرسنل
+    // ۴. حذف یکی از پرسنل (فقط مدیر ارشد)
     if (action === 'delete-staff') {
+      if (requesterRole !== 'super_admin') {
+        return new Response(JSON.stringify({ error: 'دسترسی غیرمجاز: فقط مدیر ارشد مجاز به حذف کادر است.' }), { status: 403, headers: corsHeaders });
+      }
+
       const { staffId } = body;
       await env.DB.prepare('DELETE FROM staff_users WHERE id = ? AND role != "super_admin"').bind(staffId).run();
       return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
     }
 
-    // ۵. ورود دانش‌آموز (کد ملی و رمز عبور)
+    // ۵. ورود دانش‌آموز
     if (action === 'student-login') {
       const { studentId, password } = body;
       if (!studentId || !password) {
@@ -147,7 +154,7 @@ export async function onRequestPost(context) {
       }), { headers: corsHeaders });
     }
 
-    // ۶. تغییر رمز دانش‌آموز
+    // ۶. تغییر رمز دانش‌آموز در ورود اول
     if (action === 'change-student-password') {
       const { studentId, newPassword } = body;
       if (!studentId || !newPassword || newPassword.trim().length < 5) {
@@ -162,8 +169,12 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true, message: 'رمز عبور با موفقیت به‌روزرسانی شد.' }), { headers: corsHeaders });
     }
 
-    // ۷. بازنشانی رمز دانش‌آموز به ۴ رقم آخر کد ملی
+    // ۷. بازنشانی رمز دانش‌آموز (فقط مدیر ارشد)
     if (action === 'reset-student-password') {
+      if (requesterRole !== 'super_admin') {
+        return new Response(JSON.stringify({ error: 'دسترسی غیرمجاز: بازنشانی رمز دانش‌آموزان فقط توسط مدیر ارشد سامانه امکان‌پذیر است.' }), { status: 403, headers: corsHeaders });
+      }
+
       const { studentId } = body;
       const defaultPass = studentId.trim().slice(-4);
       const defaultHash = await sha256(defaultPass);
