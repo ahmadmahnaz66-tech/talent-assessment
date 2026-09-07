@@ -6,12 +6,11 @@ export async function onRequestGet(context) {
   if (!studentId) {
     return new Response(JSON.stringify({ error: 'کد پرونده ارسال نشده است.' }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json; charset=utf-8' }
     });
   }
 
   try {
-    // استخراج اطلاعات دانش‌آموز
     const student = await env.DB.prepare(
       'SELECT * FROM students WHERE id = ?'
     ).bind(studentId).first();
@@ -19,16 +18,14 @@ export async function onRequestGet(context) {
     if (!student) {
       return new Response(JSON.stringify({ error: 'دانش‌آموزی با این کد پرونده یافت نشد.' }), {
         status: 404,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json; charset=utf-8' }
       });
     }
 
-    // استخراج تمام پاسخ‌های ثبت‌شده قبلی
     const { results } = await env.DB.prepare(
-      'SELECT skill_slug, answers, total_score FROM responses WHERE student_id = ?'
+      'SELECT skill_slug, total_score, q1, q2, q3, q4, answers FROM responses WHERE student_id = ?'
     ).bind(studentId).all();
 
-    // یکپارچه‌سازی نام دانش‌آموز (پوشش هر دو نوع نام‌گذاری ستون)
     const displayName = student.student_name || student.name || `دانش‌آموز کد ${student.id}`;
 
     return new Response(JSON.stringify({
@@ -38,13 +35,16 @@ export async function onRequestGet(context) {
       previousResponses: results || []
     }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*'
+      }
     });
 
   } catch (err) {
     return new Response(JSON.stringify({ error: 'خطای سرور: ' + err.message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json; charset=utf-8' }
     });
   }
 }
