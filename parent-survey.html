@@ -12,7 +12,7 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 p-4 sm:p-6 flex flex-col justify-between">
 
-  <!-- ۱. کادر ورود امن اولیا (کد ملی و رمز عبور) -->
+  <!-- ۱. کادر ورود اولیا -->
   <div id="auth-box" class="max-w-md w-full mx-auto my-auto bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 space-y-5">
     <div class="text-center space-y-2">
       <div class="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">
@@ -27,11 +27,11 @@
     <div class="space-y-3.5">
       <div>
         <label class="block text-xs font-bold text-slate-700 mb-1">کد ملی دانش‌آموز:</label>
-        <input type="text" id="input-student-id" placeholder="مثال: 0921234567" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 tracking-wider text-center font-mono">
+        <input type="text" id="input-student-id" onkeydown="if(event.key === 'Enter') handleStudentAuth()" placeholder="مثال: 0921234567" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 tracking-wider text-center font-mono">
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-700 mb-1">رمز عبور پرونده:</label>
-        <input type="password" id="input-student-pass" placeholder="پیش‌فرض: ۴ رقم آخر کد ملی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 text-center font-mono">
+        <input type="password" id="input-student-pass" onkeydown="if(event.key === 'Enter') handleStudentAuth()" placeholder="پیش‌فرض: ۴ رقم آخر کد ملی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 text-center font-mono">
       </div>
 
       <button onclick="handleStudentAuth()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
@@ -43,7 +43,6 @@
 
   <!-- ۲. داشبورد و ارزیابی مهارتی -->
   <div id="survey-box" class="max-w-2xl w-full mx-auto hidden space-y-5 my-auto">
-    <!-- کارت وضعیت دانش‌آموز -->
     <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
       <div>
         <span id="std-info-name" class="font-bold text-sm text-slate-800"></span>
@@ -55,7 +54,6 @@
       </div>
     </div>
 
-    <!-- کادر گویه‌های مهارت جاری -->
     <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-5">
       <div class="border-b border-slate-100 pb-3">
         <h2 id="current-skill-title" class="text-base font-black text-indigo-950"></h2>
@@ -95,11 +93,10 @@
     let currentQuestions = [];
     let currentAnswers = [];
 
-  async function handleStudentAuth() {
+    async function handleStudentAuth() {
       const studentInput = document.getElementById('input-student-id');
       const passInput = document.getElementById('input-student-pass');
       const errBox = document.getElementById('auth-err');
-      
       errBox.classList.add('hidden');
 
       const studentId = String(studentInput ? studentInput.value : '').trim();
@@ -115,11 +112,7 @@
         const res = await fetch('/api/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            action: 'student-login', 
-            username: studentId, 
-            password: password 
-          })
+          body: JSON.stringify({ action: 'student-login', username: studentId, password })
         });
 
         const data = await res.json();
@@ -130,7 +123,7 @@
         }
 
         currentStudent = data.user;
-        document.getElementById('std-info-name').innerText = currentStudent.fullName || currentStudent.student_name || currentStudent.username;
+        document.getElementById('std-info-name').innerText = currentStudent.fullName || currentStudent.username;
         document.getElementById('std-info-grade').innerText = currentStudent.grade ? `(پایه ${currentStudent.grade})` : '';
 
         const skillsRes = await fetch('/api/admin-reports?type=all-skills');
