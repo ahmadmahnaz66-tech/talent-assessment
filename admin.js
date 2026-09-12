@@ -1309,3 +1309,63 @@ function editStudentInfo(studentId) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// همگام‌سازی تدریجی پرونده‌های تغییریافته با رعایت سقف مجاز توکن
+async function checkAndSyncPendingRoadmaps() {
+  const box = document.getElementById('sync-progress-box');
+  const statusText = document.getElementById('sync-status-text');
+  const countText = document.getElementById('sync-status-count');
+  const bar = document.getElementById('sync-progress-bar');
+
+  box.classList.remove('hidden');
+  statusText.innerText = 'در حال بررسی پرونده‌های تغییریافته...';
+  bar.style.width = '5%';
+  countText.innerText = '';
+
+  try {
+    const res = await fetch('/api/batch-sync');
+    const data = await res.json();
+    const pending = data.pendingStudents || [];
+
+    if (pending.length === 0) {
+      statusText.innerText = '✅ تمام کارنامه‌ها به‌روز هستند و هیچ تغییری وجود ندارد.';
+      bar.style.width = '100%';
+      setTimeout(() => box.classList.add('hidden'), 3000);
+      return;
+    }
+
+    const total = pending.length;
+    let completed = 0;
+
+    for (const std of pending) {
+      statusText.innerText = `در حال تحلیل هوش مصنوعی برای: ${std.student_name} (${std.id})...`;
+      countText.innerText = `${completed + 1} از ${total}`;
+
+      await fetch('/api/generate-roadmap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: std.id })
+      });
+
+      completed++;
+      const percent = Math.round((completed / total) * 100);
+      bar.style.width = `${percent}%`;
+
+      // وقفه ایمن ۵ ثانیه‌ای بین هر تحلیل برای رعایت سقف درخواست در دقیقه (RPM)
+      if (completed < total) {
+        statusText.innerText = `استراحت ایمن برای سهمیه API (۵ ثانیه)...`;
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    }
+
+    statusText.innerText = `🎉 عملیات پایان یافت؛ ${total} کارنامه با موفقیت به‌روزرسانی شدند.`;
+    const activeStudentId = document.getElementById('student-select')?.value;
+    if (activeStudentId) {
+      loadRoadmapHistory(activeStudentId);
+    }
+
+    setTimeout(() => box.classList.add('hidden'), 4000);
+
+  } catch (err) {
+    statusText.innerText = 'خطا در اجرای همگام‌سازی: ' + err.message;
+  }
+}
