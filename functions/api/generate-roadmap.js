@@ -18,16 +18,16 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'دانش‌آموز یافت نشد.' }), { status: 404 });
     }
 
-    // ۲. دریافت سوابق پاسخ‌ها و محاسبه نمرات به تفکیک مهارت‌ها
+    // ۲. دریافت سوابق پاسخ‌ها و محاسبه نمرات بر اساس ستون واقعی q_id
     const { results: skillScores } = await env.DB.prepare(`
       SELECT 
         s.slug, 
         s.title as skill_title,
-        COUNT(r.question_id) as total_answered,
+        COUNT(r.q_id) as total_answered,
         SUM(r.score) as raw_score
       FROM skills s
       LEFT JOIN questions q ON s.slug = q.skill_slug
-      LEFT JOIN responses r ON q.id = r.question_id AND r.student_id = ?
+      LEFT JOIN responses r ON q.id = r.q_id AND r.student_id = ?
       GROUP BY s.slug
       HAVING total_answered > 0
       ORDER BY raw_score DESC
@@ -37,11 +37,11 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'هنوز پاسخی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
     }
 
-    // ۳. دریافت پاسخ‌های ریز به گویه‌ها برای استخراج نیازمندی‌ها
+    // ۳. دریافت پاسخ‌های ریز به گویه‌ها جهت استخراج نیازمندی‌ها
     const { results: itemResponses } = await env.DB.prepare(`
       SELECT q.skill_slug, q.question_text, r.score
       FROM responses r
-      JOIN questions q ON r.question_id = q.id
+      JOIN questions q ON r.q_id = q.id
       WHERE r.student_id = ?
       ORDER BY r.score DESC
     `).bind(studentId).all();
@@ -148,7 +148,6 @@ ${exposureSummary}
 
     rawOutput = rawOutput.replace(/^```json/gim, '').replace(/^```/gim, '').trim();
 
-    // اعتبارسنجی خروجی JSON
     let parsedPayload;
     try {
       parsedPayload = JSON.parse(rawOutput);
@@ -160,13 +159,13 @@ ${exposureSummary}
       };
     }
 
-    // ۶. تعیین نسخه جدید سند در دیتابیس
+    // ۶. تعیین شماره نسخه جدید سند در دیتابیس
     const latest = await env.DB.prepare(
       "SELECT MAX(version) as max_v FROM student_roadmaps WHERE student_id = ?"
     ).bind(studentId).first();
     const nextVersion = (latest && latest.max_v ? Number(latest.max_v) : 0) + 1;
 
-    // ۷. ذخیره نسخه جدید در دیتابیس D1
+    // ۷. ذخیره در جدول سوابق
     await env.DB.prepare(`
       INSERT INTO student_roadmaps (student_id, version, analysis, created_at)
       VALUES (?, ?, ?, datetime('now'))
