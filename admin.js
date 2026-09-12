@@ -509,15 +509,41 @@ function exportFilteredStudentsCSV() {
   a.remove();
 }
 
-function downloadSampleCSV() {
-  const csvContent = "\uFEFFid,student_name,grade,classroom,parent_phone\n101,علی رضایی,چهارم,=\"۴/۱\",=\"09123456789\"\n";
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'نمونه_دانش_آموزان.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+// دانلود نمونه فایل اکسل (xlsx) و فایل متنی (csv) با ستون‌های تفکیک‌شده
+function downloadSampleFile(type) {
+  if (type === 'xlsx') {
+    if (typeof XLSX === 'undefined') {
+      return alert('کتابخانه اکسل لود نشده است. لطفاً صفحه را رفرش کنید.');
+    }
+    const sampleData = [
+      {
+        'کد ملی': '101',
+        'نام': 'علی',
+        'نام خانوادگی': 'رضایی',
+        'پایه': 'چهارم',
+        'کلاس': '۴/۱',
+        'شماره تماس پدر': '09123456789',
+        'شماره تماس مادر': '09129876543'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'دانش‌آموزان');
+    XLSX.writeFile(wb, 'نمونه_دانش_آموزان.xlsx');
+  } else {
+    const headers = ['کد ملی', 'نام', 'نام خانوادگی', 'پایه', 'کلاس', 'شماره تماس پدر', 'شماره تماس مادر'];
+    const row = ['101', 'علی', 'رضایی', 'چهارم', '۴/۱', '09123456789', '09129876543'];
+    const csvContent = '\uFEFF' + headers.join(',') + '\r\n' + row.join(',') + '\r\n';
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'نمونه_دانش_آموزان.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
 }
 
 async function loadInitialMetadata() {
