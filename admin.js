@@ -3,6 +3,8 @@ let loadedStudents = [];
 let currentAdminSkillSlug = '';
 let currentStaffUser = null;
 let cachedHistory = [];
+let cachedExposureTrials = [];
+let editingTrialId = null;
 let gardnerChartInstance = null;
 let reqChartInstance = null;
 
@@ -297,8 +299,9 @@ async function loadStudentsList() {
 
     const expStudentSelect = document.getElementById('exposure-student-select');
     if (expStudentSelect) {
+      const currentExpSelected = expStudentSelect.value;
       expStudentSelect.innerHTML = '<option value="">انتخاب پرونده...</option>' +
-        loadedStudents.map(s => `<option value="${s.id}">${s.student_name} (${s.id}) - پایه ${s.grade}</option>`).join('');
+        loadedStudents.map(s => `<option value="${s.id}" ${s.id === currentExpSelected ? 'selected' : ''}>${s.student_name} (${s.id}) - پایه ${s.grade}</option>`).join('');
     }
 
   } catch (err) {
@@ -717,22 +720,23 @@ function closeRoadmapModal() {
   document.getElementById('roadmap-modal').classList.add('hidden');
 }
 
-// تب ۳: مجاورت‌سازی ۲ هفته‌ای
+// تب ۳: مجاورت‌سازی ۲ هفته‌ای (Exposure Trials) با ویرایش و حذف
 async function loadExposureHistory(studentId) {
   const tbody = document.getElementById('exposure-history-body');
   if (!studentId) {
-    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">ابتدا دانش‌آموز را انتخاب نمایید.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-slate-400">ابتدا دانش‌آموز را انتخاب نمایید.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">در حال دریافت نتایج مجاورت‌سازی...</td></tr>';
+  cancelEditExposureTrial();
+  tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-slate-400">در حال دریافت نتایج مجاورت‌سازی...</td></tr>';
 
   try {
     const res = await fetch(`/api/exposure?studentId=${encodeURIComponent(studentId)}`);
-    const trials = await res.json();
+    cachedExposureTrials = await res.json();
 
-    if (!trials || trials.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-amber-600">هنوز ارزیابی ۲ هفته‌ای برای این دانش‌آموز ثبت نشده است.</td></tr>';
+    if (!cachedExposureTrials || cachedExposureTrials.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-amber-600">هنوز ارزیابی ۲ هفته‌ای برای این دانش‌آموز ثبت نشده است.</td></tr>';
       return;
     }
 
@@ -742,7 +746,7 @@ async function loadExposureHistory(studentId) {
       'عدم_همخوانی_تغییر_مهارت': '<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-md font-bold text-[10px]">🔄 تغییر مهارت</span>'
     };
 
-    tbody.innerHTML = trials.map(t => `
+    tbody.innerHTML = cachedExposureTrials.map((t, idx) => `
       <tr class="hover:bg-slate-50 transition">
         <td class="p-3 text-slate-400 font-mono text-[11px]">${new Date(t.created_at).toLocaleDateString('fa-IR')}</td>
         <td class="p-3 font-bold text-slate-800">${t.skill_title}</td>
@@ -751,10 +755,58 @@ async function loadExposureHistory(studentId) {
         <td class="p-3 text-slate-600">${t.engagement}</td>
         <td class="p-3">${verdictBadges[t.trial_verdict] || t.trial_verdict}</td>
         <td class="p-3 text-slate-500">${t.mentor_note || '-'}</td>
+        <td class="p-3 text-left space-x-1 space-x-reverse whitespace-nowrap">
+          <button onclick="editExposureTrial(${idx})" class="text-indigo-600 hover:text-indigo-800 font-bold text-xs bg-indigo-50 px-2 py-1 rounded-lg">ویرایش</button>
+          <button onclick="deleteExposureTrial(${t.id})" class="text-red-500 hover:text-red-700 font-bold text-xs bg-red-50 px-2 py-1 rounded-lg">حذف</button>
+        </td>
       </tr>
     `).join('');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-red-500">خطا در بارگذاری سوابق.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-red-500">خطا در بارگذاری سوابق.</td></tr>';
+  }
+}
+
+function editExposureTrial(idx) {
+  const trial = cachedExposureTrials[idx];
+  if (!trial) return;
+
+  editingTrialId = trial.id;
+  document.getElementById('exposure-skill-select').value = trial.skill_slug;
+  document.getElementById('exp-speed').value = trial.learning_speed;
+  document.getElementById('exp-resilience').value = trial.resilience;
+  document.getElementById('exp-engagement').value = trial.engagement;
+  document.getElementById('exp-notes').value = trial.mentor_note || '';
+  document.getElementById('exp-verdict').value = trial.trial_verdict;
+
+  // تغییر دکمه ثبت به ذخیره ویرایش
+  const btnContainer = document.querySelector('#tab-content-exposure button[onclick="saveExposureTrial()"]').parentElement;
+  btnContainer.innerHTML = `
+    <div class="flex items-center gap-2">
+      <button onclick="saveExposureTrial()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition shadow-sm">
+        ذخیره تغییرات ارزیابی ✏️
+      </button>
+      <button onclick="cancelEditExposureTrial()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs px-4 py-2.5 rounded-xl transition">
+        انصراف
+      </button>
+    </div>
+  `;
+
+  window.scrollTo({ top: document.getElementById('tab-content-exposure').offsetTop - 20, behavior: 'smooth' });
+}
+
+function cancelEditExposureTrial() {
+  editingTrialId = null;
+  document.getElementById('exp-notes').value = '';
+
+  const expContent = document.getElementById('tab-content-exposure');
+  if (!expContent) return;
+  const actionDiv = expContent.querySelector('.pt-2 button')?.parentElement;
+  if (actionDiv) {
+    actionDiv.innerHTML = `
+      <button onclick="saveExposureTrial()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition shadow-sm">
+        ثبت نتیجه آزمایش مجاورت‌سازی
+      </button>
+    `;
   }
 }
 
@@ -771,28 +823,53 @@ async function saveExposureTrial() {
     return alert('لطفاً پرونده دانش‌آموز و مهارت را انتخاب کنید.');
   }
 
+  const isEditing = Boolean(editingTrialId);
+  const payload = {
+    id: editingTrialId,
+    student_id: studentId,
+    skill_slug: skillSlug,
+    learning_speed: speed,
+    resilience: resilience,
+    engagement: engagement,
+    mentor_note: notes,
+    trial_verdict: verdict
+  };
+
   try {
     const res = await fetch('/api/exposure', {
-      method: 'POST',
+      method: isEditing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        student_id: studentId,
-        skill_slug: skillSlug,
-        learning_speed: speed,
-        resilience: resilience,
-        engagement: engagement,
-        mentor_note: notes,
-        trial_verdict: verdict
-      })
+      body: JSON.stringify(payload)
     });
 
     const data = await res.json();
     if (res.ok && data.success) {
-      alert('نتیجه آزمایش مجاورت‌سازی ثبت شد.');
-      document.getElementById('exp-notes').value = '';
+      alert(isEditing ? 'تغییرات با موفقیت ذخیره شد.' : 'نتیجه آزمایش مجاورت‌سازی ثبت شد.');
+      cancelEditExposureTrial();
       loadExposureHistory(studentId);
     } else {
       alert(data.error || 'خطا در ثبت اطلاعات.');
+    }
+  } catch (e) {
+    alert('خطا در برقراری ارتباط با سرور.');
+  }
+}
+
+async function deleteExposureTrial(trialId) {
+  if (!confirm('آیا از حذف این رکورد ارزیابی مجاورت‌سازی اطمینان دارید؟')) return;
+
+  const studentId = document.getElementById('exposure-student-select').value;
+
+  try {
+    const res = await fetch(`/api/exposure?id=${encodeURIComponent(trialId)}`, {
+      method: 'DELETE'
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      loadExposureHistory(studentId);
+    } else {
+      alert(data.error || 'خطا در حذف رکورد.');
     }
   } catch (e) {
     alert('خطا در برقراری ارتباط با سرور.');
