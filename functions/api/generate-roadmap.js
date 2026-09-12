@@ -156,8 +156,8 @@ ${exposureSummaryText}
 
 لطفاً کارنامه تخصصی و بسته اقدام گام‌به‌گام رشد A به A1 را تدوین کن.`;
 
- 
-    const requestBody = JSON.stringify({
+
+const requestBody = JSON.stringify({
       contents: [
         {
           role: 'user',
@@ -165,19 +165,29 @@ ${exposureSummaryText}
         }
       ],
       generationConfig: {
-        temperature: 0.65,
-        maxOutputTokens: 8192
+        temperature: 0.6,
+        maxOutputTokens: 6000
       }
     });
 
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
-    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-    let aiRes = await fetch(gatewayUrl, {
+    // اولویت با اتصال مستقیم فوق سریع؛ در صورت بروز خطای شبکه، گیت‌وی کلودفلر وارد مدار می‌شود
+    let aiRes = await fetch(directUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: requestBody
     });
+
+    if (!aiRes.ok) {
+      aiRes = await fetch(gatewayUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: requestBody
+      });
+    }
+    
 
     if (!aiRes.ok) {
       aiRes = await fetch(directUrl, {
