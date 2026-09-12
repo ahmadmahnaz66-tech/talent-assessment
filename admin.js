@@ -30,7 +30,6 @@ const GARDNER_LABELS_FA = {
 function formatIranDateTime(rawDateStr) {
   if (!rawDateStr) return '-';
   try {
-    // اصلاح رشته تاریخ دیتابیس برای شناسایی به عنوان زمان جهانی (UTC)
     let s = String(rawDateStr).trim().replace(' ', 'T');
     if (!s.endsWith('Z') && !s.includes('+')) {
       s += 'Z';
@@ -51,27 +50,20 @@ function formatIranDateTime(rawDateStr) {
   }
 }
 
-// پارسر بومی و قدرتمند مارک‌داون بدون نیاز به هیچ کتابخانه خارجی
+// پارسر بومی مارک‌داون بدون وابستگی و پاکسازی هشتگ‌ها و ستاره‌ها
 function parseMarkdownToHTML(markdownText) {
   if (!markdownText) return '';
 
   let html = markdownText
-    // پاکسازی فاصله‌های اضافی
     .replace(/\r\n/g, '\n')
-    // تبدیل تیترهای ### و #### به تگ‌های معادل با استایل
-    .replace(/^#### (.*$)/gim, '<h4 class="text-sm font-black text-indigo-900 mt-4 mb-2">$1</h4>')
-    .replace(/^### (.*$)/gim, '<h3 class="text-base font-black text-indigo-950 mt-5 mb-2 pb-1 border-b border-slate-100">$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2 class="text-lg font-black text-indigo-950 mt-6 mb-3 pb-1 border-b-2 border-indigo-100">$1</h2>')
-    // تبدیل متن بولد با دو ستاره
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-slate-900">$1</strong>')
-    // تبدیل بولت‌پوینت‌های ستاره‌ای
+    .replace(/^#{1,6}\s*(.*$)/gim, '<h3 class="font-extrabold text-indigo-950 mt-4 mb-2 text-sm md:text-base border-b border-indigo-100 pb-1">$1</h3>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-slate-900 bg-indigo-50/60 px-1 py-0.5 rounded">$1</strong>')
     .replace(/^\* (.*$)/gim, '<li class="mr-4 list-disc leading-relaxed text-slate-700 my-1">$1</li>')
-    // تبدیل پاراگراف‌ها و خطوط شکسته
-    .replace(/\n\n/g, '</p><p class="my-2 leading-relaxed text-slate-700 text-justify">')
+    .replace(/^- (.*$)/gim, '<li class="mr-4 list-disc leading-relaxed text-slate-700 my-1">$1</li>')
+    .replace(/\n\n/g, '</p><p class="my-2.5 leading-relaxed text-slate-700 text-justify">')
     .replace(/\n/g, '<br/>');
 
-  // حذف ستاره‌ها یا هشتگ‌های سرگردان باقیمانده
-  html = html.replace(/#{1,6}\s?/g, '').replace(/\*{1,2}/g, '');
+  html = html.replace(/#{1,6}/g, '').replace(/\*{1,2}/g, '');
 
   return `<div class="leading-relaxed text-slate-700 space-y-2">${html}</div>`;
 }
@@ -222,80 +214,7 @@ function switchTab(tabId) {
   }
 }
 
-async function loadStaffList() {
-  try {
-    const res = await fetch('/api/auth');
-    const staffList = await res.json();
-    const tbody = document.getElementById('staff-table-body');
-
-    if (!staffList || staffList.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">هیچ پرسنلی یافت نشد.</td></tr>';
-      return;
-    }
-
-    const isSuperAdmin = currentStaffUser && currentStaffUser.role === 'super_admin';
-
-    tbody.innerHTML = staffList.map(s => `
-      <tr class="hover:bg-slate-50 transition">
-        <td class="p-3 font-bold text-slate-800">${s.full_name}</td>
-        <td class="p-3 text-slate-600 font-mono">${s.username}</td>
-        <td class="p-3"><span class="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg text-[11px] font-bold">${ROLE_NAMES[s.role] || s.role}</span></td>
-        <td class="p-3 text-left">
-          ${(isSuperAdmin && s.role !== 'super_admin') 
-            ? `<button onclick="deleteStaff(${s.id})" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">حذف دسترسی</button>` 
-            : '<span class="text-slate-400 text-[11px]">-</span>'}
-        </td>
-      </tr>
-    `).join('');
-  } catch (e) {
-    console.error('خطا در لیست پرسنل:', e);
-  }
-}
-
-async function handleCreateStaff() {
-  const full_name = document.getElementById('staff-name').value.trim();
-  const username = document.getElementById('staff-username').value.trim();
-  const password = document.getElementById('staff-password').value.trim();
-  const role = document.getElementById('staff-role').value;
-
-  if (!full_name || !username || !password) return alert('تمام فیلدها را پر کنید.');
-  if (password.length < 5) return alert('رمز عبور باید حداقل ۵ رقم باشد.');
-
-  const res = await fetch('/api/auth', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'add-staff',
-      requesterRole: currentStaffUser.role,
-      full_name,
-      username,
-      password,
-      role
-    })
-  });
-
-  if (res.ok) {
-    alert(`حساب کاربری برای ${full_name} ساخته شد.`);
-    document.getElementById('staff-name').value = '';
-    document.getElementById('staff-username').value = '';
-    document.getElementById('staff-password').value = '';
-    loadStaffList();
-  } else {
-    const d = await res.json();
-    alert(d.error || 'خطا در ثبت کادر جدید.');
-  }
-}
-
-async function deleteStaff(staffId) {
-  if (!confirm('آیا از حذف دسترسی این کاربر اطمینان دارید؟')) return;
-  const res = await fetch('/api/auth', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'delete-staff', requesterRole: currentStaffUser.role, staffId })
-  });
-  if (res.ok) loadStaffList();
-}
-
+// تب ۱: مدیریت دانش‌آموزان با ستون‌های تفکیک‌شده
 async function loadStudentsList() {
   const grade = document.getElementById('filter-grade').value;
   const classroom = document.getElementById('filter-classroom').value;
@@ -311,47 +230,53 @@ async function loadStudentsList() {
     document.getElementById('students-count-badge').innerText = `تعداد: ${loadedStudents.length}`;
 
     if (loadedStudents.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">دانش‌آموزی یافت نشد.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-slate-400">دانش‌آموزی یافت نشد.</td></tr>';
       return;
     }
 
     const isSuperAdmin = currentStaffUser && (currentStaffUser.role === 'super_admin' || currentStaffUser.role === 'principal');
 
-    tbody.innerHTML = loadedStudents.map(s => `
-      <tr class="hover:bg-slate-50 transition">
-        <td class="p-3 font-bold text-slate-600 font-mono">${s.id}</td>
-        <td class="p-3 font-bold text-slate-800">${s.student_name}</td>
-        <td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[11px]">${s.grade}</span></td>
-        <td class="p-3 text-slate-600">${s.classroom || '-'}</td>
-        <td class="p-3 text-slate-500 font-mono">${s.parent_phone || '-'}</td>
-        <td class="p-3 text-left space-x-1.5 space-x-reverse">
-          ${isSuperAdmin ? `
-            <button onclick="setCustomStudentPass('${s.id}')" title="تعیین رمز عبور دلخواه" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold bg-indigo-50 px-2 py-1 rounded-lg">
-              تعیین رمز ✏️
-            </button>
-            <button onclick="resetStudentPass('${s.id}')" title="بازنشانی رمز به پیش‌فرض" class="text-amber-600 hover:text-amber-800 text-xs font-bold bg-amber-50 px-2 py-1 rounded-lg">
-              ریست
-            </button>
-            <button onclick="deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">
-              حذف
-            </button>
-          ` : '<span class="text-slate-400 text-[11px]">-</span>'}
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = loadedStudents.map(s => {
+      const fName = s.first_name || (s.student_name ? s.student_name.split(' ')[0] : '-');
+      const lName = s.last_name || (s.student_name ? s.student_name.split(' ').slice(1).join(' ') : '-');
+      return `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="p-3 font-bold text-slate-600 font-mono">${s.id}</td>
+          <td class="p-3 font-bold text-slate-800">${fName}</td>
+          <td class="p-3 font-bold text-slate-800">${lName}</td>
+          <td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[11px]">${s.grade}</span></td>
+          <td class="p-3 text-slate-600">${s.classroom || '-'}</td>
+          <td class="p-3 text-slate-500 font-mono">${s.father_phone || s.parent_phone || '-'}</td>
+          <td class="p-3 text-slate-500 font-mono">${s.mother_phone || '-'}</td>
+          <td class="p-3 text-left space-x-1.5 space-x-reverse whitespace-nowrap">
+            ${isSuperAdmin ? `
+              <button onclick="setCustomStudentPass('${s.id}')" title="تعیین رمز عبور دلخواه" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold bg-indigo-50 px-2 py-1 rounded-lg">
+                تعیین رمز ✏️
+              </button>
+              <button onclick="resetStudentPass('${s.id}')" title="بازنشانی رمز به پیش‌فرض" class="text-amber-600 hover:text-amber-800 text-xs font-bold bg-amber-50 px-2 py-1 rounded-lg">
+                ریست
+              </button>
+              <button onclick="deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">
+                حذف
+              </button>
+            ` : '<span class="text-slate-400 text-[11px]">-</span>'}
+          </td>
+        </tr>
+      `;
+    }).join('');
 
     const studentSelect = document.getElementById('student-select');
     if (studentSelect) {
       const currentSelected = studentSelect.value;
       studentSelect.innerHTML = '<option value="">انتخاب پرونده...</option>' +
-        loadedStudents.map(s => `<option value="${s.id}" ${s.id === currentSelected ? 'selected' : ''}>${s.student_name} (${s.id}) - پایه ${s.grade}</option>`).join('');
+        loadedStudents.map(s => `<option value="${s.id}" ${s.id === currentSelected ? 'selected' : ''}>${s.student_name || (s.first_name + ' ' + s.last_name)} (${s.id}) - پایه ${s.grade}</option>`).join('');
     }
 
     const expStudentSelect = document.getElementById('exposure-student-select');
     if (expStudentSelect) {
       const currentExpSelected = expStudentSelect.value;
       expStudentSelect.innerHTML = '<option value="">انتخاب پرونده...</option>' +
-        loadedStudents.map(s => `<option value="${s.id}">${s.student_name} (${s.id}) - پایه ${s.grade}</option>`).join('');
+        loadedStudents.map(s => `<option value="${s.id}">${s.student_name || (s.first_name + ' ' + s.last_name)} (${s.id}) - پایه ${s.grade}</option>`).join('');
     }
 
   } catch (err) {
@@ -374,29 +299,179 @@ function updateFilterDropdowns(stats) {
 
 async function saveSingleStudent() {
   const id = document.getElementById('std-id').value.trim();
-  const student_name = document.getElementById('std-name').value.trim();
+  const first_name = document.getElementById('std-first-name').value.trim();
+  const last_name = document.getElementById('std-last-name').value.trim();
   const grade = document.getElementById('std-grade').value.trim();
   const classroom = document.getElementById('std-class').value.trim();
-  const parent_phone = document.getElementById('std-phone').value.trim();
+  const father_phone = document.getElementById('std-father-phone').value.trim();
+  const mother_phone = document.getElementById('std-mother-phone').value.trim();
 
-  if (!id || !student_name || !grade) return alert('کد ملی، نام و پایه الزامی هستند.');
+  if (!id || !first_name || !last_name || !grade) {
+    return alert('کد ملی، نام، نام خانوادگی و پایه الزامی هستند.');
+  }
 
   const res = await fetch('/api/students', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'save-single', id, student_name, grade, classroom, parent_phone })
+    body: JSON.stringify({ action: 'save-single', id, first_name, last_name, grade, classroom, father_phone, mother_phone })
   });
 
   if (res.ok) {
     document.getElementById('std-id').value = '';
-    document.getElementById('std-name').value = '';
+    document.getElementById('std-first-name').value = '';
+    document.getElementById('std-last-name').value = '';
     document.getElementById('std-grade').value = '';
     document.getElementById('std-class').value = '';
-    document.getElementById('std-phone').value = '';
+    document.getElementById('std-father-phone').value = '';
+    document.getElementById('std-mother-phone').value = '';
     await loadStudentsList();
   } else {
     alert('خطا در ذخیره پرونده.');
   }
+}
+
+// دانلود فایل نمونه (CSV یا XLSX)
+function downloadSampleFile(type) {
+  if (type === 'xlsx') {
+    if (typeof XLSX === 'undefined') {
+      return alert('کتابخانه اکسل هنوز لود نشده است. لطفاً صفحه را رفرش فرمایید.');
+    }
+    const sampleData = [
+      {
+        'کد ملی': '101',
+        'نام': 'علی',
+        'نام خانوادگی': 'رضایی',
+        'پایه': 'چهارم',
+        'کلاس': '۴/۱',
+        'شماره تماس پدر': '09123456789',
+        'شماره تماس مادر': '09129876543'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'دانش‌آموزان');
+    XLSX.writeFile(wb, 'نمونه_دانش_آموزان.xlsx');
+  } else {
+    const headers = ['کد ملی', 'نام', 'نام خانوادگی', 'پایه', 'کلاس', 'شماره تماس پدر', 'شماره تماس مادر'];
+    const row = ['101', 'علی', 'رضایی', 'چهارم', '۴/۱', '09123456789', '09129876543'];
+    const csvContent = '\uFEFF' + headers.join(',') + '\r\n' + row.join(',') + '\r\n';
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'نمونه_دانش_آموزان.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+}
+
+// ایمپورت منعطف انواع فایل‌های اکسل (xlsx, xls) و متنی (csv)
+function handleBatchImport() {
+  const fileInput = document.getElementById('excel-file-input') || document.getElementById('csv-file-input');
+  if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+    return alert('لطفاً یک فایل Excel (.xlsx, .xls) یا CSV انتخاب کنید.');
+  }
+
+  const file = fileInput.files[0];
+  const isCSV = file.name.endsWith('.csv');
+
+  if (isCSV && typeof XLSX === 'undefined') {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async function(results) {
+        await sendBatchToServer(results.data, fileInput);
+      }
+    });
+    return;
+  }
+
+  if (typeof XLSX === 'undefined') {
+    return alert('کتابخانه اکسل لود نشده است. لطفاً صفحه را مجدداً بارگذاری کنید.');
+  }
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+      if (!rows || rows.length === 0) {
+        return alert('فایل انتخاب‌شده خالی است یا ساختار نامعتبر دارد.');
+      }
+
+      await sendBatchToServer(rows, fileInput);
+    } catch (err) {
+      alert('خطا در خواندن فایل اکسل: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ارسال داده‌ها به سرور و نرمال‌سازی شماره‌های موبایل
+async function sendBatchToServer(rows, fileInput) {
+  const normalizedRows = rows.map(r => {
+    let fPhone = String(r['شماره تماس پدر'] || r.father_phone || '').trim();
+    let mPhone = String(r['شماره تماس مادر'] || r.mother_phone || '').trim();
+    
+    // تصحیح شماره‌های ۱۰ رقمی در صورت افتادن صفر اول در اکسل
+    if (fPhone.length === 10 && fPhone.startsWith('9')) fPhone = '0' + fPhone;
+    if (mPhone.length === 10 && mPhone.startsWith('9')) mPhone = '0' + mPhone;
+
+    return {
+      ...r,
+      'شماره تماس پدر': fPhone,
+      'شماره تماس مادر': mPhone
+    };
+  });
+
+  try {
+    const res = await fetch('/api/students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'import-batch', list: normalizedRows })
+    });
+
+    if (res.ok) {
+      const out = await res.json();
+      alert(`${out.count} پرونده با موفقیت در دیتابیس ثبت و به‌روزرسانی شد.`);
+      fileInput.value = '';
+      await loadStudentsList();
+    } else {
+      const d = await res.json();
+      alert(d.error || 'خطا در ثبت اطلاعات پرونده‌ها.');
+    }
+  } catch (err) {
+    alert('خطا در اتصال به سرور جهت آپلود: ' + err.message);
+  }
+}
+
+// خروجی اکسل رسمی از لیست فیلترشده
+function exportStudentsExcel() {
+  if (!loadedStudents || loadedStudents.length === 0) return alert('دانش‌آموزی در لیست وجود ندارد.');
+  
+  const gradeVal = document.getElementById('filter-grade')?.value || 'همه';
+  const classVal = document.getElementById('filter-classroom')?.value || 'همه';
+
+  const exportData = loadedStudents.map(s => ({
+    'کد ملی': String(s.id),
+    'نام': s.first_name || (s.student_name ? s.student_name.split(' ')[0] : ''),
+    'نام خانوادگی': s.last_name || (s.student_name ? s.student_name.split(' ').slice(1).join(' ') : ''),
+    'پایه': s.grade || '',
+    'کلاس': s.classroom || '',
+    'شماره تماس پدر': s.father_phone || s.parent_phone || '',
+    'شماره تماس مادر': s.mother_phone || ''
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(exportData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'لیست دانش‌آموزان');
+  XLSX.writeFile(wb, `لیست_دانش‌آموزان_${gradeVal}_${classVal}.xlsx`);
 }
 
 async function setCustomStudentPass(studentId) {
@@ -448,33 +523,6 @@ async function resetStudentPass(studentId) {
   }
 }
 
-function handleBatchImport() {
-  const fileInput = document.getElementById('csv-file-input');
-  const file = fileInput.files[0];
-  if (!file) return alert('لطفاً فایل CSV را انتخاب کنید.');
-
-  Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
-    complete: async function(results) {
-      if (!results.data || results.data.length === 0) return alert('فایل داده‌ای ندارد.');
-      const res = await fetch('/api/students', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'import-batch', list: results.data })
-      });
-      if (res.ok) {
-        const out = await res.json();
-        alert(`${out.count} پرونده وارد شد.`);
-        fileInput.value = '';
-        await loadStudentsList();
-      } else {
-        alert('خطا در ورود داده‌ها.');
-      }
-    }
-  });
-}
-
 async function deleteStudent(id) {
   if (!confirm(`آیا از حذف کامل پرونده ${id} اطمینان دارید؟`)) return;
   const res = await fetch('/api/students', {
@@ -483,67 +531,6 @@ async function deleteStudent(id) {
     body: JSON.stringify({ action: 'delete', id })
   });
   if (res.ok) await loadStudentsList();
-}
-
-function exportFilteredStudentsCSV() {
-  if (!loadedStudents || loadedStudents.length === 0) return alert('دانش‌آموزی وجود ندارد.');
-  const gradeVal = document.getElementById('filter-grade')?.value || 'همه';
-  const classVal = document.getElementById('filter-classroom')?.value || 'همه';
-
-  const headers = ['کد ملی', 'نام و نام خانوادگی', 'پایه', 'کلاس', 'شماره تماس ولی'];
-  const rows = loadedStudents.map(s => [
-    `"${String(s.id ?? '').replace(/"/g, '""')}"`,
-    `"${String(s.student_name ?? '').replace(/"/g, '""')}"`,
-    `"${String(s.grade ?? '').replace(/"/g, '""')}"`,
-    `"${String(s.classroom ?? '').replace(/"/g, '""')}"`,
-    `"${String(s.parent_phone ?? '').replace(/"/g, '""')}"`
-  ]);
-
-  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `لیست_دانش‌آموزان_${gradeVal}_${classVal}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
-// دانلود نمونه فایل اکسل (xlsx) و فایل متنی (csv) با ستون‌های تفکیک‌شده
-function downloadSampleFile(type) {
-  if (type === 'xlsx') {
-    if (typeof XLSX === 'undefined') {
-      return alert('کتابخانه اکسل لود نشده است. لطفاً صفحه را رفرش کنید.');
-    }
-    const sampleData = [
-      {
-        'کد ملی': '101',
-        'نام': 'علی',
-        'نام خانوادگی': 'رضایی',
-        'پایه': 'چهارم',
-        'کلاس': '۴/۱',
-        'شماره تماس پدر': '09123456789',
-        'شماره تماس مادر': '09129876543'
-      }
-    ];
-
-    const ws = XLSX.utils.json_to_sheet(sampleData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'دانش‌آموزان');
-    XLSX.writeFile(wb, 'نمونه_دانش_آموزان.xlsx');
-  } else {
-    const headers = ['کد ملی', 'نام', 'نام خانوادگی', 'پایه', 'کلاس', 'شماره تماس پدر', 'شماره تماس مادر'];
-    const row = ['101', 'علی', 'رضایی', 'چهارم', '۴/۱', '09123456789', '09129876543'];
-    const csvContent = '\uFEFF' + headers.join(',') + '\r\n' + row.join(',') + '\r\n';
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'نمونه_دانش_آموزان.csv';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
 }
 
 async function loadInitialMetadata() {
@@ -666,8 +653,6 @@ function viewHistoricalRoadmap(index) {
   }
 
   const rawMarkdown = parsedPayload.text || item.analysis || '';
-  
-  // تبدیل علامت‌های مارک‌داون به HTML تمیز و پاکسازی کامل هشتگ‌ها و ستاره‌ها
   document.getElementById('modal-content').innerHTML = parseMarkdownToHTML(rawMarkdown);
 
   document.getElementById('roadmap-modal').classList.remove('hidden');
@@ -676,12 +661,10 @@ function viewHistoricalRoadmap(index) {
   renderRequirementsBarChart(parsedPayload.topRequirements || []);
 }
 
-// ذخیره مستقیم PDF استاندارد با باز کردن پنجره چاپ آماده پرینت/PDF
 function downloadDirectPDF() {
   const select = document.getElementById('student-select');
   const sName = select.options[select.selectedIndex]?.text || 'کارنامه_استعدادیابی';
   
-  // تغییر عنوان صفحه برای نامگذاری فایل ذخیره‌شده
   const oldTitle = document.title;
   document.title = `${sName} - گزارش بالینی آپادانا`;
   
@@ -1118,4 +1101,79 @@ async function deleteSelectedSkill() {
     body: JSON.stringify({ action: 'delete-skill', slug: currentAdminSkillSlug })
   });
   if (res.ok) await loadInitialMetadata();
+}
+
+// تب ۶: کادر و پرسنل مدرسه
+async function loadStaffList() {
+  try {
+    const res = await fetch('/api/auth');
+    const staffList = await res.json();
+    const tbody = document.getElementById('staff-table-body');
+
+    if (!staffList || staffList.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">هیچ پرسنلی یافت نشد.</td></tr>';
+      return;
+    }
+
+    const isSuperAdmin = currentStaffUser && currentStaffUser.role === 'super_admin';
+
+    tbody.innerHTML = staffList.map(s => `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="p-3 font-bold text-slate-800">${s.full_name}</td>
+        <td class="p-3 text-slate-600 font-mono">${s.username}</td>
+        <td class="p-3"><span class="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg text-[11px] font-bold">${ROLE_NAMES[s.role] || s.role}</span></td>
+        <td class="p-3 text-left">
+          ${(isSuperAdmin && s.role !== 'super_admin') 
+            ? `<button onclick="deleteStaff(${s.id})" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">حذف دسترسی</button>` 
+            : '<span class="text-slate-400 text-[11px]">-</span>'}
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.error('خطا در لیست پرسنل:', e);
+  }
+}
+
+async function handleCreateStaff() {
+  const full_name = document.getElementById('staff-name').value.trim();
+  const username = document.getElementById('staff-username').value.trim();
+  const password = document.getElementById('staff-password').value.trim();
+  const role = document.getElementById('staff-role').value;
+
+  if (!full_name || !username || !password) return alert('تمام فیلدها را پر کنید.');
+  if (password.length < 5) return alert('رمز عبور باید حداقل ۵ رقم باشد.');
+
+  const res = await fetch('/api/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'add-staff',
+      requesterRole: currentStaffUser.role,
+      full_name,
+      username,
+      password,
+      role
+    })
+  });
+
+  if (res.ok) {
+    alert(`حساب کاربری برای ${full_name} ساخته شد.`);
+    document.getElementById('staff-name').value = '';
+    document.getElementById('staff-username').value = '';
+    document.getElementById('staff-password').value = '';
+    loadStaffList();
+  } else {
+    const d = await res.json();
+    alert(d.error || 'خطا در ثبت کادر جدید.');
+  }
+}
+
+async function deleteStaff(staffId) {
+  if (!confirm('آیا از حذف دسترسی این کاربر اطمینان دارید؟')) return;
+  const res = await fetch('/api/auth', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete-staff', requesterRole: currentStaffUser.role, staffId })
+  });
+  if (res.ok) loadStaffList();
 }
