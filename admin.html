@@ -290,8 +290,25 @@
       </div>
 
       <div id="ai-history-card" class="hidden bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 space-y-2">
-        <h3 class="text-xs font-bold text-indigo-900">📁 تاریخچه اسناد و تحلیل‌های صادرشده:</h3>
-        <div id="history-container" class="flex flex-wrap gap-2 text-xs"></div>
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100/70 pb-2">
+          <h3 class="text-xs font-bold text-indigo-900">📁 تاریخچه اسناد و تحلیل‌های صادرشده این دانش‌آموز:</h3>
+          <button onclick="checkAndSyncPendingRoadmaps()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl font-bold text-[11px] transition shadow-sm flex items-center gap-1">
+            <span>🔄</span>
+            <span>به‌روزرسانی خودکار پرونده‌های تغییریافته</span>
+          </button>
+        </div>
+        <div id="history-container" class="flex flex-wrap gap-2 text-xs pt-1"></div>
+        
+        <!-- نوار وضعیت همگام‌سازی گروهی -->
+        <div id="sync-progress-box" class="hidden bg-white p-3 rounded-xl border border-indigo-100 space-y-2 mt-2">
+          <div class="flex justify-between items-center text-xs font-bold text-slate-700">
+            <span id="sync-status-text">در حال بررسی...</span>
+            <span id="sync-status-count" class="font-mono text-indigo-600">۰ / ۰</span>
+          </div>
+          <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+            <div id="sync-progress-bar" class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
       </div>
 
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
