@@ -26,6 +26,56 @@ const GARDNER_LABELS_FA = {
   naturalist: 'طبیعت‌گرا'
 };
 
+// تابع اختصاصی تبدیل دقیق تاریخ و ساعت به وقت رسمی ایران
+function formatIranDateTime(rawDateStr) {
+  if (!rawDateStr) return '-';
+  try {
+    // اصلاح رشته تاریخ دیتابیس برای شناسایی به عنوان زمان جهانی (UTC)
+    let s = String(rawDateStr).trim().replace(' ', 'T');
+    if (!s.endsWith('Z') && !s.includes('+')) {
+      s += 'Z';
+    }
+    const d = new Date(s);
+    return new Intl.DateTimeFormat('fa-IR', {
+      timeZone: 'Asia/Tehran',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).format(d);
+  } catch (e) {
+    return rawDateStr;
+  }
+}
+
+// پارسر بومی و قدرتمند مارک‌داون بدون نیاز به هیچ کتابخانه خارجی
+function parseMarkdownToHTML(markdownText) {
+  if (!markdownText) return '';
+
+  let html = markdownText
+    // پاکسازی فاصله‌های اضافی
+    .replace(/\r\n/g, '\n')
+    // تبدیل تیترهای ### و #### به تگ‌های معادل با استایل
+    .replace(/^#### (.*$)/gim, '<h4 class="text-sm font-black text-indigo-900 mt-4 mb-2">$1</h4>')
+    .replace(/^### (.*$)/gim, '<h3 class="text-base font-black text-indigo-950 mt-5 mb-2 pb-1 border-b border-slate-100">$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2 class="text-lg font-black text-indigo-950 mt-6 mb-3 pb-1 border-b-2 border-indigo-100">$1</h2>')
+    // تبدیل متن بولد با دو ستاره
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-slate-900">$1</strong>')
+    // تبدیل بولت‌پوینت‌های ستاره‌ای
+    .replace(/^\* (.*$)/gim, '<li class="mr-4 list-disc leading-relaxed text-slate-700 my-1">$1</li>')
+    // تبدیل پاراگراف‌ها و خطوط شکسته
+    .replace(/\n\n/g, '</p><p class="my-2 leading-relaxed text-slate-700 text-justify">')
+    .replace(/\n/g, '<br/>');
+
+  // حذف ستاره‌ها یا هشتگ‌های سرگردان باقیمانده
+  html = html.replace(/#{1,6}\s?/g, '').replace(/\*{1,2}/g, '');
+
+  return `<div class="leading-relaxed text-slate-700 space-y-2">${html}</div>`;
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   checkAuthSession();
 });
@@ -301,7 +351,7 @@ async function loadStudentsList() {
     if (expStudentSelect) {
       const currentExpSelected = expStudentSelect.value;
       expStudentSelect.innerHTML = '<option value="">انتخاب پرونده...</option>' +
-        loadedStudents.map(s => `<option value="${s.id}" ${s.id === currentExpSelected ? 'selected' : ''}>${s.student_name} (${s.id}) - پایه ${s.grade}</option>`).join('');
+        loadedStudents.map(s => `<option value="${s.id}">${s.student_name} (${s.id}) - پایه ${s.grade}</option>`).join('');
     }
 
   } catch (err) {
@@ -533,10 +583,10 @@ async function fetchStudentReport(studentId) {
 
     container.innerHTML = records.map((r, i) => `
       <tr class="hover:bg-slate-50 transition">
-        <td class="p-3 font-bold text-slate-400">#${i + 1}</td>
+        <td class="p-3 text-center font-bold text-slate-400">#${i + 1}</td>
         <td class="p-3 font-bold text-slate-800">${r.skill_title}</td>
-        <td class="p-3 font-black text-indigo-600">${r.total_score}</td>
-        <td class="p-3"><span class="px-2 py-0.5 rounded-md text-[11px] font-bold ${r.total_score >= 45 ? 'bg-emerald-100 text-emerald-700' : r.total_score >= 30 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">${r.total_score >= 45 ? 'اولویت طلایی (A1)' : r.total_score >= 30 ? 'اولویت رشد (A)' : 'پتانسیل ثانویه'}</span></td>
+        <td class="p-3 text-center font-black text-indigo-600">${r.total_score}</td>
+        <td class="p-3 text-center"><span class="px-2.5 py-1 rounded-md text-[11px] font-bold ${r.total_score >= 45 ? 'bg-emerald-100 text-emerald-700' : r.total_score >= 30 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">${r.total_score >= 45 ? 'اولویت طلایی (A1)' : r.total_score >= 30 ? 'اولویت رشد (A)' : 'پتانسیل ثانویه'}</span></td>
       </tr>
     `).join('');
   } catch (e) {
@@ -560,7 +610,7 @@ async function loadRoadmapHistory(studentId) {
     box.innerHTML = cachedHistory.map((item, idx) => `
       <button onclick="viewHistoricalRoadmap(${idx})" class="bg-white border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-600 hover:text-white transition flex items-center gap-1">
         <span>📄 نسخه ${item.version}</span>
-        <span class="text-[10px] opacity-70">(${new Date(item.created_at).toLocaleDateString('fa-IR')})</span>
+        <span class="text-[10px] opacity-70">(${formatIranDateTime(item.created_at)})</span>
       </button>
     `).join('');
   } catch (e) {
@@ -572,9 +622,15 @@ function viewHistoricalRoadmap(index) {
   const item = cachedHistory[index];
   const select = document.getElementById('student-select');
   const sName = select.options[select.selectedIndex]?.text || '';
+  const iranTime = formatIranDateTime(item.created_at);
 
   document.getElementById('modal-title').innerText = `کارنامه و نقشه راه رشد هوش مصنوعی - ${sName}`;
-  document.getElementById('modal-subtitle').innerText = `نسخه شماره ${item.version} (ثبت شده در: ${new Date(item.created_at).toLocaleString('fa-IR')})`;
+  document.getElementById('modal-subtitle').innerText = `نسخه شماره ${item.version} (ثبت شده در: ${iranTime})`;
+
+  const headerDateEl = document.getElementById('pdf-header-date');
+  if (headerDateEl) {
+    headerDateEl.innerHTML = `<div><strong>تاریخ صدور:</strong> ${iranTime}</div>`;
+  }
 
   let parsedPayload = null;
   try {
@@ -583,11 +639,31 @@ function viewHistoricalRoadmap(index) {
     parsedPayload = { text: item.analysis, gardner: [], topRequirements: [] };
   }
 
-  document.getElementById('modal-content').innerText = parsedPayload.text || item.analysis;
+  const rawMarkdown = parsedPayload.text || item.analysis || '';
+  
+  // تبدیل علامت‌های مارک‌داون به HTML تمیز و پاکسازی کامل هشتگ‌ها و ستاره‌ها
+  document.getElementById('modal-content').innerHTML = parseMarkdownToHTML(rawMarkdown);
+
   document.getElementById('roadmap-modal').classList.remove('hidden');
 
   renderGardnerRadarChart(parsedPayload.gardner || []);
   renderRequirementsBarChart(parsedPayload.topRequirements || []);
+}
+
+// ذخیره مستقیم PDF استاندارد با باز کردن پنجره چاپ آماده پرینت/PDF
+function downloadDirectPDF() {
+  const select = document.getElementById('student-select');
+  const sName = select.options[select.selectedIndex]?.text || 'کارنامه_استعدادیابی';
+  
+  // تغییر عنوان صفحه برای نامگذاری فایل ذخیره‌شده
+  const oldTitle = document.title;
+  document.title = `${sName} - گزارش بالینی آپادانا`;
+  
+  window.print();
+  
+  setTimeout(() => {
+    document.title = oldTitle;
+  }, 1000);
 }
 
 function renderGardnerRadarChart(gardnerData) {
@@ -720,7 +796,7 @@ function closeRoadmapModal() {
   document.getElementById('roadmap-modal').classList.add('hidden');
 }
 
-// تب ۳: مجاورت‌سازی ۲ هفته‌ای (Exposure Trials) با ویرایش و حذف
+// تب ۳: مجاورت‌سازی ۲ هفته‌ای
 async function loadExposureHistory(studentId) {
   const tbody = document.getElementById('exposure-history-body');
   if (!studentId) {
@@ -748,7 +824,7 @@ async function loadExposureHistory(studentId) {
 
     tbody.innerHTML = cachedExposureTrials.map((t, idx) => `
       <tr class="hover:bg-slate-50 transition">
-        <td class="p-3 text-slate-400 font-mono text-[11px]">${new Date(t.created_at).toLocaleDateString('fa-IR')}</td>
+        <td class="p-3 text-slate-400 font-mono text-[11px]">${formatIranDateTime(t.created_at)}</td>
         <td class="p-3 font-bold text-slate-800">${t.skill_title}</td>
         <td class="p-3 text-slate-600">${t.learning_speed}</td>
         <td class="p-3 text-slate-600">${t.resilience}</td>
@@ -778,7 +854,6 @@ function editExposureTrial(idx) {
   document.getElementById('exp-notes').value = trial.mentor_note || '';
   document.getElementById('exp-verdict').value = trial.trial_verdict;
 
-  // تغییر دکمه ثبت به ذخیره ویرایش
   const btnContainer = document.querySelector('#tab-content-exposure button[onclick="saveExposureTrial()"]').parentElement;
   btnContainer.innerHTML = `
     <div class="flex items-center gap-2">
