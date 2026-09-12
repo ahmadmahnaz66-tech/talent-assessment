@@ -697,10 +697,10 @@ function viewHistoricalRoadmap(index) {
 }
 
 
-// دانلود مستقیم فایل PDF در حافظه بدون باز شدن پنجره پرینتر
+// دانلود مستقیم فایل PDF کامل و باکیفیت
 async function downloadDirectPDF() {
   if (typeof html2pdf === 'undefined') {
-    return alert('کتابخانه ساخت PDF در حال بارگذاری است یا مسدود شده است. لطفاً صفحه را نوسازی کنید.');
+    return alert('کتابخانه ساخت PDF بارگذاری نشده است.');
   }
 
   const select = document.getElementById('student-select');
@@ -711,65 +711,41 @@ async function downloadDirectPDF() {
   const btn = document.getElementById('btn-export-pdf');
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<span>⏳</span><span>در حال آماده‌سازی و دانلود...</span>';
+  btn.innerHTML = '<span>⏳</span><span>در حال پردازش PDF...</span>';
 
-  // ۱. ساخت یک کپی تمیز و اختصاصی از محتوا جهت جلوگیری از تداخل استایل و اسکرول مودال
-  const sourceArea = document.getElementById('pdf-printable-area');
-  const clone = sourceArea.cloneNode(true);
+  const element = document.getElementById('pdf-printable-area');
+  const printHeader = element.querySelector('.print-header');
+  const printFooter = element.querySelector('.print-footer');
 
-  // نمایش اجزای چاپی رسمی در خروجی PDF
-  const printHeader = clone.querySelector('.print-header');
-  const printFooter = clone.querySelector('.print-footer');
+  // آشکارسازی موقت سربرگ و فوتر برای خروجی
   if (printHeader) printHeader.classList.remove('hidden');
   if (printFooter) printFooter.classList.remove('hidden');
 
-  // کپی تصویر دقیق نمودارهای Canvas به کپی سند
-  const origCanvases = sourceArea.querySelectorAll('canvas');
-  const cloneCanvases = clone.querySelectorAll('canvas');
-  origCanvases.forEach((origCanvas, idx) => {
-    try {
-      const img = document.createElement('img');
-      img.src = origCanvas.toDataURL('image/png');
-      img.className = 'w-full h-auto object-contain';
-      cloneCanvases[idx].parentNode.replaceChild(img, cloneCanvases[idx]);
-    } catch (e) {
-      console.warn('عدم امکان تبدیل مستقیم نمودار:', e);
-    }
-  });
-
-  // قرار دادن المان کپی‌شده به صورت موقت در انتهای صفحه
-  clone.style.width = '794px'; // عرض استاندارد A4 در مقیاس 96DPI
-  clone.style.padding = '20px';
-  clone.style.backgroundColor = '#ffffff';
-  clone.style.position = 'absolute';
-  clone.style.left = '-9999px';
-  clone.style.top = '0';
-  document.body.appendChild(clone);
-
   const opt = {
-    margin: [10, 10, 15, 10],
+    margin: [8, 8, 12, 8],
     filename: `${sName}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: {
-      scale: 2,
+      scale: 1.8,
       useCORS: true,
-      letterRendering: true,
-      logging: false
+      scrollY: 0,
+      windowWidth: document.documentElement.offsetWidth
     },
     jsPDF: {
       unit: 'mm',
       format: 'a4',
       orientation: 'portrait'
     },
-    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    pagebreak: { mode: ['css', 'legacy'] }
   };
 
   try {
-    await html2pdf().set(opt).from(clone).save();
+    await html2pdf().set(opt).from(element).save();
   } catch (err) {
-    alert('خطا در دانلود خودکار PDF: ' + err.message);
+    alert('خطا در تولید PDF: ' + err.message);
   } finally {
-    document.body.removeChild(clone);
+    if (printHeader) printHeader.classList.add('hidden');
+    if (printFooter) printFooter.classList.add('hidden');
     btn.disabled = false;
     btn.innerHTML = originalHtml;
   }
