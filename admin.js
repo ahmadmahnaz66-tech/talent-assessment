@@ -248,8 +248,11 @@ async function loadStudentsList() {
           <td class="p-3 text-slate-600">${s.classroom || '-'}</td>
           <td class="p-3 text-slate-500 font-mono">${s.father_phone || s.parent_phone || '-'}</td>
           <td class="p-3 text-slate-500 font-mono">${s.mother_phone || '-'}</td>
-          <td class="p-3 text-left space-x-1.5 space-x-reverse whitespace-nowrap">
+    <td class="p-3 text-left space-x-1.5 space-x-reverse whitespace-nowrap">
             ${isSuperAdmin ? `
+              <button onclick="editStudentInfo('${s.id}')" title="ویرایش اطلاعات دانش‌آموز" class="text-blue-600 hover:text-blue-800 text-xs font-bold bg-blue-50 px-2 py-1 rounded-lg">
+                ویرایش 📝
+              </button>
               <button onclick="setCustomStudentPass('${s.id}')" title="تعیین رمز عبور دلخواه" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold bg-indigo-50 px-2 py-1 rounded-lg">
                 تعیین رمز ✏️
               </button>
@@ -261,6 +264,7 @@ async function loadStudentsList() {
               </button>
             ` : '<span class="text-slate-400 text-[11px]">-</span>'}
           </td>
+          
         </tr>
       `;
     }).join('');
@@ -1208,3 +1212,51 @@ async function deleteStaff(staffId) {
   });
   if (res.ok) loadStaffList();
 }
+
+// تابع جستجوی زنده (Live Search) با تایپ هر کاراکتر
+function filterStudentDropdown(query) {
+  const select = document.getElementById('student-select');
+  if (!select) return;
+
+  const cleanQuery = query.trim().toLowerCase();
+  const currentVal = select.value;
+
+  const filtered = loadedStudents.filter(s => {
+    const fullName = (s.student_name || `${s.first_name || ''} ${s.last_name || ''}`).toLowerCase();
+    const id = String(s.id).toLowerCase();
+    const grade = String(s.grade || '').toLowerCase();
+    return fullName.includes(cleanQuery) || id.includes(cleanQuery) || grade.includes(cleanQuery);
+  });
+
+  select.innerHTML = '<option value="">انتخاب پرونده...</option>' +
+    filtered.map(s => `
+      <option value="${s.id}" ${s.id === currentVal ? 'selected' : ''}>
+        ${s.student_name || (s.first_name + ' ' + s.last_name)} (${s.id}) - پایه ${s.grade}
+      </option>
+    `).join('');
+
+  // اگر فقط یک نتیجه پیدا شد، خودکار انتخاب و کارنامه‌اش لود شود
+  if (filtered.length === 1 && cleanQuery.length >= 2) {
+    select.value = filtered[0].id;
+    onStudentSelectChanged();
+  }
+}
+
+// تابع پر کردن فرم جهت ویرایش اطلاعات دانش‌آموز
+function editStudentInfo(studentId) {
+  const student = loadedStudents.find(s => String(s.id) === String(studentId));
+  if (!student) return;
+
+  // پر کردن فیلدهای فرم بالای تب ۱
+  document.getElementById('std-id').value = student.id;
+  document.getElementById('std-first-name').value = student.first_name || (student.student_name ? student.student_name.split(' ')[0] : '');
+  document.getElementById('std-last-name').value = student.last_name || (student.student_name ? student.student_name.split(' ').slice(1).join(' ') : '');
+  document.getElementById('std-grade').value = student.grade || '';
+  document.getElementById('std-class').value = student.classroom || '';
+  document.getElementById('std-father-phone').value = student.father_phone || student.parent_phone || '';
+  document.getElementById('std-mother-phone').value = student.mother_phone || '';
+
+  // اسکرول نرم به بالای فرم برای دسترسی آسان کاربر
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
