@@ -7,7 +7,6 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
   }
 
-  // دریافت سوابق از جدول واقعی roadmaps
   const { results } = await env.DB.prepare(
     "SELECT version, analysis, created_at FROM roadmaps WHERE student_id = ? ORDER BY version DESC"
   ).bind(studentId).all();
@@ -26,7 +25,7 @@ export async function onRequestPost(context) {
     }
     const apiKey = rawKey.trim();
 
-    // ۱. دریافت نمرات و اطلاعات هالند و گاردنر از جدول واقعی responses
+    // ۱. دریافت نمرات دانش‌آموز از جدول واقعی responses
     const { results: skillScores } = await env.DB.prepare(`
       SELECT 
         r.skill_slug, 
@@ -109,7 +108,7 @@ export async function onRequestPost(context) {
       `- شاخص رفتاری «${req.requirement}» در مهارت ${req.skill_title}: ${req.percentage}%`
     ).join('\n');
 
-    // ۳. پرامپت روانشناختی جهت تحلیل تخصصی کودک
+    // ۳. پرامپت تحلیلی رشد کودک
     const systemPrompt = `تو یک روانشناس بالینی کودک و متخصص ارشد استعدادیابی مدارس مهارت‌محور هستی.
 بر اساس نظریه هوش‌های چندگانه گاردنر و مدل رغبت‌سنجی هالند (RIASEC)، تحلیلی حرفه‌ای و کاربردی از وضعیت دانش‌آموز ۷ تا ۱۲ سال ارائه بده.
 گزارش باید شامل ۴ بخش مشخص باشد:
@@ -145,27 +144,21 @@ ${reqSummaryText}
       }
     });
 
-    // آدرس اول: از طریق Cloudflare AI Gateway
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    // آدرس دوم: ارتباط مستقیم با گوگل جمنای (فال‌بک در صورت بروز خطا در گیت‌وی)
-    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // آدرس مستقیم گوگل با مدل پایدار ۲.۵
+    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    // آدرس گیت‌وی کلودفلر با مدل ۲.۵
+    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     let aiRes = await fetch(gatewayUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: requestBody
     });
 
     if (!aiRes.ok) {
-      // سوئیچ خودکار به اتصال مستقیم در صورت خطای درگاه
       aiRes = await fetch(directUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: requestBody
       });
     }
