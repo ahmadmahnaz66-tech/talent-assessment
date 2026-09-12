@@ -156,6 +156,7 @@ ${exposureSummaryText}
 
 لطفاً کارنامه تخصصی و بسته اقدام گام‌به‌گام رشد A به A1 را تدوین کن.`;
 
+ 
     const requestBody = JSON.stringify({
       contents: [
         {
@@ -165,7 +166,7 @@ ${exposureSummaryText}
       ],
       generationConfig: {
         temperature: 0.65,
-        maxOutputTokens: 2800
+        maxOutputTokens: 8192
       }
     });
 
