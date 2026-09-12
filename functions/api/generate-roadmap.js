@@ -18,18 +18,17 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'دانش‌آموز یافت نشد.' }), { status: 404 });
     }
 
-    // ۲. دریافت سوابق پاسخ‌ها و محاسبه نمرات بر اساس ستون واقعی q_id
+    // ۲. دریافت مجموع امتیازات دانش‌آموز مستقیماً بر اساس مهارت‌ها
     const { results: skillScores } = await env.DB.prepare(`
       SELECT 
         s.slug, 
         s.title as skill_title,
-        COUNT(r.q_id) as total_answered,
-        SUM(r.score) as raw_score
+        COUNT(r.id) as total_answered,
+        COALESCE(SUM(r.score), 0) as raw_score
       FROM skills s
-      LEFT JOIN questions q ON s.slug = q.skill_slug
-      LEFT JOIN responses r ON q.id = r.q_id AND r.student_id = ?
-      GROUP BY s.slug
-      HAVING total_answered > 0
+      LEFT JOIN responses r ON s.slug = r.skill_slug AND r.student_id = ?
+      GROUP BY s.slug, s.title
+      HAVING raw_score > 0
       ORDER BY raw_score DESC
     `).bind(studentId).all();
 
@@ -37,35 +36,49 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'هنوز پاسخی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
     }
 
-    // ۳. دریافت پاسخ‌های ریز به گویه‌ها جهت استخراج نیازمندی‌ها
-    const { results: itemResponses } = await env.DB.prepare(`
-      SELECT q.skill_slug, q.question_text, r.score
-      FROM responses r
-      JOIN questions q ON r.q_id = q.id
-      WHERE r.student_id = ?
-      ORDER BY r.score DESC
-    `).bind(studentId).all();
+    // ۳. دریافت سوابق جزئیات پاسخ‌ها
+    let itemResponses = [];
+    try {
+      const resItems = await env.DB.prepare(`
+        SELECT r.skill_slug, s.title as skill_title, r.score
+        FROM responses r
+        JOIN skills s ON r.skill_slug = s.slug
+        WHERE r.student_id = ?
+        ORDER BY r.score DESC
+        LIMIT 10
+      `).bind(studentId).all();
+      itemResponses = resItems.results || [];
+    } catch (e) {
+      itemResponses = [];
+    }
 
     // ۴. دریافت سوابق آزمایش‌های مجاورت‌سازی (Exposure Trials)
-    const { results: exposureData } = await env.DB.prepare(`
-      SELECT e.skill_slug, s.title as skill_title, e.learning_speed, e.resilience, e.engagement, e.mentor_note, e.trial_verdict, e.created_at
-      FROM exposure_trials e
-      JOIN skills s ON e.skill_slug = s.slug
-      WHERE e.student_id = ?
-      ORDER BY e.id DESC
-      LIMIT 3
-    `).bind(studentId).all();
+    let exposureSummary = 'هنوز ارزیابی مجاورت‌سازی برای این دانش‌آموز ثبت نشده است.';
+    try {
+      const { results: exposureData } = await env.DB.prepare(`
+        SELECT e.skill_slug, s.title as skill_title, e.learning_speed, e.resilience, e.engagement, e.mentor_note, e.trial_verdict, e.created_at
+        FROM exposure_trials e
+        JOIN skills s ON e.skill_slug = s.slug
+        WHERE e.student_id = ?
+        ORDER BY e.id DESC
+        LIMIT 3
+      `).bind(studentId).all();
 
-    const exposureSummary = (exposureData && exposureData.length > 0)
-      ? exposureData.map(e => `- مهارت: ${e.skill_title} | سرعت یادگیری: ${e.learning_speed} | تاب‌آوری: ${e.resilience} | اشتیاق: ${e.engagement} | نظر مربی: ${e.mentor_note || 'ندارد'} | نتیجه: ${e.trial_verdict}`).join('\n')
-      : 'هنوز ارزیابی مجاورت‌سازی برای این دانش‌آموز ثبت نشده است.';
+      if (exposureData && exposureData.length > 0) {
+        exposureSummary = exposureData.map(e => `- مهارت: ${e.skill_title} | سرعت یادگیری: ${e.learning_speed} | تاب‌آوری: ${e.resilience} | اشتیاق: ${e.engagement} | نظر مربی: ${e.mentor_note || 'ندارد'} | نتیجه: ${e.trial_verdict}`).join('\n');
+      }
+    } catch (e) {
+      exposureSummary = 'اطلاعات مجاورت‌سازی در دسترس نیست.';
+    }
 
-    // ۵. آماده‌سازی پرامپت تحلیلی عمیق بالینی
-    const topSkillsSummary = skillScores.map(s => `- ${s.skill_title}: امتیاز ${s.raw_score} از ${s.total_answered * 5}`).join('\n');
-    const topItemsSummary = itemResponses.slice(0, 8).map(i => `- ${i.question_text} (امتیاز: ${i.score}/5)`).join('\n');
+    // ۵. آماده‌سازی پرامپت هوش مصنوعی
+    const topSkillsSummary = skillScores.map(s => `- ${s.skill_title}: امتیاز کل ${s.raw_score}`).join('\n');
+    const topItemsSummary = itemResponses.length > 0 
+      ? itemResponses.map(i => `- حوزه ${i.skill_title}: نمره ${i.score}`).join('\n')
+      : 'در دسترس نیست';
 
     const systemPrompt = `شما یک روانشناس ارشد بالینی کودک و متخصص برجسته استعدادیابی تحصیلی هستید. وظیفه شما تحلیل داده‌های عملکردی دانش‌آموز بر اساس مدل کدهای رغبتی هالند (RIASEC)، نظریه هوش‌های چندگانه گاردنر و مشاهدات عینی مجاورت‌سازی (Exposure) است.
-خروجی باید به فرمت JSON معتبر بدون هیچ مارک‌داون اضافی یا بک‌تیک \`\`\`json باشد تا مستقیماً پارس شود. ساختار دقیق JSON:
+خروجی باید دقیقاً به فرمت JSON معتبر بدون هیچ مارک‌داون اضافی یا بک‌تیک \`\`\`json باشد تا مستقیماً پارس شود. ساختار دقیق JSON:
 {
   "gardner": [
     {"gardner_intelligence": "logical_mathematical", "percentage": 75},
@@ -78,13 +91,13 @@ export async function onRequestPost(context) {
     {"gardner_intelligence": "naturalist", "percentage": 50}
   ],
   "topRequirements": [
-    {"requirement": "عنوان کوتاه شاخص ۱", "percentage": 85},
-    {"requirement": "عنوان کوتاه شاخص ۲", "percentage": 80},
-    {"requirement": "عنوان کوتاه شاخص ۳", "percentage": 75},
-    {"requirement": "عنوان کوتاه شاخص ۴", "percentage": 70},
-    {"requirement": "عنوان کوتاه شاخص ۵", "percentage": 65}
+    {"requirement": "عنوان شاخص ۱", "percentage": 85},
+    {"requirement": "عنوان شاخص ۲", "percentage": 80},
+    {"requirement": "عنوان شاخص ۳", "percentage": 75},
+    {"requirement": "عنوان شاخص ۴", "percentage": 70},
+    {"requirement": "عنوان شاخص ۵", "percentage": 65}
   ],
-  "text": "متن کامل گزارش تحلیلی شامل ۴ بخش زیر:\\n\\nبخش ۱: تحلیل استعدادهای محوری و تیپ غالب هالند (ترسیم نقطه A)\\nبخش ۲: تحلیل روان‌شناختی نقاط قوت پروفایل گاردنر و یافته‌های مجاورت‌سازی (Expose)\\nبخش ۳: بسته رشد اختصاصی از نقطه A به A1 (پروتکل‌های اقدام عملیاتی کامل شامل بسته اقدام ۱ و بسته اقدام ۲ با ابزار، تمرین و شاخص اندازه‌گیری)\\nبخش ۴: نقشه راه همراهی والدین و مدرسه"
+  "text": "متن کامل گزارش تحلیلی شامل ۴ بخش:\\n\\nبخش ۱: تحلیل استعدادهای محوری و تیپ غالب هالند (ترسیم نقطه A)\\nبخش ۲: تحلیل روان‌شناختی نقاط قوت پروفایل گاردنر و یافته‌های مجاورت‌سازی (Expose)\\nبخش ۳: بسته رشد اختصاصی از نقطه A به A1 (پروتکل‌های اقدام عملیاتی کامل شامل بسته اقدام ۱ و بسته اقدام ۲ با ابزار، تمرین و شاخص اندازه‌گیری)\\nبخش ۴: نقشه راه همراهی والدین و مدرسه"
 }`;
 
     const userPrompt = `اطلاعات دانش‌آموز:
@@ -101,7 +114,7 @@ ${topItemsSummary}
 مشاهدات مجاورت‌سازی مربی:
 ${exposureSummary}
 
-لطفاً سند بالینی ارتقاء نقطه A به A1 را صادر کن.`;
+لطفاً سند بالینی ارتقاء نقطه A به A1 را به طور کامل و تا پایان بخش ۴ صادر کن.`;
 
     const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -159,7 +172,7 @@ ${exposureSummary}
       };
     }
 
-    // ۶. تعیین شماره نسخه جدید سند در دیتابیس
+    // ۶. تعیین نسخه جدید سند
     const latest = await env.DB.prepare(
       "SELECT MAX(version) as max_v FROM student_roadmaps WHERE student_id = ?"
     ).bind(studentId).first();
@@ -186,7 +199,7 @@ export async function onRequestGet(context) {
   const studentId = url.searchParams.get('studentId');
 
   if (!studentId) {
-    return new Response(JSON.stringify({ error: 'کد ملی دانش‌آموز الزامی است.' }), { status: 400 });
+    return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
   }
 
   try {
@@ -201,6 +214,6 @@ export async function onRequestGet(context) {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
   }
 }
