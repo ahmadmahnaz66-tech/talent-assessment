@@ -7,7 +7,7 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
   }
 
-  // کوئری از جدول واقعی roadmaps
+  // دریافت سوابق از جدول واقعی roadmaps
   const { results } = await env.DB.prepare(
     "SELECT version, analysis, created_at FROM roadmaps WHERE student_id = ? ORDER BY version DESC"
   ).bind(studentId).all();
@@ -20,12 +20,13 @@ export async function onRequestPost(context) {
     const { request, env } = context;
     const { studentId } = await request.json();
 
-    const apiKey = env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'کلید GEMINI_API_KEY تعریف نشده است.' }), { status: 400 });
+    const rawKey = env.GEMINI_API_KEY;
+    if (!rawKey) {
+      return new Response(JSON.stringify({ error: 'کلید GEMINI_API_KEY در متغیرهای محیطی کلودفلر یافت نشد.' }), { status: 400 });
     }
+    const apiKey = rawKey.trim();
 
-    // ۱. دریافت نمرات دانش‌آموز از جدول واقعی responses به همراه کدهای هالند و تمرکز گاردنر
+    // ۱. دریافت نمرات و اطلاعات هالند و گاردنر از جدول واقعی responses
     const { results: skillScores } = await env.DB.prepare(`
       SELECT 
         r.skill_slug, 
@@ -42,16 +43,15 @@ export async function onRequestPost(context) {
     `).bind(studentId).all();
 
     if (!skillScores || skillScores.length === 0) {
-      return new Response(JSON.stringify({ error: 'هنوز هیچ آزمونی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'هنوز پاسخی برای این پرونده ثبت نشده است.' }), { status: 400 });
     }
 
-    // ۲. دریافت تمام سوالات و متادیتای گاردنر و نیازمندی‌ها
+    // ۲. دریافت گویه‌ها جهت محاسبه نمرات گاردنر و شاخص‌های رفتاری
     const { results: allQuestions } = await env.DB.prepare(`
       SELECT skill_slug, display_order, requirement, gardner_intelligence 
       FROM questions
     `).all();
 
-    // محاسبه امتیازات گاردنر و نیازمندی‌ها از روی پاسخ‌های داده شده
     const gardnerTotals = {};
     const gardnerCounts = {};
     const reqTotals = {};
@@ -66,12 +66,12 @@ export async function onRequestPost(context) {
         ansList = [];
       }
 
-      // مطابقت سوالات این مهارت
       const qList = (allQuestions || []).filter(q => q.skill_slug === row.skill_slug);
 
       qList.forEach((q, idx) => {
-        // نمره سوال (بین ۰ تا ۴)
-        const score = (Array.isArray(ansList) && ansList[idx] !== undefined) ? Number(ansList[idx]) : Math.round((row.total_score / 60) * 4);
+        const score = (Array.isArray(ansList) && ansList[idx] !== undefined)
+          ? Number(ansList[idx])
+          : Math.round((row.total_score / 60) * 4);
 
         if (q.gardner_intelligence) {
           gardnerTotals[q.gardner_intelligence] = (gardnerTotals[q.gardner_intelligence] || 0) + score;
@@ -86,13 +86,11 @@ export async function onRequestPost(context) {
       });
     });
 
-    // محاسبه درصدهای گاردنر
     const gardnerScores = Object.keys(gardnerTotals).map(k => ({
       gardner_intelligence: k,
       percentage: Math.round((gardnerTotals[k] / (gardnerCounts[k] || 1)) * 100)
     })).sort((a, b) => b.percentage - a.percentage);
 
-    // محاسبه ۵ شاخص رفتاری برتر
     const topRequirements = Object.keys(reqTotals).map(k => ({
       requirement: k,
       skill_title: reqSkill[k] || '',
@@ -134,36 +132,53 @@ ${reqSummaryText}
 
 لطفاً کارنامه تحلیلی رشد را صادر کن.`;
 
-    const gatewayUrl = 'https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-1.5-flash:generateContent';
+    const requestBody = JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.65,
+        maxOutputTokens: 2500
+      }
+    });
 
-    const aiRes = await fetch(gatewayUrl, {
+    // آدرس اول: از طریق Cloudflare AI Gateway
+    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // آدرس دوم: ارتباط مستقیم با گوگل جمنای (فال‌بک در صورت بروز خطا در گیت‌وی)
+    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    let aiRes = await fetch(gatewayUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey.trim()
+        'x-goog-api-key': apiKey
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.65,
-          maxOutputTokens: 2500
-        }
-      })
+      body: requestBody
     });
+
+    if (!aiRes.ok) {
+      // سوئیچ خودکار به اتصال مستقیم در صورت خطای درگاه
+      aiRes = await fetch(directUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: requestBody
+      });
+    }
 
     const aiData = await aiRes.json();
     if (!aiRes.ok) {
-      throw new Error(aiData.error?.message || 'خطا در برقراری ارتباط با جمنای');
+      const errMsg = aiData.error?.message || JSON.stringify(aiData.error) || 'پاسخی از سمت جمنای دریافت نشد.';
+      throw new Error(errMsg);
     }
 
-    const textOutput = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'تحلیلی دریافت نشد.';
+    const textOutput = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'متن تحلیلی تولید نشد.';
 
-    // ۴. تعیین شماره نسخه و ذخیره در جدول roadmaps
+    // ۴. تعیین شماره نسخه و ثبت در دیتابیس
     const lastVer = await env.DB.prepare(
       "SELECT MAX(version) as max_v FROM roadmaps WHERE student_id = ?"
     ).bind(studentId).first();
