@@ -1,163 +1,114 @@
-export async function onRequestGet(context) {
-  const { request, env } = context;
-  const url = new URL(request.url);
-  const studentId = url.searchParams.get('studentId');
-
-  if (!studentId) {
-    return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
-  }
-
-  const { results } = await env.DB.prepare(
-    "SELECT version, analysis, created_at FROM roadmaps WHERE student_id = ? ORDER BY version DESC"
-  ).bind(String(studentId).trim()).all();
-
-  return new Response(JSON.stringify(results || []), { headers: { 'Content-Type': 'application/json' } });
-}
-
 export async function onRequestPost(context) {
+  const { request, env } = context;
+
   try {
-    const { request, env } = context;
-    const { studentId } = await request.json();
+    const body = await request.json();
+    const { studentId } = body;
 
-    const rawKey = env.GEMINI_API_KEY;
-    if (!rawKey) {
-      return new Response(JSON.stringify({ error: 'کلید GEMINI_API_KEY در متغیرهای محیطی یافت نشد.' }), { status: 400 });
+    if (!studentId) {
+      return new Response(JSON.stringify({ error: 'کد ملی دانش‌آموز الزامی است.' }), { status: 400 });
     }
-    const apiKey = rawKey.trim();
-    const cleanStudentId = String(studentId).trim();
 
-    // ۱. دریافت نمرات دانش‌آموز از جدول responses
+    // ۱. دریافت اطلاعات دانش‌آموز
+    const student = await env.DB.prepare(
+      "SELECT id, student_name, grade, classroom FROM students WHERE id = ?"
+    ).bind(studentId).first();
+
+    if (!student) {
+      return new Response(JSON.stringify({ error: 'دانش‌آموز یافت نشد.' }), { status: 404 });
+    }
+
+    // ۲. دریافت سوابق پاسخ‌ها و محاسبه نمرات به تفکیک مهارت‌ها
     const { results: skillScores } = await env.DB.prepare(`
       SELECT 
-        r.skill_slug, 
-        s.title, 
-        s.holland_primary,
-        s.holland_secondary,
-        s.gardner_focus,
-        r.total_score,
-        r.answers
-      FROM responses r
-      JOIN skills s ON r.skill_slug = s.slug
-      WHERE r.student_id = ?
-      ORDER BY r.total_score DESC
-    `).bind(cleanStudentId).all();
+        s.slug, 
+        s.title as skill_title,
+        COUNT(r.question_id) as total_answered,
+        SUM(r.score) as raw_score
+      FROM skills s
+      LEFT JOIN questions q ON s.slug = q.skill_slug
+      LEFT JOIN responses r ON q.id = r.question_id AND r.student_id = ?
+      GROUP BY s.slug
+      HAVING total_answered > 0
+      ORDER BY raw_score DESC
+    `).bind(studentId).all();
 
     if (!skillScores || skillScores.length === 0) {
-      return new Response(JSON.stringify({ error: 'هنوز پاسخی برای این پرونده ثبت نشده است.' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'هنوز پاسخی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
     }
 
-    // ۲. دریافت گویه‌ها جهت محاسبه نمرات گاردنر و شاخص‌های رفتاری
-    const { results: allQuestions } = await env.DB.prepare(`
-      SELECT skill_slug, display_order, requirement, gardner_intelligence 
-      FROM questions
-    `).all();
+    // ۳. دریافت پاسخ‌های ریز به گویه‌ها برای استخراج نیازمندی‌ها
+    const { results: itemResponses } = await env.DB.prepare(`
+      SELECT q.skill_slug, q.question_text, r.score
+      FROM responses r
+      JOIN questions q ON r.question_id = q.id
+      WHERE r.student_id = ?
+      ORDER BY r.score DESC
+    `).bind(studentId).all();
 
-    const gardnerTotals = {};
-    const gardnerCounts = {};
-    const reqTotals = {};
-    const reqCounts = {};
-    const reqSkill = {};
-
-    skillScores.forEach(row => {
-      let ansList = [];
-      try {
-        ansList = typeof row.answers === 'string' ? JSON.parse(row.answers) : row.answers;
-      } catch (e) {
-        ansList = [];
-      }
-
-      const qList = (allQuestions || []).filter(q => q.skill_slug === row.skill_slug);
-
-      qList.forEach((q, idx) => {
-        const score = (Array.isArray(ansList) && ansList[idx] !== undefined)
-          ? Number(ansList[idx])
-          : Math.round((row.total_score / 60) * 4);
-
-        if (q.gardner_intelligence) {
-          gardnerTotals[q.gardner_intelligence] = (gardnerTotals[q.gardner_intelligence] || 0) + score;
-          gardnerCounts[q.gardner_intelligence] = (gardnerCounts[q.gardner_intelligence] || 0) + 4;
-        }
-
-        if (q.requirement) {
-          reqTotals[q.requirement] = (reqTotals[q.requirement] || 0) + score;
-          reqCounts[q.requirement] = (reqCounts[q.requirement] || 0) + 4;
-          reqSkill[q.requirement] = row.title;
-        }
-      });
-    });
-
-    const gardnerScores = Object.keys(gardnerTotals).map(k => ({
-      gardner_intelligence: k,
-      percentage: Math.round((gardnerTotals[k] / (gardnerCounts[k] || 1)) * 100)
-    })).sort((a, b) => b.percentage - a.percentage);
-
-    const topRequirements = Object.keys(reqTotals).map(k => ({
-      requirement: k,
-      skill_title: reqSkill[k] || '',
-      percentage: Math.round((reqTotals[k] / (reqCounts[k] || 1)) * 100)
-    })).sort((a, b) => b.percentage - a.percentage).slice(0, 5);
-
-    // ۳. دریافت سوابق مجاورت‌سازی ۲ هفته‌ای مربی (در صورت وجود)
-    const { results: exposureTrials } = await env.DB.prepare(`
-      SELECT e.skill_slug, s.title as skill_title, e.learning_speed, e.resilience, e.engagement, e.mentor_note, e.trial_verdict
+    // ۴. دریافت سوابق آزمایش‌های مجاورت‌سازی (Exposure Trials)
+    const { results: exposureData } = await env.DB.prepare(`
+      SELECT e.skill_slug, s.title as skill_title, e.learning_speed, e.resilience, e.engagement, e.mentor_note, e.trial_verdict, e.created_at
       FROM exposure_trials e
       JOIN skills s ON e.skill_slug = s.slug
       WHERE e.student_id = ?
-      ORDER BY e.created_at DESC
+      ORDER BY e.id DESC
       LIMIT 3
-    `).bind(cleanStudentId).all();
+    `).bind(studentId).all();
 
-    let exposureSummaryText = 'هنوز دوره مجاورت‌سازی ۲ هفته‌ای عملی برای این کیس ثبت نشده است.';
-    if (exposureTrials && exposureTrials.length > 0) {
-      exposureSummaryText = exposureTrials.map(t => 
-        `- کارگاه آزمایشی مهارت «${t.skill_title}»: سرعت یادگیری (${t.learning_speed})، تاب‌آوری در بن‌بست و چالش (${t.resilience})، اشتیاق خودانگیخته (${t.engagement}) | نظر مربی: ${t.mentor_note || '-'} | نتیجه میدانی: ${t.trial_verdict}`
-      ).join('\n');
+    const exposureSummary = (exposureData && exposureData.length > 0)
+      ? exposureData.map(e => `- مهارت: ${e.skill_title} | سرعت یادگیری: ${e.learning_speed} | تاب‌آوری: ${e.resilience} | اشتیاق: ${e.engagement} | نظر مربی: ${e.mentor_note || 'ندارد'} | نتیجه: ${e.trial_verdict}`).join('\n')
+      : 'هنوز ارزیابی مجاورت‌سازی برای این دانش‌آموز ثبت نشده است.';
+
+    // ۵. آماده‌سازی پرامپت تحلیلی عمیق بالینی
+    const topSkillsSummary = skillScores.map(s => `- ${s.skill_title}: امتیاز ${s.raw_score} از ${s.total_answered * 5}`).join('\n');
+    const topItemsSummary = itemResponses.slice(0, 8).map(i => `- ${i.question_text} (امتیاز: ${i.score}/5)`).join('\n');
+
+    const systemPrompt = `شما یک روانشناس ارشد بالینی کودک و متخصص برجسته استعدادیابی تحصیلی هستید. وظیفه شما تحلیل داده‌های عملکردی دانش‌آموز بر اساس مدل کدهای رغبتی هالند (RIASEC)، نظریه هوش‌های چندگانه گاردنر و مشاهدات عینی مجاورت‌سازی (Exposure) است.
+خروجی باید به فرمت JSON معتبر بدون هیچ مارک‌داون اضافی یا بک‌تیک \`\`\`json باشد تا مستقیماً پارس شود. ساختار دقیق JSON:
+{
+  "gardner": [
+    {"gardner_intelligence": "logical_mathematical", "percentage": 75},
+    {"gardner_intelligence": "spatial_visual", "percentage": 80},
+    {"gardner_intelligence": "bodily_kinesthetic", "percentage": 60},
+    {"gardner_intelligence": "musical_rhythmic", "percentage": 45},
+    {"gardner_intelligence": "linguistic", "percentage": 85},
+    {"gardner_intelligence": "interpersonal", "percentage": 70},
+    {"gardner_intelligence": "intrapersonal", "percentage": 90},
+    {"gardner_intelligence": "naturalist", "percentage": 50}
+  ],
+  "topRequirements": [
+    {"requirement": "عنوان کوتاه شاخص ۱", "percentage": 85},
+    {"requirement": "عنوان کوتاه شاخص ۲", "percentage": 80},
+    {"requirement": "عنوان کوتاه شاخص ۳", "percentage": 75},
+    {"requirement": "عنوان کوتاه شاخص ۴", "percentage": 70},
+    {"requirement": "عنوان کوتاه شاخص ۵", "percentage": 65}
+  ],
+  "text": "متن کامل گزارش تحلیلی شامل ۴ بخش زیر:\\n\\nبخش ۱: تحلیل استعدادهای محوری و تیپ غالب هالند (ترسیم نقطه A)\\nبخش ۲: تحلیل روان‌شناختی نقاط قوت پروفایل گاردنر و یافته‌های مجاورت‌سازی (Expose)\\nبخش ۳: بسته رشد اختصاصی از نقطه A به A1 (پروتکل‌های اقدام عملیاتی کامل شامل بسته اقدام ۱ و بسته اقدام ۲ با ابزار، تمرین و شاخص اندازه‌گیری)\\nبخش ۴: نقشه راه همراهی والدین و مدرسه"
+}`;
+
+    const userPrompt = `اطلاعات دانش‌آموز:
+نام: ${student.student_name}
+پایه: ${student.grade || '-'}
+کلاس: ${student.classroom || '-'}
+
+کارنامه مهارتی:
+${topSkillsSummary}
+
+گویه‌های برجسته:
+${topItemsSummary}
+
+مشاهدات مجاورت‌سازی مربی:
+${exposureSummary}
+
+لطفاً سند بالینی ارتقاء نقطه A به A1 را صادر کن.`;
+
+    const apiKey = env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'کلید API هوش مصنوعی در سرور تنظیم نشده است.' }), { status: 500 });
     }
 
-    const topSkillsText = skillScores.slice(0, 5).map(s => 
-      `- ${s.title} (کد هالند: ${s.holland_primary || '-'}/${s.holland_secondary || '-'}): امتیاز ${s.total_score} از ۶۰`
-    ).join('\n');
-
-    const gardnerSummaryText = gardnerScores.map(g => 
-      `- بعد ${g.gardner_intelligence}: ${g.percentage}%`
-    ).join('\n');
-
-    const reqSummaryText = topRequirements.map(req => 
-      `- شاخص عینی «${req.requirement}» در مهارت ${req.skill_title}: ${req.percentage}%`
-    ).join('\n');
-
-    // ۴. پرامپت روانشناختی استعدادیابی با نقش پیشنهاددهنده بسته‌های A به A1
-    const systemPrompt = `تو یک روانشناس ارشد بالینی کودک و متخصص استعدادیابی مدارس مهارت‌محور هستی.
-وظیفه تو تحلیل علمی پروفایل استعدادیابی یک کودک ۷ تا ۱۲ ساله بر اساس مدل هوش‌های چندگانه گاردنر و مدل رغبت‌سنجی هالند (RIASEC) است.
-مهم: تو به عنوان «تسهیل‌گر و پیشنهاددهنده راهکار» عمل می‌کنی؛ بنابراین باید پروتکل‌های رشد را به صورت بسته‌های اقدام عینی و مشخص طراحی کنی.
-
-گزارش تحلیلی باید شامل ۴ بخش تفکیک‌شده باشد:
-۱. تحلیل استعدادهای محوری و تیپ غالب هالند (ترسیم نقطه A بر اساس نمرات آزمون و رفتارها).
-۲. تحلیل روان‌شناختی نقاط قوت، پروفایل گاردنر و یافته‌های حاصل از دوره ۲ هفته‌ای مجاورت‌سازی (Expose).
-۳. بسته رشد اختصاصی از نقطه A به A1 (بسیار مهم: حداقل ۲ فعالیت، ابزار یا بازی عملیاتی کاملاً مشخص با نام‌های عینی—مثلاً طراحی «دفترچه معماهای منطقی»، «تمرینات تنظیم توجه و تن صدا در حل مسئله»، یا پروژه‌های چالش‌محور خانگی و مدرسه‌ای—دقیقاً بنویس هر بسته چه مشخصاتی دارد و چگونه اجرا می‌شود).
-۴. رهنمودهای کلیدی برای کادر مدرسه و اولیا جهت تسهیل‌گری بدون دخالت مستقیم و بدون ایجاد مقاومت روانی.
-
-لحن تحلیل باید کاملاً تخصصی، بالینی، کاربردی و به زبان فارسی شیوا باشد.`;
-
-    // کاملاً بدون اطلاعات هویتی (Zero-PII)
-    const userPrompt = `داده‌های پایش شناختی و رفتاری کودک (شناسه پرونده: کیس ارزیابی محرمانه):
-
-مهارت‌های اولویت اول در ارزیابی اولیه والدین:
-${topSkillsText}
-
-پروفایل هوش‌های چندگانه گاردنر:
-${gardnerSummaryText}
-
-شاخص‌های رفتاری برجسته (Requirements):
-${reqSummaryText}
-
-مشاهدات میدانی مربی در دوره مجاورت‌سازی ۲ هفته‌ای (Expose Trial):
-${exposureSummaryText}
-
-لطفاً کارنامه تخصصی و بسته اقدام گام‌به‌گام رشد A به A1 را تدوین کن.`;
-
-
-const requestBody = JSON.stringify({
+    const requestBody = JSON.stringify({
       contents: [
         {
           role: 'user',
@@ -170,12 +121,9 @@ const requestBody = JSON.stringify({
       }
     });
 
-  const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
     const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
-    
-    teway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-    // اولویت با اتصال مستقیم فوق سریع؛ در صورت بروز خطای شبکه، گیت‌وی کلودفلر وارد مدار می‌شود
     let aiRes = await fetch(directUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -189,54 +137,71 @@ const requestBody = JSON.stringify({
         body: requestBody
       });
     }
-    
 
     if (!aiRes.ok) {
-      aiRes = await fetch(directUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody
-      });
+      const errText = await aiRes.text();
+      return new Response(JSON.stringify({ error: `خطای هوش مصنوعی: ${errText}` }), { status: 500 });
     }
 
     const aiData = await aiRes.json();
-    if (!aiRes.ok) {
-      const errMsg = aiData.error?.message || JSON.stringify(aiData.error) || 'پاسخی از سمت سرور هوش مصنوعی دریافت نشد.';
-      throw new Error(errMsg);
+    let rawOutput = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    rawOutput = rawOutput.replace(/^```json/gim, '').replace(/^```/gim, '').trim();
+
+    // اعتبارسنجی خروجی JSON
+    let parsedPayload;
+    try {
+      parsedPayload = JSON.parse(rawOutput);
+    } catch (e) {
+      parsedPayload = {
+        text: rawOutput,
+        gardner: [],
+        topRequirements: []
+      };
     }
 
-    const textOutput = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'متن تحلیلی تولید نشد.';
+    // ۶. تعیین نسخه جدید سند در دیتابیس
+    const latest = await env.DB.prepare(
+      "SELECT MAX(version) as max_v FROM student_roadmaps WHERE student_id = ?"
+    ).bind(studentId).first();
+    const nextVersion = (latest && latest.max_v ? Number(latest.max_v) : 0) + 1;
 
-    // ۵. تعیین نسخه و ذخیره در جدول roadmaps
-    const lastVer = await env.DB.prepare(
-      "SELECT MAX(version) as max_v FROM roadmaps WHERE student_id = ?"
-    ).bind(cleanStudentId).first();
-    const nextVersion = (lastVer?.max_v || 0) + 1;
-
-    const payloadToStore = JSON.stringify({
-      text: textOutput,
-      gardner: gardnerScores,
-      topSkills: skillScores.slice(0, 7),
-      topRequirements
-    });
-
+    // ۷. ذخیره نسخه جدید در دیتابیس D1
     await env.DB.prepare(`
-      INSERT INTO roadmaps (student_id, version, analysis, created_at)
+      INSERT INTO student_roadmaps (student_id, version, analysis, created_at)
       VALUES (?, ?, ?, datetime('now'))
-    `).bind(cleanStudentId, nextVersion, payloadToStore).run();
+    `).bind(studentId, nextVersion, JSON.stringify(parsedPayload)).run();
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      version: nextVersion, 
-      analysis: payloadToStore 
-    }), {
+    return new Response(JSON.stringify({ success: true, version: nextVersion, roadmap: parsedPayload }), {
       headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { 
-      status: 500,
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+}
+
+export async function onRequestGet(context) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const studentId = url.searchParams.get('studentId');
+
+  if (!studentId) {
+    return new Response(JSON.stringify({ error: 'کد ملی دانش‌آموز الزامی است.' }), { status: 400 });
+  }
+
+  try {
+    const { results } = await env.DB.prepare(`
+      SELECT id, student_id, version, analysis, created_at
+      FROM student_roadmaps
+      WHERE student_id = ?
+      ORDER BY version DESC
+    `).bind(studentId).all();
+
+    return new Response(JSON.stringify(results || []), {
       headers: { 'Content-Type': 'application/json' }
     });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 }
