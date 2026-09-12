@@ -6,6 +6,7 @@
   <title>پنل تخصصی استعدادیابی و مدیریت مدرسه</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet">
   <style>
     body { font-family: 'Vazirmatn FD', sans-serif; }
@@ -14,7 +15,7 @@
       body > div:first-of-type { display: none !important; }
       #roadmap-modal { position: static !important; background: none !important; padding: 0 !important; display: block !important; }
       #roadmap-modal > div { max-height: none !important; max-width: 100% !important; border: none !important; box-shadow: none !important; }
-      #modal-content { overflow: visible !important; height: auto !important; font-size: 12pt !important; line-height: 2 !important; color: #000000 !important; }
+      #modal-content { overflow: visible !important; height: auto !important; font-size: 11pt !important; line-height: 2 !important; color: #000000 !important; }
       .no-print { display: none !important; }
     }
   </style>
@@ -124,7 +125,7 @@
       </div>
 
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 w-full">
-        <div class="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-100">
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-2 border-slate-100">
           <div class="flex flex-wrap items-center gap-3">
             <div class="flex items-center gap-2">
               <label class="text-xs font-bold text-slate-600">فیلتر پایه:</label>
@@ -167,7 +168,7 @@
       </div>
     </section>
 
-    <!-- تب ۲: پرونده فردی و تحلیل هوشمند جمنای با سیستم سوابق و نسخه‌ها -->
+    <!-- تب ۲: پرونده فردی و تحلیل هوشمند جمنای با سوابق -->
     <section id="tab-content-individual" class="tab-content hidden space-y-5">
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-end justify-between gap-4">
         <div class="max-w-md flex-1">
@@ -285,24 +286,58 @@
 
   </div>
 
-  <!-- مودال نمایش کامل کارنامه هوش مصنوعی و پرینت -->
+  <!-- مودال نمایش کامل کارنامه، نمودارهای Chart.js و پرینت -->
   <div id="roadmap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+      
       <div class="p-5 bg-slate-50 border-b flex justify-between items-center no-print">
         <div>
-          <h3 id="modal-title" class="font-bold text-indigo-900 text-base">کارنامه تحلیلی استعدادیابی</h3>
-          <p id="modal-subtitle" class="text-xs text-slate-500"></p>
+          <h3 id="modal-title" class="font-bold text-indigo-950 text-base">کارنامه تحلیلی و نقشه رشد استعدادیابی</h3>
+          <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
         </div>
         <div class="flex gap-2">
-          <button onclick="window.print()" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition">چاپ یا ذخیره PDF 🖨</button>
+          <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm">
+            <span>🖨️ چاپ یا خروجی PDF</span>
+          </button>
           <button onclick="closeRoadmapModal()" class="text-slate-400 hover:text-slate-600 px-2 py-1 text-lg font-bold">✕</button>
         </div>
       </div>
-      <div id="modal-content" class="p-6 overflow-y-auto text-xs sm:text-sm leading-relaxed text-slate-700 whitespace-pre-wrap"></div>
+
+      <div class="p-6 overflow-y-auto space-y-6 text-xs sm:text-sm">
+        
+        <!-- کادر دوگانه نمودارهای گاردنر و شاخص‌های رفتاری -->
+        <div id="charts-wrapper" class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+          
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
+            <h4 class="font-bold text-slate-700 text-xs mb-3 text-center">🎯 پروفایل هوش‌های چندگانه (گاردنر)</h4>
+            <div class="w-full h-64 flex items-center justify-center">
+              <canvas id="gardnerRadarChart"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
+            <h4 class="font-bold text-slate-700 text-xs mb-3 text-center">⚡ شاخص‌های رفتاری و مهارتی برجسته (Requirements)</h4>
+            <div class="w-full h-64 flex items-center justify-center">
+              <canvas id="reqBarChart"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- متن تفصیلی تحلیل روانشناختی -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <h4 class="font-bold text-indigo-900 text-xs mb-3 pb-2 border-b border-slate-100 flex items-center gap-1.5">
+            <span>📋</span>
+            <span>گزارش بالینی و نقشه راه اختصاصی رشد (نقطه A به A1):</span>
+          </h4>
+          <div id="modal-content" class="leading-relaxed text-slate-700 whitespace-pre-wrap font-sans text-xs sm:text-sm"></div>
+        </div>
+
+      </div>
     </div>
   </div>
 
-  <!-- مودال پاپ‌آپ تغییر رمز عبور پرسنل -->
+  <!-- مودال تغییر رمز عبور پرسنل -->
   <div id="change-pass-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div class="bg-white p-6 rounded-3xl max-w-sm w-full space-y-4 shadow-xl border border-slate-100">
       <h3 class="font-bold text-sm text-slate-800">تغییر رمز عبور حساب کاربری</h3>
