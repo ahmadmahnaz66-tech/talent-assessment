@@ -10,13 +10,66 @@
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet">
   <style>
     body { font-family: 'Vazirmatn FD', sans-serif; }
+    
     @media print {
-      body { background: #ffffff !important; padding: 0 !important; }
-      body > div:first-of-type { display: none !important; }
-      #roadmap-modal { position: static !important; background: none !important; padding: 0 !important; display: block !important; }
-      #roadmap-modal > div { max-height: none !important; max-width: 100% !important; border: none !important; box-shadow: none !important; }
-      #modal-content { overflow: visible !important; height: auto !important; font-size: 11pt !important; line-height: 2 !important; color: #000000 !important; }
-      .no-print { display: none !important; }
+      @page {
+        size: A4 portrait;
+        margin: 12mm 10mm 15mm 10mm;
+      }
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        color: #0f172a !important;
+      }
+      /* پنهان‌سازی المان‌های غیرضروری */
+      body > div:first-of-type,
+      .no-print,
+      header,
+      nav {
+        display: none !important;
+      }
+      /* آزادسازی کادر مودال برای چندصفحه‌ای شدن */
+      #roadmap-modal {
+        position: static !important;
+        background: none !important;
+        padding: 0 !important;
+        display: block !important;
+        inset: auto !important;
+      }
+      #roadmap-modal > div {
+        max-height: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+      /* سربرگ رسمی در پرینت */
+      .print-header {
+        display: flex !important;
+      }
+      /* تنظیم شکست صفحات برای نمودارها و متن */
+      #charts-wrapper {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        margin-bottom: 15px !important;
+      }
+      #modal-content {
+        overflow: visible !important;
+        height: auto !important;
+        font-size: 10.5pt !important;
+        line-height: 1.9 !important;
+        color: #0f172a !important;
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
+      }
+      .print-footer {
+        display: flex !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
     }
   </style>
 </head>
@@ -196,10 +249,10 @@
           <table class="w-full text-right text-xs">
             <thead class="bg-slate-50 text-slate-500 border-b">
               <tr>
-                <th class="p-3">اولویت</th>
+                <th class="p-3 w-16 text-center">اولویت</th>
                 <th class="p-3">عنوان مهارت</th>
-                <th class="p-3">امتیاز</th>
-                <th class="p-3">وضعیت استعداد</th>
+                <th class="p-3 w-20 text-center">امتیاز</th>
+                <th class="p-3 w-36 text-center">وضعیت استعداد</th>
               </tr>
             </thead>
             <tbody id="student-report-results" class="divide-y divide-slate-100"></tbody>
@@ -293,10 +346,11 @@
                 <th class="p-3">اشتیاق</th>
                 <th class="p-3">نتیجه قطعی</th>
                 <th class="p-3">یادداشت مربی</th>
+                <th class="p-3 text-left">عملیات</th>
               </tr>
             </thead>
             <tbody id="exposure-history-body" class="divide-y divide-slate-100">
-              <tr><td colspan="7" class="p-4 text-center text-slate-400">ابتدا دانش‌آموز را انتخاب نمایید.</td></tr>
+              <tr><td colspan="8" class="p-4 text-center text-slate-400">ابتدا دانش‌آموز را انتخاب نمایید.</td></tr>
             </tbody>
           </table>
         </div>
@@ -382,24 +436,40 @@
 
   </div>
 
-  <!-- مودال نمایش کامل کارنامه، نمودارهای Chart.js و پرینت -->
+  <!-- مودال نمایش کامل کارنامه، نمودارهای Chart.js و چاپ A4 چندصفحه‌ای -->
   <div id="roadmap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
       
+      <!-- هدر معمولی صفحه وب (در پرینت مخفی است) -->
       <div class="p-5 bg-slate-50 border-b flex justify-between items-center no-print">
         <div>
           <h3 id="modal-title" class="font-bold text-indigo-950 text-base">کارنامه تحلیلی و نقشه رشد استعدادیابی</h3>
           <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
         </div>
         <div class="flex gap-2">
-          <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm">
-            <span>🖨️ چاپ یا خروجی PDF</span>
+          <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+            <span>🖨️ چاپ رسمی یا خروجی PDF</span>
           </button>
           <button onclick="closeRoadmapModal()" class="text-slate-400 hover:text-slate-600 px-2 py-1 text-lg font-bold">✕</button>
         </div>
       </div>
 
+      <!-- محتوای چاپی و اسکرول‌پذیر -->
       <div class="p-6 overflow-y-auto space-y-6 text-xs sm:text-sm">
+        
+        <!-- سربرگ رسمی مدرسه در نسخه چاپی -->
+        <div class="print-header hidden justify-between items-center pb-4 border-b-2 border-slate-800 text-slate-900">
+          <div>
+            <h2 class="text-base font-black">دبستان تخصصی مهارت‌محور آپادانا</h2>
+            <p class="text-[11px] font-bold mt-1 text-slate-600">گزارش بالینی استعدادیابی و نقشه راه اختصاصی رشد فردی (A به A1)</p>
+          </div>
+          <div class="text-left text-[11px] font-mono leading-relaxed">
+            <div><strong>وضعیت سند:</strong> تحلیل رسمی هوش مصنوعی و تایید مشاور</div>
+            <div><strong>تاریخ صدور:</strong> ۱۴۰۵/۰۶/۲۱</div>
+          </div>
+        </div>
+
+        <!-- نمودارها -->
         <div id="charts-wrapper" class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
           <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
             <h4 class="font-bold text-slate-700 text-xs mb-3 text-center">🎯 پروفایل هوش‌های چندگانه (گاردنر)</h4>
@@ -416,13 +486,27 @@
           </div>
         </div>
 
+        <!-- متن کامل بالینی و بسته‌های رشد (بدون بریدگی) -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <h4 class="font-bold text-indigo-900 text-xs mb-3 pb-2 border-b border-slate-100 flex items-center gap-1.5">
+          <h4 class="font-bold text-indigo-900 text-xs mb-3 pb-2 border-b border-slate-100 flex items-center gap-1.5 no-print">
             <span>📋</span>
             <span>گزارش بالینی و نقشه راه اختصاصی رشد (نقطه A به A1):</span>
           </h4>
-          <div id="modal-content" class="leading-relaxed text-slate-700 whitespace-pre-wrap font-sans text-xs sm:text-sm"></div>
+          <div id="modal-content" class="leading-relaxed text-slate-800 whitespace-pre-wrap font-sans text-xs sm:text-sm"></div>
         </div>
+
+        <!-- فوتر رسمی با محل امضای کادر در خروجی چاپی -->
+        <div class="print-footer hidden justify-between items-end pt-10 mt-6 border-t border-slate-300 text-xs text-slate-700">
+          <div class="text-center space-y-10">
+            <p class="font-bold">امضای مشاور بالینی و استعدادیاب مدرسه</p>
+            <p class="text-[10px] text-slate-400">.....................................................</p>
+          </div>
+          <div class="text-center space-y-10">
+            <p class="font-bold">مهر و امضای مدیریت دبستان آپادانا</p>
+            <p class="text-[10px] text-slate-400">.....................................................</p>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
