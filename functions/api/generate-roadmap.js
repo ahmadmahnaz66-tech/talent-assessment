@@ -1,177 +1,170 @@
-// دریافت سوابق تحلیل‌های یک دانش‌آموز
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const studentId = url.searchParams.get('studentId');
 
   if (!studentId) {
-    return new Response(JSON.stringify({ error: 'کد دانش‌آموز الزامی است.' }), { status: 400 });
+    return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
   }
 
-  try {
-    const { results } = await env.DB.prepare(`
-      SELECT id, version, analysis, created_at 
-      FROM roadmaps 
-      WHERE student_id = ? 
-      ORDER BY version DESC
-    `).bind(studentId).all();
+  const { results } = await env.DB.prepare(
+    "SELECT version, analysis, created_at FROM student_roadmaps WHERE student_id = ? ORDER BY version DESC"
+  ).bind(studentId).all();
 
-    return new Response(JSON.stringify(results || []), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
-  }
+  return new Response(JSON.stringify(results || []), { headers: { 'Content-Type': 'application/json' } });
 }
 
-// تولید و ثبت تحلیل جدید
 export async function onRequestPost(context) {
-  const { request, env } = context;
-
   try {
+    const { request, env } = context;
     const { studentId } = await request.json();
-
-    if (!studentId) {
-      return new Response(JSON.stringify({ error: 'کد دانش‌آموز الزامی است.' }), { status: 400 });
-    }
 
     const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'کلید GEMINI_API_KEY تنظیم نشده است.' }), { status: 500 });
+      return new Response(JSON.stringify({ error: 'کلید GEMINI_API_KEY تعریف نشده است.' }), { status: 400 });
     }
 
-    const student = await env.DB.prepare(
-      'SELECT id, student_name, grade FROM students WHERE id = ?'
-    ).bind(studentId).first();
-
-    if (!student) {
-      return new Response(JSON.stringify({ error: 'دانش‌آموز یافت نشد.' }), { status: 404 });
-    }
-
-    // بررسی نسخه جدید
-    const lastRoadmap = await env.DB.prepare(
-      'SELECT MAX(version) as max_v FROM roadmaps WHERE student_id = ?'
-    ).bind(studentId).first();
-
-    const nextVersion = (lastRoadmap?.max_v || 0) + 1;
-
-    // استخراج نمرات به صورت پویا با اتصال به جدول skills
-    const { results } = await env.DB.prepare(`
+    // ۱. دریافت نمرات به تفکیک مهارت و تیپ هالند
+    const { results: skillScores } = await env.DB.prepare(`
       SELECT 
-        r.skill_slug, 
-        r.total_score, 
-        COALESCE(s.title, r.skill_slug) AS skill_title
-      FROM responses r
-      LEFT JOIN skills s ON r.skill_slug = s.slug
-      WHERE r.student_id = ? AND r.total_score > 0 
-      ORDER BY r.total_score DESC
+        s.slug, 
+        s.title, 
+        s.holland_primary,
+        s.holland_secondary,
+        SUM(r.score) as total_score
+      FROM quiz_responses r
+      JOIN skills s ON r.skill_slug = s.slug
+      WHERE r.student_id = ?
+      GROUP BY s.slug
+      ORDER BY total_score DESC
     `).bind(studentId).all();
 
-    if (!results || results.length === 0) {
-      return new Response(JSON.stringify({ error: 'پاسخی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
+    if (!skillScores || skillScores.length === 0) {
+      return new Response(JSON.stringify({ error: 'ابتدا باید پرسش‌نامه برای این دانش‌آموز ثبت شود.' }), { status: 400 });
     }
 
-    const scoresList = results.map((r, i) => `${i + 1}. ${r.skill_title}: ${r.total_score} از ۶۰`).join('\n');
+    // ۲. محاسبه سرجمع هوش‌های چندگانه گاردنر
+    const { results: gardnerScores } = await env.DB.prepare(`
+      SELECT 
+        q.gardner_intelligence,
+        ROUND(SUM(r.score) * 100.0 / (COUNT(r.id) * 4), 1) as percentage
+      FROM quiz_responses r
+      JOIN questions q ON r.skill_slug = q.skill_slug AND r.question_index = q.display_order
+      WHERE r.student_id = ? AND q.gardner_intelligence IS NOT NULL
+      GROUP BY q.gardner_intelligence
+      ORDER BY percentage DESC
+    `).bind(studentId).all();
 
-    // پرامپت با قالب استاندارد و بدون تغییر برای تمامی دانش‌آموزان
-    const promptText = `
-شما یک سیستم ارزیابی و استعدادیابی رسمی مدرسه هستید.
-وظیفه شما تدوین «کارنامه هدایت استعدادیابی و نقشه رشد A به A1» بر اساس یک ساختار و فرمت کاملاً ثابت و رسمی است.
+    // ۳. محاسبه ۳ شاخص رفتاری برتر (Top Requirements)
+    const { results: topRequirements } = await env.DB.prepare(`
+      SELECT 
+        q.requirement,
+        s.title as skill_title,
+        ROUND(SUM(r.score) * 100.0 / (COUNT(r.id) * 4), 1) as percentage
+      FROM quiz_responses r
+      JOIN questions q ON r.skill_slug = q.skill_slug AND r.question_index = q.display_order
+      JOIN skills s ON r.skill_slug = s.slug
+      WHERE r.student_id = ? AND q.requirement IS NOT NULL
+      GROUP BY q.requirement
+      ORDER BY percentage DESC
+      LIMIT 5
+    `).bind(studentId).all();
 
-مشخصات پرونده:
-- نام و نام خانوادگی: ${student.student_name}
-- کد پرونده دانش‌آموز: ${student.id}
-- پایه تحصیلی: ${student.grade || 'نامشخص'}
-- نسخه سند: ${nextVersion}
+    const topSkillsText = skillScores.slice(0, 5).map(s => 
+      `- ${s.title} (کد هالند: ${s.holland_primary || '-'}/${s.holland_secondary || '-'}): ${s.total_score} از ۶۰`
+    ).join('\n');
 
-اطلاعات نمرات ارزیابی مهارت‌ها (به ترتیب اولویت علاقه از بیشترین به کمترین):
-${scoresList}
+    const gardnerSummaryText = gardnerScores.map(g => 
+      `- مولفه ${g.gardner_intelligence}: ${g.percentage}%`
+    ).join('\n');
 
-دستورالعمل مهم: شما باید دقیقاً و مو‌به‌مو قالب زیر را بدون کم و کاست رعایت کنید. عناوین داخل پرانتز یا کروشه‌ها را با تحلیل فنی پر کنید و ترتیب عناوین، تیترها و ساختار خطوط را ابداً تغییر ندهید:
+    const reqSummaryText = topRequirements.map(req => 
+      `- شاخص رفتاری «${req.requirement}» در مهارت ${req.skill_title}: ${req.percentage}%`
+    ).join('\n');
 
-========================================
-📋 پرونده جامع هدایت استعدادیابی و نقشه راه رشد فردی
-========================================
+    // ۴. پرامپت اختصاصی روانشناختی
+    const systemPrompt = `تو یک روانشناس بالینی کودک و متخصص ارشد استعدادیابی مدارس مهارت‌محور هستی.
+بر اساس نظریه هوش‌های چندگانه گاردنر و مدل رغبت‌سنجی هالند (RIASEC)، تحلیلی حرفه‌ای و کاربردی از وضعیت دانش‌آموز ۷ تا ۱۲ سال ارائه بده.
+گزارش باید شامل ۴ بخش مشخص باشد:
+۱. تحلیل استعدادهای محوری و تیپ غالب هالند (نقطه A).
+۲. نقاط قوت رفتاری و هوش‌های شناختی/حرکتی برجسته بر اساس شاخص‌های ثبت‌شده.
+۳. مسیر رشد پله‌ای (A به A1) شامل ۲ تا ۳ پروژه عملی یا چالش رشدی کوتاه‌مدت.
+۴. توصیه‌های کلیدی ویژه کادر مدرسه و اولیا (نقش تسهیل‌گر بدون مداخله مستقیم).
+پاسخ را با لحن بالینی، ساختاریافته، دقیق و کاملاً به زبان فارسی بنویس.`;
 
-■ مشخصات هویتی و ثبتی
-• نام دانش‌آموز: ${student.student_name}
-• پایه تحصیلی: ${student.grade || 'نامشخص'}
-• نسخه کارنامه: نسخه ${nextVersion}
+    const userPrompt = `داده‌های آزمون دانش‌آموز (کد شناسایی: ${studentId}):
 
-----------------------------------------
-۱. نمایه علایق برتر و کانون استعدادها (۳ اولویت نخست)
-• اولویت ۱: [نام مهارت اول صدر جدول] (امتیاز کسب‌شده: [نمره]/۶۰)
-  ← تحلیل رفتاری: [توضیح کوتاه و دقیق در ۲ خط درباره نوع علاقه و پتانسیل کودک در این زمینه]
-• اولویت ۲: [نام مهارت دوم صدر جدول] (امتیاز کسب‌شده: [نمره]/۶۰)
-  ← تحلیل رفتاری: [توضیح کوتاه در ۲ خط]
-• اولویت ۳: [نام مهارت سوم صدر جدول] (امتیاز کسب‌شده: [نمره]/۶۰)
-  ← تحلیل رفتاری: [توضیح کوتاه در ۲ خط]
+مهارت‌های دارای بالاترین اولویت:
+${topSkillsText}
 
-----------------------------------------
-۲. نقشه راه تحول و جهش مهارتی (مسیر رشد A به A1)
-• وضعیت پایه فعلی (سطح A):
-  [شرح تمایلات، علایق خودجوش و رفتارهایی که اکنون از کودک بر اساس پایش اولیا دیده می‌شود - حداکثر ۳ خط]
+پروفایل هوش‌های گاردنر:
+${gardnerSummaryText}
 
-• افق رشد و شکوفایی هدف (سطح A1):
-  [سطح توانمندی، مهارت کاربردی و خلق اثر خروجی که انتظار داریم کودک با آموزش هدفمند در پایان دوره به آن برسد - حداکثر ۳ خط]
+شاخص‌های رفتاری برجسته:
+${reqSummaryText}
 
-• نقشه اقدام سه‌گام برای ارتقا از A به A1:
-  گام اول (آشنایی و تجربه مستقیم): [یک فعالیت شفاف و ملموس]
-  گام دوم (پرورش و یادگیری نظام‌مند): [یک برنامه تمرینی یا ثبت‌نام دوره‌ای]
-  گام سوم (تولید محصول / اجرای پروژه عملی): [یک پروژه کوچک نهایی که کودک خلق می‌کند]
+لطفاً کارنامه تحلیلی رشد را صادر کن.`;
 
-----------------------------------------
-۳. پروتکل توصیه‌های کاربردی برای اولیا در محیط منزل
-۱. [توصیه محیطی و تقویت حس کنجکاوی متناسب با علایق برتر]
-۲. [مدیریت زمان و ابزارهای مورد نیاز در خانه]
-۳. [نوع بازخورد و تشویق والدین بدون تحمیل بار روانی بر کودک]
+    const gatewayUrl = 'https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-1.5-flash:generateContent';
 
-----------------------------------------
-۴. بسته پیشنهادات اجرایی ویژه مشاور و معلمان مدرسه
-۱. نقش در کلاس درس: [مسئولیت یا فرصت متناسب با مهارت‌های صدر جدول در کلاس]
-۲. فعالیت‌های فوق‌برنامه: [کلاس‌های کانون مدرسه یا مسابقات پیشنهادی]
-۳. پایش و خودتنظیمی هیجانی: [نحوه حفظ انگیزه و پشتکار دانش‌آموز در این مسیر]
-========================================
-`;
-
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
-    
-    // ارسال درخواست همراه با کنترل دما جهت تضمین ثبات قالب
-    const response = await fetch(geminiUrl, {
+    const aiRes = await fetch(gatewayUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey.trim()
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: promptText }] }],
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+          }
+        ],
         generationConfig: {
-          temperature: 0.2,
-          topP: 0.8
+          temperature: 0.65,
+          maxOutputTokens: 2500
         }
       })
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'خطا در ارتباط با جمنای');
+    const aiData = await aiRes.json();
+    if (!aiRes.ok) {
+      throw new Error(aiData.error?.message || 'خطا در برقراری ارتباط با جمنای');
     }
 
-    const outputText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'محتوایی دریافت نشد.';
+    const textOutput = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'تحلیلی دریافت نشد.';
 
-    // ذخیره دائمی نسخه جدید در جدول دیتابیس D1
+    // ذخیره داده‌های ساختاریافته به همراه تحلیل متنی در دیتابیس
+    const lastVer = await env.DB.prepare(
+      "SELECT MAX(version) as max_v FROM student_roadmaps WHERE student_id = ?"
+    ).bind(studentId).first();
+    const nextVersion = (lastVer?.max_v || 0) + 1;
+
+    // بسته‌بندی متنی همراه با تگ‌های داده برای استفاده توسط Chart.js
+    const payloadToStore = JSON.stringify({
+      text: textOutput,
+      gardner: gardnerScores,
+      topSkills: skillScores.slice(0, 7),
+      topRequirements
+    });
+
     await env.DB.prepare(`
-      INSERT INTO roadmaps (student_id, version, analysis)
-      VALUES (?, ?, ?)
-    `).bind(studentId, nextVersion, outputText).run();
+      INSERT INTO student_roadmaps (student_id, version, analysis, created_at)
+      VALUES (?, ?, ?, datetime('now'))
+    `).bind(studentId, nextVersion, payloadToStore).run();
 
-    return new Response(JSON.stringify({
-      studentName: student.student_name,
-      version: nextVersion,
-      analysis: outputText
+    return new Response(JSON.stringify({ 
+      success: true, 
+      version: nextVersion, 
+      analysis: payloadToStore 
     }), {
-      status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message }), { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
