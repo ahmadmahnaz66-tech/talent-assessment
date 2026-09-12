@@ -11,6 +11,17 @@ export async function onRequestPost(context) {
 
     const cleanStudentId = String(studentId).trim();
 
+    // اطمینان از وجود جدول
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS student_roadmaps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        analysis TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
     // ۱. دریافت اطلاعات هویتی دانش‌آموز
     const student = await env.DB.prepare(
       "SELECT id, student_name, grade, classroom FROM students WHERE id = ?"
@@ -20,7 +31,7 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'دانش‌آموز یافت نشد.' }), { status: 404 });
     }
 
-    // ۲. دریافت مجموع امتیازات مهارت‌ها (استفاده از ستون واقعی total_score)
+    // ۲. دریافت مجموع امتیازات مهارت‌ها
     const { results: skillScores } = await env.DB.prepare(`
       SELECT 
         s.slug, 
@@ -37,7 +48,7 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'هنوز پاسخی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
     }
 
-    // ۳. دریافت سوابق آزمایش‌های مجاورت‌سازی (Exposure Trials)
+    // ۳. دریافت سوابق مجاورت‌سازی
     let exposureSummary = 'هنوز ارزیابی مجاورت‌سازی برای این دانش‌آموز ثبت نشده است.';
     try {
       const { results: exposureData } = await env.DB.prepare(`
@@ -151,7 +162,7 @@ ${exposureSummary}
       };
     }
 
-    // ۵. دریافت بالاترین نسخه موجود
+    // ۵. تعیین نسخه جدید
     const latest = await env.DB.prepare(
       "SELECT MAX(version) as max_v FROM student_roadmaps WHERE student_id = ?"
     ).bind(cleanStudentId).first();
@@ -184,6 +195,17 @@ export async function onRequestGet(context) {
   const cleanStudentId = String(studentId).trim();
 
   try {
+    // اطمینان از وجود جدول هنگام کوئری گرفتن
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS student_roadmaps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        analysis TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
     const { results } = await env.DB.prepare(`
       SELECT id, student_id, version, analysis, created_at
       FROM student_roadmaps
@@ -195,6 +217,6 @@ export async function onRequestGet(context) {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
   }
 }
