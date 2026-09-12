@@ -113,45 +113,39 @@ export async function onRequestPost(context) {
     }
 
     // ۵. ورود دانش‌آموز
-    if (action === 'student-login') {
-      const { studentId, password } = body;
-      if (!studentId || !password) {
-        return new Response(JSON.stringify({ error: 'کد ملی و رمز عبور الزامی است.' }), { status: 400, headers: corsHeaders });
+  if (action === 'student-login') {
+      const { username, password } = body;
+      if (!username || !password) {
+        return new Response(JSON.stringify({ error: 'کد ملی و رمز عبور الزامی است.' }), { status: 400 });
       }
 
-      const cleanId = studentId.trim();
       const student = await env.DB.prepare(
-        'SELECT id, student_name, grade, classroom, password_hash, must_change_password FROM students WHERE id = ?'
-      ).bind(cleanId).first();
+        "SELECT id, student_name, grade, classroom, password_hash FROM students WHERE id = ?"
+      ).bind(String(username).trim()).first();
 
       if (!student) {
-        return new Response(JSON.stringify({ error: 'دانش‌آموزی با این مشخصات یافت نشد.' }), { status: 404, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: 'دانش‌آموزی با این مشخصات یافت نشد.' }), { status: 404 });
       }
 
-      const defaultPass = cleanId.slice(-4);
-      const inputHash = await sha256(password.trim());
+      // تعیین رمز پیش‌فرض: ۴ رقم آخر، یا کل کد ملی اگر کمتر از ۴ رقم بود
+      const rawId = String(student.id).trim();
+      const defaultPass = rawId.length >= 4 ? rawId.slice(-4) : rawId;
+      const expectedPass = student.password_hash || defaultPass;
 
-      let isPasswordValid = false;
-      if (!student.password_hash) {
-        isPasswordValid = (password.trim() === defaultPass || inputHash === await sha256(defaultPass));
-      } else {
-        isPasswordValid = (student.password_hash === inputHash);
-      }
-
-      if (!isPasswordValid) {
-        return new Response(JSON.stringify({ error: 'رمز عبور وارد شده نادرست است.' }), { status: 401, headers: corsHeaders });
+      if (String(password).trim() !== expectedPass) {
+        return new Response(JSON.stringify({ error: 'رمز عبور اشتباه است.' }), { status: 401 });
       }
 
       return new Response(JSON.stringify({
         success: true,
-        student: {
+        user: {
           id: student.id,
-          name: student.student_name,
+          username: student.id,
+          fullName: student.student_name,
           grade: student.grade,
-          classroom: student.classroom,
-          mustChangePassword: Boolean(student.must_change_password)
+          role: 'student'
         }
-      }), { headers: corsHeaders });
+      }), { headers: { 'Content-Type': 'application/json' } });
     }
 
     // ۶. تغییر رمز دانش‌آموز در ورود اول
