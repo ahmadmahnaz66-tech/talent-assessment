@@ -1,18 +1,49 @@
+export async function onRequestGet(context) {
+  const { request, env } = context;
+  const url = new URL(request.url);
+  const studentId = url.searchParams.get('studentId');
+
+  if (!studentId) {
+    return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  try {
+    const { results } = await env.DB.prepare(
+      "SELECT skill_slug, answers, total_score FROM responses WHERE student_id = ?"
+    ).bind(String(studentId).trim()).all();
+
+    const mapped = {};
+    (results || []).forEach(row => {
+      try {
+        mapped[row.skill_slug] = typeof row.answers === 'string' ? JSON.parse(row.answers) : row.answers;
+      } catch (e) {
+        mapped[row.skill_slug] = [];
+      }
+    });
+
+    return new Response(JSON.stringify(mapped), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+}
+
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
     const { student_id, skill_slug, answers, total_score } = await request.json();
 
     if (!student_id || !skill_slug) {
-      return new Response(JSON.stringify({ error: 'پارامترهای ارسالی ناقص هستند.' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'اطلاعات ارسالی ناقص است.' }), { status: 400 });
     }
 
+    const sId = String(student_id).trim();
     const answersJson = JSON.stringify(answers || []);
 
-    // بررسی وجود پاسخ قبلی برای این دانش‌آموز در این مهارت
     const existing = await env.DB.prepare(
       "SELECT id FROM responses WHERE student_id = ? AND skill_slug = ?"
-    ).bind(student_id, skill_slug).first();
+    ).bind(sId, skill_slug).first();
 
     if (existing) {
       await env.DB.prepare(`
@@ -24,13 +55,12 @@ export async function onRequestPost(context) {
       await env.DB.prepare(`
         INSERT INTO responses (student_id, skill_slug, answers, total_score, created_at)
         VALUES (?, ?, ?, ?, datetime('now'))
-      `).bind(student_id, skill_slug, answersJson, total_score).run();
+      `).bind(sId, skill_slug, answersJson, total_score).run();
     }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' }
     });
-
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
