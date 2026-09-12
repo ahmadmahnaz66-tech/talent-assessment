@@ -263,19 +263,22 @@ async function loadStudentsList() {
       return;
     }
 
-    const isSuperAdmin = currentStaffUser && currentStaffUser.role === 'super_admin';
+    const isSuperAdmin = currentStaffUser && (currentStaffUser.role === 'super_admin' || currentStaffUser.role === 'principal');
 
     tbody.innerHTML = loadedStudents.map(s => `
       <tr class="hover:bg-slate-50 transition">
-        <td class="p-3 font-bold text-slate-600">${s.id}</td>
+        <td class="p-3 font-bold text-slate-600 font-mono">${s.id}</td>
         <td class="p-3 font-bold text-slate-800">${s.student_name}</td>
         <td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md text-[11px]">${s.grade}</span></td>
         <td class="p-3 text-slate-600">${s.classroom || '-'}</td>
         <td class="p-3 text-slate-500 font-mono">${s.parent_phone || '-'}</td>
-        <td class="p-3 text-left space-x-2 space-x-reverse">
+        <td class="p-3 text-left space-x-1.5 space-x-reverse">
           ${isSuperAdmin ? `
-            <button onclick="resetStudentPass('${s.id}')" title="بازنشانی رمز به ۴ رقم آخر" class="text-amber-600 hover:text-amber-800 text-xs font-bold bg-amber-50 px-2 py-1 rounded-lg">
-              ریست رمز
+            <button onclick="setCustomStudentPass('${s.id}')" title="تعیین رمز عبور دلخواه" class="text-indigo-600 hover:text-indigo-800 text-xs font-bold bg-indigo-50 px-2 py-1 rounded-lg">
+              تعیین رمز ✏️
+            </button>
+            <button onclick="resetStudentPass('${s.id}')" title="بازنشانی رمز به پیش‌فرض" class="text-amber-600 hover:text-amber-800 text-xs font-bold bg-amber-50 px-2 py-1 rounded-lg">
+              ریست
             </button>
             <button onclick="deleteStudent('${s.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold bg-red-50 px-2 py-1 rounded-lg">
               حذف
@@ -334,6 +337,37 @@ async function saveSingleStudent() {
     await loadStudentsList();
   } else {
     alert('خطا در ذخیره پرونده.');
+  }
+}
+
+async function setCustomStudentPass(studentId) {
+  const newPass = prompt(`لطفاً رمز عبور جدید برای دانش‌آموز (${studentId}) را وارد کنید:`);
+  if (!newPass) return;
+
+  if (newPass.trim().length < 3) {
+    return alert('رمز عبور باید حداقل ۳ کاراکتر باشد.');
+  }
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'set-student-password',
+        requesterRole: currentStaffUser.role,
+        studentId: studentId,
+        newPassword: newPass.trim()
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert(data.message);
+    } else {
+      alert(data.error || 'خطا در تعیین رمز عبور.');
+    }
+  } catch (e) {
+    alert('خطا در ارتباط با سرور.');
   }
 }
 
@@ -538,7 +572,6 @@ function viewHistoricalRoadmap(index) {
   document.getElementById('modal-content').innerText = parsedPayload.text || item.analysis;
   document.getElementById('roadmap-modal').classList.remove('hidden');
 
-  // رسم نمودارها
   renderGardnerRadarChart(parsedPayload.gardner || []);
   renderRequirementsBarChart(parsedPayload.topRequirements || []);
 }
@@ -703,7 +736,7 @@ async function fetchSkillGroupReport(skillSlug) {
           ${records.map((r, i) => `
             <tr class="hover:bg-slate-50 transition">
               <td class="p-3 font-bold ${i < 3 ? 'text-indigo-600' : 'text-slate-400'}">${i + 1}</td>
-              <td class="p-3">${r.id}</td>
+              <td class="p-3 font-mono">${r.id}</td>
               <td class="p-3 font-bold text-slate-700">${r.student_name}</td>
               <td class="p-3">${r.grade || '-'}</td>
               <td class="p-3 text-left font-black text-indigo-600">${r.total_score}</td>
