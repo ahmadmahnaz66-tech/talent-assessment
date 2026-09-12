@@ -634,8 +634,16 @@ async function fetchStudentReport(studentId) {
         <td class="p-3 text-center font-bold text-slate-400">#${i + 1}</td>
         <td class="p-3 font-bold text-slate-800">${r.skill_title}</td>
         <td class="p-3 text-center font-black text-indigo-600">${r.total_score}</td>
-        <td class="p-3 text-center"><span class="px-2.5 py-1 rounded-md text-[11px] font-bold ${r.total_score >= 45 ? 'bg-emerald-100 text-emerald-700' : r.total_score >= 30 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}">${r.total_score >= 45 ? 'اولویت طلایی (A1)' : r.total_score >= 30 ? 'اولویت رشد (A)' : 'پتانسیل ثانویه'}</span></td>
-      </tr>
+<td class="p-3 text-center">
+          ${r.total_score >= 45 
+            ? '<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-700">اولویت طلایی (A1)</span>'
+            : (r.total_score === 30 || r.is_default)
+              ? '<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">تکمیل‌نشده (رد شده) ⚠️</span>'
+              : r.total_score > 30 
+                ? '<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-indigo-100 text-indigo-700">اولویت رشد (A)</span>'
+                : '<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600">پتانسیل ثانویه</span>'}
+        </td>
+              </tr>
     `).join('');
   } catch (e) {
     container.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">خطا در بارگذاری کارنامه.</td></tr>';
