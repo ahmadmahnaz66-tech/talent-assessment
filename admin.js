@@ -3,12 +3,25 @@ let loadedStudents = [];
 let currentAdminSkillSlug = '';
 let currentStaffUser = null;
 let cachedHistory = [];
+let gardnerChartInstance = null;
+let reqChartInstance = null;
 
 const ROLE_NAMES = {
   super_admin: 'مدیر ارشد سامانه',
   counselor: 'مشاور تخصصی',
   principal: 'مدیر مدرسه',
   vice_principal: 'معاون مدرسه'
+};
+
+const GARDNER_LABELS_FA = {
+  logical_mathematical: 'منطقی-ریاضی',
+  spatial_visual: 'دیداری-فضایی',
+  bodily_kinesthetic: 'بدنی-جنبشی',
+  musical_rhythmic: 'موسیقایی-ریتمیک',
+  linguistic: 'زبانی-کلامی',
+  interpersonal: 'میان‌فردی (اجتماعی)',
+  intrapersonal: 'درون‌فردی (هیجانی)',
+  naturalist: 'طبیعت‌گرا'
 };
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -514,8 +527,119 @@ function viewHistoricalRoadmap(index) {
 
   document.getElementById('modal-title').innerText = `کارنامه و نقشه راه رشد هوش مصنوعی - ${sName}`;
   document.getElementById('modal-subtitle').innerText = `نسخه شماره ${item.version} (ثبت شده در: ${new Date(item.created_at).toLocaleString('fa-IR')})`;
-  document.getElementById('modal-content').innerText = item.analysis;
+
+  let parsedPayload = null;
+  try {
+    parsedPayload = JSON.parse(item.analysis);
+  } catch (e) {
+    parsedPayload = { text: item.analysis, gardner: [], topRequirements: [] };
+  }
+
+  document.getElementById('modal-content').innerText = parsedPayload.text || item.analysis;
   document.getElementById('roadmap-modal').classList.remove('hidden');
+
+  // رسم نمودارها
+  renderGardnerRadarChart(parsedPayload.gardner || []);
+  renderRequirementsBarChart(parsedPayload.topRequirements || []);
+}
+
+function renderGardnerRadarChart(gardnerData) {
+  const canvas = document.getElementById('gardnerRadarChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  if (gardnerChartInstance) {
+    gardnerChartInstance.destroy();
+  }
+
+  if (!gardnerData || gardnerData.length === 0) return;
+
+  const labels = gardnerData.map(g => GARDNER_LABELS_FA[g.gardner_intelligence] || g.gardner_intelligence);
+  const scores = gardnerData.map(g => g.percentage);
+
+  gardnerChartInstance = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'درصد تحقق هوش (%)',
+        data: scores,
+        backgroundColor: 'rgba(99, 102, 241, 0.25)',
+        borderColor: '#6366f1',
+        borderWidth: 2,
+        pointBackgroundColor: '#4f46e5',
+        pointBorderColor: '#ffffff',
+        pointHoverBackgroundColor: '#ffffff',
+        pointHoverBorderColor: '#4f46e5'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          min: 0,
+          max: 100,
+          ticks: { stepSize: 25, font: { family: 'Vazirmatn FD', size: 9 } },
+          pointLabels: { font: { family: 'Vazirmatn FD', size: 10, weight: 'bold' }, color: '#334155' }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+function renderRequirementsBarChart(reqData) {
+  const canvas = document.getElementById('reqBarChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  if (reqChartInstance) {
+    reqChartInstance.destroy();
+  }
+
+  if (!reqData || reqData.length === 0) return;
+
+  const labels = reqData.map(r => r.requirement.length > 22 ? r.requirement.slice(0, 22) + '...' : r.requirement);
+  const scores = reqData.map(r => r.percentage);
+
+  reqChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'میزان ظهور رفتاری (%)',
+        data: scores,
+        backgroundColor: [
+          'rgba(168, 85, 247, 0.85)',
+          'rgba(99, 102, 241, 0.85)',
+          'rgba(59, 130, 246, 0.85)',
+          'rgba(16, 185, 129, 0.85)',
+          'rgba(245, 158, 11, 0.85)'
+        ],
+        borderRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          min: 0,
+          max: 100,
+          ticks: { font: { family: 'Vazirmatn FD', size: 9 } }
+        },
+        x: {
+          ticks: { font: { family: 'Vazirmatn FD', size: 9 } }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
 }
 
 async function generateNewRoadmapAnalysis() {
