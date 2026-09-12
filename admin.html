@@ -7,14 +7,53 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- کتابخانه‌های رندر مارک‌داون و خروجی مستقیم PDF -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet">
   <style>
     body { font-family: 'Vazirmatn FD', sans-serif; }
     
+    /* استایل‌های محتوای رندر شده گزارش */
+    .report-prose h2, .report-prose h3 {
+      font-weight: 900;
+      color: #1e1b4b;
+      margin-top: 1.4rem;
+      margin-bottom: 0.6rem;
+      font-size: 1.05rem;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 0.3rem;
+    }
+    .report-prose h4 {
+      font-weight: 800;
+      color: #312e81;
+      margin-top: 1rem;
+      margin-bottom: 0.4rem;
+      font-size: 0.95rem;
+    }
+    .report-prose p {
+      margin-bottom: 0.75rem;
+      line-height: 1.95;
+      text-align: justify;
+    }
+    .report-prose ul {
+      list-style-type: disc;
+      padding-right: 1.4rem;
+      margin-bottom: 0.8rem;
+    }
+    .report-prose li {
+      margin-bottom: 0.4rem;
+      line-height: 1.85;
+    }
+    .report-prose strong {
+      font-weight: 800;
+      color: #0f172a;
+    }
+
     @media print {
       @page {
         size: A4 portrait;
-        margin: 12mm 10mm 15mm 10mm;
+        margin: 10mm 10mm 15mm 10mm;
       }
       body {
         background: #ffffff !important;
@@ -22,14 +61,12 @@
         margin: 0 !important;
         color: #0f172a !important;
       }
-      /* پنهان‌سازی المان‌های غیرضروری */
       body > div:first-of-type,
       .no-print,
       header,
       nav {
         display: none !important;
       }
-      /* آزادسازی کادر مودال برای چندصفحه‌ای شدن */
       #roadmap-modal {
         position: static !important;
         background: none !important;
@@ -46,11 +83,9 @@
         padding: 0 !important;
         overflow: visible !important;
       }
-      /* سربرگ رسمی در پرینت */
       .print-header {
         display: flex !important;
       }
-      /* تنظیم شکست صفحات برای نمودارها و متن */
       #charts-wrapper {
         break-inside: avoid !important;
         page-break-inside: avoid !important;
@@ -59,11 +94,6 @@
       #modal-content {
         overflow: visible !important;
         height: auto !important;
-        font-size: 10.5pt !important;
-        line-height: 1.9 !important;
-        color: #0f172a !important;
-        white-space: pre-wrap !important;
-        word-break: break-word !important;
       }
       .print-footer {
         display: flex !important;
@@ -261,7 +291,7 @@
       </div>
     </section>
 
-    <!-- تب ۳: مجاورت‌سازی ۲ هفته‌ای (Expose Module) -->
+    <!-- تب ۳: مجاورت‌سازی ۲ هفته‌ای -->
     <section id="tab-content-exposure" class="tab-content hidden space-y-5">
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex items-center justify-between border-b pb-3">
@@ -436,28 +466,35 @@
 
   </div>
 
-  <!-- مودال نمایش کامل کارنامه، نمودارهای Chart.js و چاپ A4 چندصفحه‌ای -->
+  <!-- مودال نمایش کارنامه تحلیلی و خروجی‌ها -->
   <div id="roadmap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
       
-      <!-- هدر معمولی صفحه وب (در پرینت مخفی است) -->
-      <div class="p-5 bg-slate-50 border-b flex justify-between items-center no-print">
+      <!-- هدر کنترل‌ها (در نسخه چاپی مخفی است) -->
+      <div class="p-5 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-3 no-print">
         <div>
           <h3 id="modal-title" class="font-bold text-indigo-950 text-base">کارنامه تحلیلی و نقشه رشد استعدادیابی</h3>
-          <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
+          <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5 font-mono"></p>
         </div>
-        <div class="flex gap-2">
-          <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-            <span>🖨️ چاپ رسمی یا خروجی PDF</span>
+        <div class="flex items-center gap-2">
+          <!-- دکمه مستقیم دانلود PDF -->
+          <button id="btn-export-pdf" onclick="downloadDirectPDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+            <span>📥</span>
+            <span>ذخیره مستقیم PDF</span>
+          </button>
+          <!-- دکمه چاپ مرورگر -->
+          <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+            <span>🖨️</span>
+            <span>چاپ</span>
           </button>
           <button onclick="closeRoadmapModal()" class="text-slate-400 hover:text-slate-600 px-2 py-1 text-lg font-bold">✕</button>
         </div>
       </div>
 
-      <!-- محتوای چاپی و اسکرول‌پذیر -->
-      <div class="p-6 overflow-y-auto space-y-6 text-xs sm:text-sm">
+      <!-- محتوای اصلی قابل پرینت و ذخیره به عنوان PDF -->
+      <div id="pdf-printable-area" class="p-6 overflow-y-auto space-y-6 text-xs sm:text-sm">
         
-        <!-- سربرگ رسمی مدرسه در نسخه چاپی -->
+        <!-- سربرگ رسمی مدرسه -->
         <div class="print-header hidden justify-between items-center pb-4 border-b-2 border-slate-800 text-slate-900">
           <div>
             <h2 class="text-base font-black">دبستان تخصصی مهارت‌محور آپادانا</h2>
@@ -465,7 +502,7 @@
           </div>
           <div class="text-left text-[11px] font-mono leading-relaxed">
             <div><strong>وضعیت سند:</strong> تحلیل رسمی هوش مصنوعی و تایید مشاور</div>
-            <div><strong>تاریخ صدور:</strong> ۱۴۰۵/۰۶/۲۱</div>
+            <div id="pdf-header-date"></div>
           </div>
         </div>
 
@@ -486,16 +523,16 @@
           </div>
         </div>
 
-        <!-- متن کامل بالینی و بسته‌های رشد (بدون بریدگی) -->
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <!-- متن گزارش بالینی بدون هشتگ و با قالب‌بندی تمیز -->
+        <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
           <h4 class="font-bold text-indigo-900 text-xs mb-3 pb-2 border-b border-slate-100 flex items-center gap-1.5 no-print">
             <span>📋</span>
             <span>گزارش بالینی و نقشه راه اختصاصی رشد (نقطه A به A1):</span>
           </h4>
-          <div id="modal-content" class="leading-relaxed text-slate-800 whitespace-pre-wrap font-sans text-xs sm:text-sm"></div>
+          <div id="modal-content" class="report-prose text-slate-800 font-sans text-xs sm:text-sm"></div>
         </div>
 
-        <!-- فوتر رسمی با محل امضای کادر در خروجی چاپی -->
+        <!-- فوتر رسمی با محل امضا -->
         <div class="print-footer hidden justify-between items-end pt-10 mt-6 border-t border-slate-300 text-xs text-slate-700">
           <div class="text-center space-y-10">
             <p class="font-bold">امضای مشاور بالینی و استعدادیاب مدرسه</p>
