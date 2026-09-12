@@ -3,78 +3,89 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>سامانه ارزیابی مهارت و پایش استعداد - ویژه اولیا</title>
+  <title>فرم جامع پایش استعداد و علایق - دبستان آپادانا</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet">
   <style>
     body { font-family: 'Vazirmatn FD', sans-serif; }
   </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 p-4 sm:p-6 flex flex-col justify-between">
+<body class="bg-slate-100 min-h-screen text-slate-800 p-4 sm:p-6 flex flex-col justify-between">
 
-  <!-- کادر ورود با کد ملی دانش‌آموز -->
-  <div id="auth-box" class="max-w-md w-full mx-auto my-auto bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200">
-    <div class="text-center space-y-2 mb-6">
-      <div class="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-2xl">🌱</div>
-      <h1 class="text-lg font-black text-slate-800">فرم پایش و استعدادیابی شناختی-مهارتی</h1>
-      <p class="text-xs text-slate-500 leading-relaxed">ولی گرامی، جهت شروع ارزیابی رفتاری فرزندتان، کد ملی دانش‌آموز را وارد نمایید.</p>
-    </div>
-    <div class="space-y-4">
-      <div>
-        <label class="block text-xs font-bold text-slate-700 mb-1.5">کد ملی دانش‌آموز:</label>
-        <input type="text" id="input-student-id" placeholder="مثال: 0921234567" class="w-full border border-slate-200 p-3 rounded-xl text-sm outline-none focus:border-indigo-600 text-center tracking-widest font-mono">
+  <!-- ۱. کادر ورود امن اولیا (کد ملی و رمز عبور) -->
+  <div id="auth-box" class="max-w-md w-full mx-auto my-auto bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 space-y-5">
+    <div class="text-center space-y-2">
+      <div class="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">
+        🌱
       </div>
-      <button onclick="startSurvey()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-3 rounded-xl transition shadow-sm">
+      <h1 class="text-lg font-black text-slate-800">فرم جامع پایش استعدادیابی</h1>
+      <p class="text-xs text-slate-500 leading-relaxed">
+        جهت ورود به ارزیابی فرزندتان، کد ملی و رمز عبور را وارد نمایید.
+      </p>
+    </div>
+
+    <div class="space-y-3.5">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">کد ملی دانش‌آموز:</label>
+        <input type="text" id="input-student-id" placeholder="مثال: 0921234567" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 tracking-wider text-center font-mono">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-700 mb-1">رمز عبور پرونده:</label>
+        <input type="password" id="input-student-pass" placeholder="پیش‌فرض: ۴ رقم آخر کد ملی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 text-center font-mono">
+      </div>
+
+      <button onclick="handleStudentAuth()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
         ورود و شروع ارزیابی
       </button>
       <p id="auth-err" class="text-xs text-red-500 text-center font-bold hidden"></p>
     </div>
   </div>
 
-  <!-- کادر اصلی آزمون -->
-  <div id="survey-box" class="max-w-2xl w-full mx-auto hidden space-y-6">
-    <!-- هدر وضعیت -->
+  <!-- ۲. داشبورد و ارزیابی مهارتی -->
+  <div id="survey-box" class="max-w-2xl w-full mx-auto hidden space-y-5 my-auto">
+    <!-- کارت وضعیت دانش‌آموز -->
     <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
       <div>
         <span id="std-info-name" class="font-bold text-sm text-slate-800"></span>
-        <span id="std-info-grade" class="text-xs text-slate-500 mr-2"></span>
+        <span id="std-info-grade" class="text-xs text-slate-500 mr-1.5"></span>
       </div>
-      <div class="text-left">
-        <span id="progress-text" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">مهارت ۱ از ۱۸</span>
+      <div class="flex items-center gap-2">
+        <span id="progress-text" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100"></span>
+        <button onclick="handleLogout()" class="text-[11px] font-bold text-red-500 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition">خروج</button>
       </div>
     </div>
 
     <!-- کادر گویه‌های مهارت جاری -->
-    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-      <div class="border-b border-slate-100 pb-4">
-        <h2 id="current-skill-title" class="text-base font-black text-indigo-900"></h2>
-        <p class="text-xs text-slate-400 mt-1">با توجه به رفتارهای روزمره فرزندتان در منزل، به هر گویه نمره‌ای از ۰ (هرگز) تا ۴ (همیشه) بدهید.</p>
+    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+      <div class="border-b border-slate-100 pb-3">
+        <h2 id="current-skill-title" class="text-base font-black text-indigo-950"></h2>
+        <p class="text-xs text-slate-400 mt-1">با توجه به رفتارهای عینی فرزندتان در منزل، به هر گزینه نمره‌ای از ۰ (هرگز) تا ۴ (همیشه) اختصاص دهید.</p>
       </div>
 
-      <div id="questions-list" class="space-y-6 divide-y divide-slate-100"></div>
+      <div id="questions-list" class="space-y-5 divide-y divide-slate-100"></div>
 
       <div class="flex items-center justify-between pt-4">
-        <button id="btn-prev" onclick="prevSkill()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-5 py-2.5 rounded-xl text-xs font-bold transition hidden">
+        <button id="btn-prev" onclick="prevSkill()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold transition hidden">
           مهارت قبلی
         </button>
-        <button id="btn-next" onclick="nextSkill()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition mr-auto shadow-sm">
+        <button id="btn-next" onclick="nextSkill()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition mr-auto shadow-sm">
           ثبت و مهارت بعدی →
         </button>
       </div>
     </div>
   </div>
 
-  <!-- پیام اتمام آزمون -->
+  <!-- ۳. پیام پایان ارزیابی -->
   <div id="completed-box" class="max-w-md w-full mx-auto my-auto bg-white p-8 rounded-3xl shadow-sm border border-slate-200 text-center space-y-4 hidden">
-    <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto text-3xl">✓</div>
-    <h2 class="text-lg font-black text-slate-800">ارزیابی با موفقیت تکمیل شد</h2>
+    <div class="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">✓</div>
+    <h2 class="text-lg font-black text-slate-800">ارزیابی با موفقیت ثبت شد</h2>
     <p class="text-xs text-slate-500 leading-relaxed">
-      پاسخ‌های شما با موفقیت در پرونده رشد کودک ثبت شد. کارنامه تحلیلی و نقشه راه توسط مشاور تخصصی و سامانه استعدادیابی بررسی و صادر خواهد شد.
+      پاسخ‌های شما در سامانه ذخیره گردید. کارنامه بالینی و نقشه رشد بر اساس مدل هالند و گاردنر پس از ارزیابی نهایی در پنل مدرسه صادر خواهد شد.
     </p>
   </div>
 
   <footer class="text-center py-4 text-slate-400 text-xs mt-6">
-    دبستان تخصصی مهارت‌محور آپادانا
+    سامانه تخصصی استعدادیابی دبستان پسرانه آپادانا
   </footer>
 
   <script>
@@ -84,32 +95,37 @@
     let currentQuestions = [];
     let currentAnswers = [];
 
-    async function startSurvey() {
+    async function handleStudentAuth() {
       const studentId = document.getElementById('input-student-id').value.trim();
+      const password = document.getElementById('input-student-pass').value.trim();
       const errBox = document.getElementById('auth-err');
       errBox.classList.add('hidden');
 
-      if (!studentId) {
-        errBox.innerText = 'کد ملی را وارد کنید.';
+      if (!studentId || !password) {
+        errBox.innerText = 'کد ملی و رمز عبور را وارد کنید.';
         errBox.classList.remove('hidden');
         return;
       }
 
       try {
-        const res = await fetch(`/api/students?grade=&classroom=`);
-        const data = await res.json();
-        const std = (data.students || []).find(s => String(s.id).trim() === studentId);
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'student-login', username: studentId, password })
+        });
 
-        if (!std) {
-          errBox.innerText = 'پرونده‌ای با این کد ملی در مدرسه یافت نشد.';
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          errBox.innerText = data.error || 'کد ملی یا رمز عبور اشتباه است.';
           errBox.classList.remove('hidden');
           return;
         }
 
-        currentStudent = std;
-        document.getElementById('std-info-name').innerText = std.student_name;
-        document.getElementById('std-info-grade').innerText = `(پایه ${std.grade})`;
+        currentStudent = data.user;
+        document.getElementById('std-info-name').innerText = currentStudent.fullName || currentStudent.username;
+        document.getElementById('std-info-grade').innerText = currentStudent.grade ? `(پایه ${currentStudent.grade})` : '';
 
+        // بارگذاری لیست ۱۸ مهارت
         const skillsRes = await fetch('/api/admin-reports?type=all-skills');
         skillsList = await skillsRes.json();
 
@@ -120,7 +136,7 @@
         loadCurrentSkillQuestions();
 
       } catch (e) {
-        errBox.innerText = 'خطا در ارتباط با سامانه.';
+        errBox.innerText = 'خطا در برقراری ارتباط با سامانه.';
         errBox.classList.remove('hidden');
       }
     }
@@ -131,17 +147,17 @@
       document.getElementById('progress-text').innerText = `مهارت ${currentSkillIndex + 1} از ${skillsList.length}`;
 
       document.getElementById('btn-prev').classList.toggle('hidden', currentSkillIndex === 0);
-      document.getElementById('btn-next').innerText = (currentSkillIndex === skillsList.length - 1) ? 'پایان و ارسال نهایی' : 'ثبت و مهارت بعدی →';
+      document.getElementById('btn-next').innerText = (currentSkillIndex === skillsList.length - 1) ? 'پایان و ثبت نهایی' : 'ثبت و مهارت بعدی →';
 
       const qBox = document.getElementById('questions-list');
-      qBox.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">در حال بارگذاری سوالات...</p>';
+      qBox.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">در حال بارگذاری سؤالات...</p>';
 
       const res = await fetch(`/api/questions?skill=${encodeURIComponent(skill.slug)}`);
       currentQuestions = await res.json();
-      currentAnswers = new Array(currentQuestions.length).fill(2); // پیش‌فرض مقدار متوسط
+      currentAnswers = new Array(currentQuestions.length).fill(2);
 
       qBox.innerHTML = currentQuestions.map((q, idx) => `
-        <div class="pt-4 space-y-3">
+        <div class="pt-4 space-y-2.5">
           <p class="text-xs sm:text-sm font-bold text-slate-700 leading-relaxed">
             <span class="text-indigo-600 font-bold ml-1">${idx + 1}.</span> ${q.question_text}
           </p>
@@ -149,7 +165,7 @@
             ${[0, 1, 2, 3, 4].map(val => `
               <label class="cursor-pointer border border-slate-200 rounded-xl p-2 hover:bg-indigo-50 transition flex flex-col items-center">
                 <input type="radio" name="q_${idx}" value="${val}" ${val === 2 ? 'checked' : ''} onchange="currentAnswers[${idx}] = ${val}" class="text-indigo-600 mb-1">
-                <span class="text-[10px] sm:text-xs text-slate-500">${['هرگز', 'به‌ندرت', 'گاهی', 'معمولاً', 'همیشه'][val]}</span>
+                <span class="text-[10px] text-slate-500">${['هرگز', 'به‌ندرت', 'گاهی', 'معمولاً', 'همیشه'][val]}</span>
               </label>
             `).join('')}
           </div>
@@ -163,12 +179,11 @@
       const skill = skillsList[currentSkillIndex];
       const totalScore = currentAnswers.reduce((a, b) => a + b, 0);
 
-      // ذخیره در جدول responses دیتابیس D1
       await fetch('/api/save-response', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          student_id: currentStudent.id,
+          student_id: currentStudent.username || currentStudent.id,
           skill_slug: skill.slug,
           answers: currentAnswers,
           total_score: totalScore
@@ -189,6 +204,13 @@
         currentSkillIndex--;
         loadCurrentSkillQuestions();
       }
+    }
+
+    function handleLogout() {
+      currentStudent = null;
+      document.getElementById('survey-box').classList.add('hidden');
+      document.getElementById('auth-box').classList.remove('hidden');
+      document.getElementById('input-student-pass').value = '';
     }
   </script>
 </body>
