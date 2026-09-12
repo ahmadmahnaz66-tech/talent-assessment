@@ -34,11 +34,13 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'اطلاعات ارزیابی ناقص است.' }), { status: 400 });
     }
 
+    const sId = String(student_id).trim();
+
     await env.DB.prepare(`
       INSERT INTO exposure_trials (student_id, skill_slug, learning_speed, resilience, engagement, mentor_note, trial_verdict)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      String(student_id).trim(),
+      sId,
       skill_slug,
       learning_speed,
       resilience,
@@ -46,6 +48,8 @@ export async function onRequestPost(context) {
       mentor_note || '',
       trial_verdict
     ).run();
+
+    await env.DB.prepare("UPDATE students SET needs_ai_sync = 1 WHERE id = ?").bind(sId).run();
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' }
@@ -59,10 +63,16 @@ export async function onRequestPut(context) {
   try {
     const { request, env } = context;
     const body = await request.json();
-    const { id, skill_slug, learning_speed, resilience, engagement, mentor_note, trial_verdict } = body;
+    const { id, student_id, skill_slug, learning_speed, resilience, engagement, mentor_note, trial_verdict } = body;
 
     if (!id || !skill_slug || !trial_verdict) {
       return new Response(JSON.stringify({ error: 'اطلاعات جهت ویرایش ناقص است.' }), { status: 400 });
+    }
+
+    let targetStudentId = student_id ? String(student_id).trim() : null;
+    if (!targetStudentId) {
+      const rec = await env.DB.prepare("SELECT student_id FROM exposure_trials WHERE id = ?").bind(id).first();
+      if (rec) targetStudentId = rec.student_id;
     }
 
     await env.DB.prepare(`
@@ -78,6 +88,10 @@ export async function onRequestPut(context) {
       trial_verdict,
       id
     ).run();
+
+    if (targetStudentId) {
+      await env.DB.prepare("UPDATE students SET needs_ai_sync = 1 WHERE id = ?").bind(targetStudentId).run();
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' }

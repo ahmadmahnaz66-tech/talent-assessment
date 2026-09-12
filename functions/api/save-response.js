@@ -58,6 +58,8 @@ export async function onRequestPost(context) {
       `).bind(sId, skill_slug, answersJson, total_score).run();
     }
 
+    await env.DB.prepare("UPDATE students SET needs_ai_sync = 1 WHERE id = ?").bind(sId).run();
+
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' }
     });

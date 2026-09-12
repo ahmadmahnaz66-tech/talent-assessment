@@ -14,29 +14,12 @@ export async function onRequestGet(context) {
   }
 
   try {
-    // ۱. استخراج حداکثر ۳ پرونده تغییریافته پس از آخرین کارنامه
+    // ۱. استخراج حداکثر ۳ پرونده نیازمند همگام‌سازی
     const { results } = await env.DB.prepare(`
-      SELECT DISTINCT s.id, s.student_name
-      FROM students s
-      LEFT JOIN (
-        SELECT student_id, MAX(created_at) as last_ai_at
-        FROM student_roadmaps
-        GROUP BY student_id
-      ) r_map ON s.id = r_map.student_id
-      LEFT JOIN (
-        SELECT student_id, MAX(created_at) as last_resp_at
-        FROM responses
-        GROUP BY student_id
-      ) resp ON s.id = resp.student_id
-      LEFT JOIN (
-        SELECT student_id, MAX(created_at) as last_exp_at
-        FROM exposure_trials
-        GROUP BY student_id
-      ) exp ON s.id = exp.student_id
-      WHERE 
-        (resp.last_resp_at IS NOT NULL AND (r_map.last_ai_at IS NULL OR resp.last_resp_at > r_map.last_ai_at))
-        OR
-        (exp.last_exp_at IS NOT NULL AND (r_map.last_ai_at IS NULL OR exp.last_exp_at > r_map.last_ai_at))
+      SELECT id, student_name
+      FROM students
+      WHERE needs_ai_sync = 1
+      ORDER BY id ASC
       LIMIT 3
     `).all();
 

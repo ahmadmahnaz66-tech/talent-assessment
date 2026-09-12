@@ -11,6 +11,7 @@ export async function onRequestPost(context) {
       });
     }
 
+    const sId = String(studentId).trim();
     const calculatedTotal = answers.reduce((a, b) => a + (Number(b) || 0), 0);
     const answersJson = JSON.stringify(answers);
 
@@ -22,11 +23,13 @@ export async function onRequestPost(context) {
         total_score = excluded.total_score,
         created_at = datetime('now')
     `).bind(
-      String(studentId),
+      sId,
       skillSlug,
       answersJson,
       Number(totalScore) ?? calculatedTotal
     ).run();
+
+    await env.DB.prepare("UPDATE students SET needs_ai_sync = 1 WHERE id = ?").bind(sId).run();
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { 

@@ -1,0 +1,1 @@
+ALTER TABLE students ADD COLUMN needs_ai_sync INTEGER DEFAULT 0;

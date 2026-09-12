@@ -178,6 +178,9 @@ ${exposureSummary}
       VALUES (?, ?, ?, datetime('now'))
     `).bind(cleanStudentId, nextVersion, JSON.stringify(parsedPayload)).run();
 
+    // ریست کردن پرچم نیاز به همگام‌سازی AI
+    await env.DB.prepare("UPDATE students SET needs_ai_sync = 0 WHERE id = ?").bind(cleanStudentId).run();
+
     return new Response(JSON.stringify({ success: true, version: nextVersion, roadmap: parsedPayload }), {
       headers: { 'Content-Type': 'application/json' }
     });
