@@ -42,8 +42,12 @@ export async function onRequestPost(context) {
       ORDER BY raw_score DESC
     `).bind(cleanStudentId).all();
 
-    const validSkillScores = (skillScores || []).filter(s => Number(s.raw_score) > 0);
-
+// نادیده گرفتن مهارت‌هایی که صرفاً با امتیاز پیش‌فرض ۳۰ رد شده‌اند
+    const validSkillScores = (skillScores || []).filter(s => {
+      const score = Number(s.raw_score);
+      return score > 0 && score !== 30;
+    });
+    
     if (validSkillScores.length === 0) {
       return new Response(JSON.stringify({ error: 'هنوز پاسخی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
     }
