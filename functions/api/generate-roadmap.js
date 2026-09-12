@@ -144,10 +144,9 @@ ${reqSummaryText}
       }
     });
 
-    // آدرس مستقیم گوگل با مدل پایدار ۲.۵
-    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    // آدرس گیت‌وی کلودفلر با مدل ۲.۵
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    // آدرس‌های اتصال با مدل gemini-3.6-flash
+    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
 
     let aiRes = await fetch(gatewayUrl, {
       method: 'POST',
