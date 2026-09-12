@@ -284,17 +284,48 @@ async function loadStudentsList() {
   }
 }
 
+let allSchoolStats = [];
+
 function updateFilterDropdowns(stats) {
+  allSchoolStats = stats || [];
   const gradeSelect = document.getElementById('filter-grade');
-  const classSelect = document.getElementById('filter-classroom');
   const currentGrade = gradeSelect.value;
+
+  const grades = [...new Set(allSchoolStats.map(s => s.grade).filter(Boolean))];
+
+  gradeSelect.innerHTML = '<option value="">همه پایه‌ها</option>' + 
+    grades.map(g => `<option value="${g}" ${g === currentGrade ? 'selected' : ''}>${g}</option>`).join('');
+
+  updateClassDropdown();
+}
+
+function updateClassDropdown() {
+  const selectedGrade = document.getElementById('filter-grade').value;
+  const classSelect = document.getElementById('filter-classroom');
   const currentClass = classSelect.value;
 
-  const grades = [...new Set(stats.map(s => s.grade).filter(Boolean))];
-  const classes = [...new Set(stats.map(s => s.classroom).filter(Boolean))];
+  // فیلتر کردن کلاس‌ها: اگر پایه‌ای انتخاب شده بود فقط کلاس‌های همان پایه، وگرنه همه کلاس‌ها
+  const filteredStats = selectedGrade 
+    ? allSchoolStats.filter(s => s.grade === selectedGrade)
+    : allSchoolStats;
 
-  gradeSelect.innerHTML = '<option value="">همه پایه‌ها</option>' + grades.map(g => `<option value="${g}" ${g === currentGrade ? 'selected' : ''}>${g}</option>`).join('');
-  classSelect.innerHTML = '<option value="">همه کلاس‌ها</option>' + classes.map(c => `<option value="${c}" ${c === currentClass ? 'selected' : ''}>${c}</option>`).join('');
+  const availableClasses = [...new Set(filteredStats.map(s => s.classroom).filter(Boolean))];
+
+  // اگر کلاس قبلاً انتخاب‌شده در پایه جدید وجود نداشت، بازنشانی شود
+  const isCurrentStillValid = availableClasses.includes(currentClass);
+  const activeClassVal = isCurrentStillValid ? currentClass : '';
+
+  classSelect.innerHTML = '<option value="">همه کلاس‌ها</option>' + 
+    availableClasses.map(c => `<option value="${c}" ${c === activeClassVal ? 'selected' : ''}>${c}</option>`).join('');
+
+  if (!isCurrentStillValid) {
+    classSelect.value = '';
+  }
+}
+
+function onGradeFilterChanged() {
+  updateClassDropdown();
+  loadStudentsList();
 }
 
 async function saveSingleStudent() {
