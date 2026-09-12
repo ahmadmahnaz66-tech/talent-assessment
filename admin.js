@@ -295,6 +295,12 @@ async function loadStudentsList() {
         loadedStudents.map(s => `<option value="${s.id}" ${s.id === currentSelected ? 'selected' : ''}>${s.student_name} (${s.id}) - پایه ${s.grade}</option>`).join('');
     }
 
+    const expStudentSelect = document.getElementById('exposure-student-select');
+    if (expStudentSelect) {
+      expStudentSelect.innerHTML = '<option value="">انتخاب پرونده...</option>' +
+        loadedStudents.map(s => `<option value="${s.id}">${s.student_name} (${s.id}) - پایه ${s.grade}</option>`).join('');
+    }
+
   } catch (err) {
     console.error('خطا در لیست دانش‌آموزان:', err);
   }
@@ -479,6 +485,11 @@ async function loadInitialMetadata() {
         currentAdminSkillSlug = allSkills[0].slug;
         loadQuestionsForAdmin(allSkills[0].slug);
       }
+    }
+
+    const expSkillSelect = document.getElementById('exposure-skill-select');
+    if (expSkillSelect) {
+      expSkillSelect.innerHTML = allSkills.map(s => `<option value="${s.slug}">${s.title}</option>`).join('');
     }
   } catch (e) {
     console.error('خطا در دریافت مهارت‌ها:', e);
@@ -706,7 +717,89 @@ function closeRoadmapModal() {
   document.getElementById('roadmap-modal').classList.add('hidden');
 }
 
-// تب ۳: گزارش گروهی
+// تب ۳: مجاورت‌سازی ۲ هفته‌ای
+async function loadExposureHistory(studentId) {
+  const tbody = document.getElementById('exposure-history-body');
+  if (!studentId) {
+    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">ابتدا دانش‌آموز را انتخاب نمایید.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">در حال دریافت نتایج مجاورت‌سازی...</td></tr>';
+
+  try {
+    const res = await fetch(`/api/exposure?studentId=${encodeURIComponent(studentId)}`);
+    const trials = await res.json();
+
+    if (!trials || trials.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-amber-600">هنوز ارزیابی ۲ هفته‌ای برای این دانش‌آموز ثبت نشده است.</td></tr>';
+      return;
+    }
+
+    const verdictBadges = {
+      'تایید_استعداد_هدف': '<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md font-bold text-[10px]">✅ تایید استعداد</span>',
+      'نیازمند_تمدید_آزمایش': '<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md font-bold text-[10px]">⏳ تمدید آزمایش</span>',
+      'عدم_همخوانی_تغییر_مهارت': '<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-md font-bold text-[10px]">🔄 تغییر مهارت</span>'
+    };
+
+    tbody.innerHTML = trials.map(t => `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="p-3 text-slate-400 font-mono text-[11px]">${new Date(t.created_at).toLocaleDateString('fa-IR')}</td>
+        <td class="p-3 font-bold text-slate-800">${t.skill_title}</td>
+        <td class="p-3 text-slate-600">${t.learning_speed}</td>
+        <td class="p-3 text-slate-600">${t.resilience}</td>
+        <td class="p-3 text-slate-600">${t.engagement}</td>
+        <td class="p-3">${verdictBadges[t.trial_verdict] || t.trial_verdict}</td>
+        <td class="p-3 text-slate-500">${t.mentor_note || '-'}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-red-500">خطا در بارگذاری سوابق.</td></tr>';
+  }
+}
+
+async function saveExposureTrial() {
+  const studentId = document.getElementById('exposure-student-select').value;
+  const skillSlug = document.getElementById('exposure-skill-select').value;
+  const speed = document.getElementById('exp-speed').value;
+  const resilience = document.getElementById('exp-resilience').value;
+  const engagement = document.getElementById('exp-engagement').value;
+  const notes = document.getElementById('exp-notes').value.trim();
+  const verdict = document.getElementById('exp-verdict').value;
+
+  if (!studentId || !skillSlug) {
+    return alert('لطفاً پرونده دانش‌آموز و مهارت را انتخاب کنید.');
+  }
+
+  try {
+    const res = await fetch('/api/exposure', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_id: studentId,
+        skill_slug: skillSlug,
+        learning_speed: speed,
+        resilience: resilience,
+        engagement: engagement,
+        mentor_note: notes,
+        trial_verdict: verdict
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert('نتیجه آزمایش مجاورت‌سازی ثبت شد.');
+      document.getElementById('exp-notes').value = '';
+      loadExposureHistory(studentId);
+    } else {
+      alert(data.error || 'خطا در ثبت اطلاعات.');
+    }
+  } catch (e) {
+    alert('خطا در برقراری ارتباط با سرور.');
+  }
+}
+
+// تب ۴: گزارش گروهی
 async function fetchSkillGroupReport(skillSlug) {
   const container = document.getElementById('skill-group-results');
   if (!skillSlug) { container.innerHTML = ''; return; }
@@ -750,7 +843,7 @@ async function fetchSkillGroupReport(skillSlug) {
   }
 }
 
-// تب ۴: مدیریت مهارت‌ها و سوالات
+// تب ۵: مدیریت مهارت‌ها و سوالات
 async function loadQuestionsForAdmin(slug) {
   currentAdminSkillSlug = slug;
   const listContainer = document.getElementById('admin-questions-list');
