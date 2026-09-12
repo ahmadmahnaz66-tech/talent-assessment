@@ -9,50 +9,35 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'کد ملی دانش‌آموز الزامی است.' }), { status: 400 });
     }
 
-    // ۱. دریافت اطلاعات دانش‌آموز
+    const cleanStudentId = String(studentId).trim();
+
+    // ۱. دریافت اطلاعات هویتی دانش‌آموز
     const student = await env.DB.prepare(
       "SELECT id, student_name, grade, classroom FROM students WHERE id = ?"
-    ).bind(studentId).first();
+    ).bind(cleanStudentId).first();
 
     if (!student) {
       return new Response(JSON.stringify({ error: 'دانش‌آموز یافت نشد.' }), { status: 404 });
     }
 
-    // ۲. دریافت مجموع امتیازات دانش‌آموز مستقیماً بر اساس مهارت‌ها
+    // ۲. دریافت مجموع امتیازات مهارت‌ها (استفاده از ستون واقعی total_score)
     const { results: skillScores } = await env.DB.prepare(`
       SELECT 
         s.slug, 
         s.title as skill_title,
-        COUNT(r.id) as total_answered,
-        COALESCE(SUM(r.score), 0) as raw_score
+        COALESCE(r.total_score, 0) as raw_score
       FROM skills s
       LEFT JOIN responses r ON s.slug = r.skill_slug AND r.student_id = ?
-      GROUP BY s.slug, s.title
-      HAVING raw_score > 0
       ORDER BY raw_score DESC
-    `).bind(studentId).all();
+    `).bind(cleanStudentId).all();
 
-    if (!skillScores || skillScores.length === 0) {
+    const validSkillScores = (skillScores || []).filter(s => Number(s.raw_score) > 0);
+
+    if (validSkillScores.length === 0) {
       return new Response(JSON.stringify({ error: 'هنوز پاسخی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
     }
 
-    // ۳. دریافت سوابق جزئیات پاسخ‌ها
-    let itemResponses = [];
-    try {
-      const resItems = await env.DB.prepare(`
-        SELECT r.skill_slug, s.title as skill_title, r.score
-        FROM responses r
-        JOIN skills s ON r.skill_slug = s.slug
-        WHERE r.student_id = ?
-        ORDER BY r.score DESC
-        LIMIT 10
-      `).bind(studentId).all();
-      itemResponses = resItems.results || [];
-    } catch (e) {
-      itemResponses = [];
-    }
-
-    // ۴. دریافت سوابق آزمایش‌های مجاورت‌سازی (Exposure Trials)
+    // ۳. دریافت سوابق آزمایش‌های مجاورت‌سازی (Exposure Trials)
     let exposureSummary = 'هنوز ارزیابی مجاورت‌سازی برای این دانش‌آموز ثبت نشده است.';
     try {
       const { results: exposureData } = await env.DB.prepare(`
@@ -62,7 +47,7 @@ export async function onRequestPost(context) {
         WHERE e.student_id = ?
         ORDER BY e.id DESC
         LIMIT 3
-      `).bind(studentId).all();
+      `).bind(cleanStudentId).all();
 
       if (exposureData && exposureData.length > 0) {
         exposureSummary = exposureData.map(e => `- مهارت: ${e.skill_title} | سرعت یادگیری: ${e.learning_speed} | تاب‌آوری: ${e.resilience} | اشتیاق: ${e.engagement} | نظر مربی: ${e.mentor_note || 'ندارد'} | نتیجه: ${e.trial_verdict}`).join('\n');
@@ -71,11 +56,8 @@ export async function onRequestPost(context) {
       exposureSummary = 'اطلاعات مجاورت‌سازی در دسترس نیست.';
     }
 
-    // ۵. آماده‌سازی پرامپت هوش مصنوعی
-    const topSkillsSummary = skillScores.map(s => `- ${s.skill_title}: امتیاز کل ${s.raw_score}`).join('\n');
-    const topItemsSummary = itemResponses.length > 0 
-      ? itemResponses.map(i => `- حوزه ${i.skill_title}: نمره ${i.score}`).join('\n')
-      : 'در دسترس نیست';
+    // ۴. آماده‌سازی پرامپت تحلیلی
+    const topSkillsSummary = validSkillScores.map(s => `- مهارت ${s.skill_title}: امتیاز کل ${s.raw_score}`).join('\n');
 
     const systemPrompt = `شما یک روانشناس ارشد بالینی کودک و متخصص برجسته استعدادیابی تحصیلی هستید. وظیفه شما تحلیل داده‌های عملکردی دانش‌آموز بر اساس مدل کدهای رغبتی هالند (RIASEC)، نظریه هوش‌های چندگانه گاردنر و مشاهدات عینی مجاورت‌سازی (Exposure) است.
 خروجی باید دقیقاً به فرمت JSON معتبر بدون هیچ مارک‌داون اضافی یا بک‌تیک \`\`\`json باشد تا مستقیماً پارس شود. ساختار دقیق JSON:
@@ -107,9 +89,6 @@ export async function onRequestPost(context) {
 
 کارنامه مهارتی:
 ${topSkillsSummary}
-
-گویه‌های برجسته:
-${topItemsSummary}
 
 مشاهدات مجاورت‌سازی مربی:
 ${exposureSummary}
@@ -172,17 +151,17 @@ ${exposureSummary}
       };
     }
 
-    // ۶. تعیین نسخه جدید سند
+    // ۵. دریافت بالاترین نسخه موجود
     const latest = await env.DB.prepare(
       "SELECT MAX(version) as max_v FROM student_roadmaps WHERE student_id = ?"
-    ).bind(studentId).first();
+    ).bind(cleanStudentId).first();
     const nextVersion = (latest && latest.max_v ? Number(latest.max_v) : 0) + 1;
 
-    // ۷. ذخیره در جدول سوابق
+    // ۶. ذخیره نسخه جدید در دیتابیس
     await env.DB.prepare(`
       INSERT INTO student_roadmaps (student_id, version, analysis, created_at)
       VALUES (?, ?, ?, datetime('now'))
-    `).bind(studentId, nextVersion, JSON.stringify(parsedPayload)).run();
+    `).bind(cleanStudentId, nextVersion, JSON.stringify(parsedPayload)).run();
 
     return new Response(JSON.stringify({ success: true, version: nextVersion, roadmap: parsedPayload }), {
       headers: { 'Content-Type': 'application/json' }
@@ -202,18 +181,20 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
   }
 
+  const cleanStudentId = String(studentId).trim();
+
   try {
     const { results } = await env.DB.prepare(`
       SELECT id, student_id, version, analysis, created_at
       FROM student_roadmaps
       WHERE student_id = ?
       ORDER BY version DESC
-    `).bind(studentId).all();
+    `).bind(cleanStudentId).all();
 
     return new Response(JSON.stringify(results || []), {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (err) {
-    return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 }
