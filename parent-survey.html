@@ -43,32 +43,46 @@
 
   <!-- ۲. داشبورد و ارزیابی مهارتی -->
   <div id="survey-box" class="max-w-2xl w-full mx-auto hidden space-y-5 my-auto">
-    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+    <!-- هدر وضعیت و ناوبری -->
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
       <div>
         <span id="std-info-name" class="font-bold text-sm text-slate-800"></span>
         <span id="std-info-grade" class="text-xs text-slate-500 mr-1.5"></span>
       </div>
       <div class="flex items-center gap-2">
-        <span id="progress-text" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100"></span>
-        <button onclick="handleLogout()" class="text-[11px] font-bold text-red-500 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition">خروج</button>
+        <button onclick="finishSurveyPrematurely()" class="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition shadow-sm flex items-center gap-1">
+          <span>✓</span>
+          <span>ثبت نهایی و اتمام آزمون</span>
+        </button>
+        <button onclick="handleLogout()" class="text-[11px] font-bold text-red-500 bg-red-50 hover:bg-red-100 px-2.5 py-2 rounded-xl transition">خروج</button>
       </div>
     </div>
 
+    <!-- کادر گویه‌های مهارت جاری به همراه منوی کرکره‌ای -->
     <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-5">
-      <div class="border-b border-slate-100 pb-3">
+      <div class="border-b border-slate-100 pb-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <label class="text-xs font-bold text-slate-600">انتخاب و پرش به مهارت:</label>
+          <select id="skill-jump-select" onchange="jumpToSkill(this.value)" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 font-medium min-w-[200px]"></select>
+        </div>
         <h2 id="current-skill-title" class="text-base font-black text-indigo-950"></h2>
-        <p class="text-xs text-slate-400 mt-1">با توجه به رفتارهای عینی فرزندتان در منزل، به هر گزینه نمره‌ای از ۰ (هرگز) تا ۴ (همیشه) اختصاص دهید.</p>
+        <p class="text-xs text-slate-400">با توجه به رفتارهای عینی فرزندتان در منزل، به هر گزینه نمره‌ای از ۰ (هرگز) تا ۴ (همیشه) اختصاص دهید.</p>
       </div>
 
       <div id="questions-list" class="space-y-5 divide-y divide-slate-100"></div>
 
-      <div class="flex items-center justify-between pt-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-50">
         <button id="btn-prev" onclick="prevSkill()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold transition hidden">
-          مهارت قبلی
+          ← مهارت قبلی
         </button>
-        <button id="btn-next" onclick="nextSkill()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition mr-auto shadow-sm">
-          ثبت و مهارت بعدی →
-        </button>
+        <div class="flex items-center gap-2 mr-auto">
+          <button onclick="finishSurveyPrematurely()" class="sm:hidden text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2.5 rounded-xl transition">
+            ثبت نهایی
+          </button>
+          <button id="btn-next" onclick="nextSkill()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
+            ذخیره و مهارت بعدی →
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -80,6 +94,9 @@
     <p class="text-xs text-slate-500 leading-relaxed">
       پاسخ‌های شما در سامانه ذخیره گردید. کارنامه بالینی و نقشه رشد بر اساس مدل هالند و گاردنر پس از ارزیابی نهایی در پنل مدرسه صادر خواهد شد.
     </p>
+    <button onclick="location.reload()" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-4 py-2 rounded-xl text-xs font-bold transition">
+      بازگشت به صفحه ورود
+    </button>
   </div>
 
   <footer class="text-center py-4 text-slate-400 text-xs mt-6">
@@ -129,6 +146,12 @@
         const skillsRes = await fetch('/api/admin-reports?type=all-skills');
         skillsList = await skillsRes.json();
 
+        // پر کردن منوی کرکره‌ای انتخاب مهارت
+        const selectBox = document.getElementById('skill-jump-select');
+        selectBox.innerHTML = skillsList.map((s, idx) => `
+          <option value="${idx}">مهارت ${idx + 1}: ${s.title}</option>
+        `).join('');
+
         document.getElementById('auth-box').classList.add('hidden');
         document.getElementById('survey-box').classList.remove('hidden');
 
@@ -144,10 +167,10 @@
     async function loadCurrentSkillQuestions() {
       const skill = skillsList[currentSkillIndex];
       document.getElementById('current-skill-title').innerText = `${currentSkillIndex + 1}. مهارت ${skill.title}`;
-      document.getElementById('progress-text').innerText = `مهارت ${currentSkillIndex + 1} از ${skillsList.length}`;
+      document.getElementById('skill-jump-select').value = currentSkillIndex;
 
       document.getElementById('btn-prev').classList.toggle('hidden', currentSkillIndex === 0);
-      document.getElementById('btn-next').innerText = (currentSkillIndex === skillsList.length - 1) ? 'پایان و ثبت نهایی' : 'ثبت و مهارت بعدی →';
+      document.getElementById('btn-next').innerText = (currentSkillIndex === skillsList.length - 1) ? 'پایان و ثبت نهایی' : 'ذخیره و مهارت بعدی →';
 
       const qBox = document.getElementById('questions-list');
       qBox.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">در حال بارگذاری سؤالات...</p>';
@@ -175,8 +198,9 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    async function nextSkill() {
+    async function saveCurrentSkillAnswers() {
       const skill = skillsList[currentSkillIndex];
+      if (!skill) return;
       const totalScore = currentAnswers.reduce((a, b) => a + b, 0);
 
       await fetch('/api/save-response', {
@@ -189,6 +213,10 @@
           total_score: totalScore
         })
       });
+    }
+
+    async function nextSkill() {
+      await saveCurrentSkillAnswers();
 
       if (currentSkillIndex < skillsList.length - 1) {
         currentSkillIndex++;
@@ -199,11 +227,25 @@
       }
     }
 
-    function prevSkill() {
+    async function prevSkill() {
+      await saveCurrentSkillAnswers();
       if (currentSkillIndex > 0) {
         currentSkillIndex--;
         loadCurrentSkillQuestions();
       }
+    }
+
+    async function jumpToSkill(targetIndex) {
+      await saveCurrentSkillAnswers();
+      currentSkillIndex = parseInt(targetIndex, 10);
+      loadCurrentSkillQuestions();
+    }
+
+    async function finishSurveyPrematurely() {
+      if (!confirm('آیا از ثبت نهایی پاسخ‌ها و اتمام ارزیابی اطمینان دارید؟')) return;
+      await saveCurrentSkillAnswers();
+      document.getElementById('survey-box').classList.add('hidden');
+      document.getElementById('completed-box').classList.remove('hidden');
     }
 
     function handleLogout() {
