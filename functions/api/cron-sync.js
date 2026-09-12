@@ -2,7 +2,7 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
 
-  // احراز هویت امنیتی برای جلوگیری از فراخوانی توسط غریبه‌ها
+  // احراز هویت با کلید امنیتی
   const token = url.searchParams.get('key');
   const secretKey = env.CRON_SECRET || 'apadana-cron-key-1405';
 
@@ -14,7 +14,7 @@ export async function onRequestGet(context) {
   }
 
   try {
-    // ۱. استخراج حداکثر ۳ پرونده تغییریافته که پس از آخرین کارنامه، داده جدید دارند
+    // ۱. استخراج حداکثر ۳ پرونده تغییریافته پس از آخرین کارنامه
     const { results } = await env.DB.prepare(`
       SELECT DISTINCT s.id, s.student_name
       FROM students s
@@ -41,17 +41,18 @@ export async function onRequestGet(context) {
     `).all();
 
     if (!results || results.length === 0) {
-      return new Response(JSON.stringify({ message: 'هیچ پرونده نیازمند به‌روزرسانی یافت نشد.' }), {
+      return new Response(JSON.stringify({ message: 'تمام پرونده‌ها به‌روز هستند.' }), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
     const processed = [];
-    const host = url.origin;
+    // استخراج پویا و خودکار هاست مبدا (بدون وابستگی به دامنه دستی)
+    const hostOrigin = url.origin;
 
     // ۲. اجرای ترتیبی با مکث ۵ ثانیه‌ای جهت حفظ سلامت سهمیه توکن
     for (const row of results) {
-      const aiRes = await fetch(`${host}/api/generate-roadmap`, {
+      const aiRes = await fetch(`${hostOrigin}/api/generate-roadmap`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId: row.id })
