@@ -7,6 +7,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- کتابخانه استاندارد پردازش و خواندن/نوشتن فایل‌های Excel (XLSX, XLS) و CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- کتابخانه استاندارد ساخت و دانلود مستقیم PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet">
@@ -182,33 +184,42 @@
       </button>
     </nav>
 
-    <!-- تب ۱: مدیریت دانش‌آموزان -->
+    <!-- تب ۱: مدیریت دانش‌آموزان با ساختار تفکیک‌شده و ورودی اکسل -->
     <section id="tab-content-students" class="tab-content space-y-4">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm md:col-span-2 space-y-3">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- فرم ثبت تکی -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2 space-y-3">
           <h2 class="font-bold text-slate-800 text-xs">ثبت / ویرایش سریع پرونده دانش‌آموز</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <input type="text" id="std-id" placeholder="کد ملی (الزامی)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
-            <input type="text" id="std-name" placeholder="نام و نام خانوادگی" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+            <input type="text" id="std-id" placeholder="کد ملی (الزامی)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+            <input type="text" id="std-first-name" placeholder="نام" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+            <input type="text" id="std-last-name" placeholder="نام خانوادگی" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
             <input type="text" id="std-grade" placeholder="پایه (مثلاً: چهارم)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
-            <input type="text" id="std-class" placeholder="نام کلاس (مثلاً: ۴/۱ یا لاله)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
-            <input type="text" id="std-phone" placeholder="شماره تماس ولی" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
-            <button onclick="saveSingleStudent()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl py-2 transition">
+            <input type="text" id="std-class" placeholder="نام کلاس (مثلاً: ۴/۱)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+            <input type="text" id="std-father-phone" placeholder="شماره تماس پدر" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+            <input type="text" id="std-mother-phone" placeholder="شماره تماس مادر" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+            <button onclick="saveSingleStudent()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl py-2 transition shadow-sm">
               ذخیره پرونده
             </button>
           </div>
         </div>
 
+        <!-- ورود گروهی انواع اکسل و CSV -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
-            <h2 class="font-bold text-slate-800 text-xs mb-1">ورود دسته‌جمعی با فایل CSV / اکسل</h2>
-            <p class="text-[11px] text-slate-400 mb-3">ستون‌ها: id, student_name, grade, classroom, parent_phone</p>
+            <h2 class="font-bold text-slate-800 text-xs mb-1">ورود گروهی با فایل Excel / CSV</h2>
+            <p class="text-[11px] text-slate-400 mb-2">پشتیبانی کامل از فایل‌های xlsx, xls, csv با هدر فارسی یا انگلیسی</p>
           </div>
-          <button type="button" onclick="downloadSampleCSV()" class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 bg-indigo-50 px-3 py-1.5 rounded-lg transition mb-3 w-fit">
-            دانلود فایل خام اکسل/CSV نمونه
-          </button>
-          <input type="file" id="csv-file-input" accept=".csv" class="text-xs text-slate-500 mb-2 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
-          <button onclick="handleBatchImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition">
+          <div class="flex flex-wrap gap-2 mb-3">
+            <button type="button" onclick="downloadSampleFile('xlsx')" class="text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition">
+              دانلود نمونه Excel (xlsx)
+            </button>
+            <button type="button" onclick="downloadSampleFile('csv')" class="text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition">
+              دانلود نمونه CSV
+            </button>
+          </div>
+          <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="text-xs text-slate-500 mb-2 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+          <button onclick="handleBatchImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition shadow-sm">
             آپلود و ثبت در دیتابیس
           </button>
         </div>
@@ -219,23 +230,22 @@
           <div class="flex flex-wrap items-center gap-3">
             <div class="flex items-center gap-2">
               <label class="text-xs font-bold text-slate-600">فیلتر پایه:</label>
-              <select id="filter-grade" onchange="loadStudentsList()" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 min-w-[140px]">
+              <select id="filter-grade" onchange="loadStudentsList()" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 min-w-[130px]">
                 <option value="">همه پایه‌ها</option>
               </select>
             </div>
             <div class="flex items-center gap-2">
               <label class="text-xs font-bold text-slate-600">کلاس:</label>
-              <select id="filter-classroom" onchange="loadStudentsList()" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 min-w-[140px]">
+              <select id="filter-classroom" onchange="loadStudentsList()" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 min-w-[130px]">
                 <option value="">همه کلاس‌ها</option>
               </select>
             </div>
           </div>
-          <div class="flex items-center gap-3">
-            <span id="students-count-badge" class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3.5 py-2 rounded-xl border border-indigo-100">
-              تعداد: ۰
-            </span>
-            <button onclick="exportFilteredStudentsCSV()" class="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs px-3.5 py-2 rounded-xl transition">
-              دریافت خروجی اکسل از این لیست
+          <div class="flex items-center gap-2">
+            <span id="students-count-badge" class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">تعداد: ۰</span>
+            <button onclick="exportStudentsExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm">
+              <span>📊</span>
+              <span>خروجی اکسل (XLSX)</span>
             </button>
           </div>
         </div>
@@ -245,10 +255,12 @@
             <thead class="bg-slate-50 text-slate-500 border-b">
               <tr>
                 <th class="p-3">کد ملی</th>
-                <th class="p-3">نام دانش‌آموز</th>
+                <th class="p-3">نام</th>
+                <th class="p-3">نام خانوادگی</th>
                 <th class="p-3">پایه</th>
                 <th class="p-3">کلاس</th>
-                <th class="p-3">تماس ولی</th>
+                <th class="p-3">تماس پدر</th>
+                <th class="p-3">تماس مادر</th>
                 <th class="p-3 text-left">عملیات</th>
               </tr>
             </thead>
@@ -480,7 +492,7 @@
           <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5 font-mono"></p>
         </div>
         <div class="flex items-center gap-2">
-          <!-- دکمه دانلود مستقیم PDF با html2pdf -->
+          <!-- دکمه دانلود مستقیم PDF -->
           <button id="btn-export-pdf" onclick="downloadDirectPDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
             <span>📥</span>
             <span>ذخیره مستقیم PDF</span>
