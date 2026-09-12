@@ -54,3 +54,55 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 }
+
+export async function onRequestPut(context) {
+  try {
+    const { request, env } = context;
+    const body = await request.json();
+    const { id, skill_slug, learning_speed, resilience, engagement, mentor_note, trial_verdict } = body;
+
+    if (!id || !skill_slug || !trial_verdict) {
+      return new Response(JSON.stringify({ error: 'اطلاعات جهت ویرایش ناقص است.' }), { status: 400 });
+    }
+
+    await env.DB.prepare(`
+      UPDATE exposure_trials 
+      SET skill_slug = ?, learning_speed = ?, resilience = ?, engagement = ?, mentor_note = ?, trial_verdict = ?
+      WHERE id = ?
+    `).bind(
+      skill_slug,
+      learning_speed,
+      resilience,
+      engagement,
+      mentor_note || '',
+      trial_verdict,
+      id
+    ).run();
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+}
+
+export async function onRequestDelete(context) {
+  try {
+    const { request, env } = context;
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+
+    if (!id) {
+      return new Response(JSON.stringify({ error: 'شناسه رکورد الزامی است.' }), { status: 400 });
+    }
+
+    await env.DB.prepare("DELETE FROM exposure_trials WHERE id = ?").bind(id).run();
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+}
