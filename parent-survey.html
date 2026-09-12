@@ -43,7 +43,6 @@
 
   <!-- ۲. داشبورد و ارزیابی مهارتی -->
   <div id="survey-box" class="max-w-2xl w-full mx-auto hidden space-y-5 my-auto">
-    <!-- هدر وضعیت و ناوبری -->
     <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
       <div>
         <span id="std-info-name" class="font-bold text-sm text-slate-800"></span>
@@ -58,14 +57,16 @@
       </div>
     </div>
 
-    <!-- کادر گویه‌های مهارت جاری به همراه منوی کرکره‌ای -->
     <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-5">
       <div class="border-b border-slate-100 pb-4 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <label class="text-xs font-bold text-slate-600">انتخاب و پرش به مهارت:</label>
-          <select id="skill-jump-select" onchange="jumpToSkill(this.value)" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 font-medium min-w-[200px]"></select>
+          <select id="skill-jump-select" onchange="jumpToSkill(this.value)" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 font-medium min-w-[220px]"></select>
         </div>
-        <h2 id="current-skill-title" class="text-base font-black text-indigo-950"></h2>
+        <div class="flex items-center justify-between">
+          <h2 id="current-skill-title" class="text-base font-black text-indigo-950"></h2>
+          <span id="save-indicator" class="text-[11px] text-emerald-600 font-bold hidden">✓ ذخیره شد</span>
+        </div>
         <p class="text-xs text-slate-400">با توجه به رفتارهای عینی فرزندتان در منزل، به هر گزینه نمره‌ای از ۰ (هرگز) تا ۴ (همیشه) اختصاص دهید.</p>
       </div>
 
@@ -95,7 +96,7 @@
       پاسخ‌های شما در سامانه ذخیره گردید. کارنامه بالینی و نقشه رشد بر اساس مدل هالند و گاردنر پس از ارزیابی نهایی در پنل مدرسه صادر خواهد شد.
     </p>
     <button onclick="location.reload()" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-4 py-2 rounded-xl text-xs font-bold transition">
-      بازگشت به صفحه ورود
+      بازگشت به صفحه اول
     </button>
   </div>
 
@@ -106,6 +107,7 @@
   <script>
     let currentStudent = null;
     let skillsList = [];
+    let savedResponsesMap = {};
     let currentSkillIndex = 0;
     let currentQuestions = [];
     let currentAnswers = [];
@@ -143,14 +145,15 @@
         document.getElementById('std-info-name').innerText = currentStudent.fullName || currentStudent.username;
         document.getElementById('std-info-grade').innerText = currentStudent.grade ? `(پایه ${currentStudent.grade})` : '';
 
+        // دریافت لیست ۱۸ مهارت
         const skillsRes = await fetch('/api/admin-reports?type=all-skills');
         skillsList = await skillsRes.json();
 
-        // پر کردن منوی کرکره‌ای انتخاب مهارت
-        const selectBox = document.getElementById('skill-jump-select');
-        selectBox.innerHTML = skillsList.map((s, idx) => `
-          <option value="${idx}">مهارت ${idx + 1}: ${s.title}</option>
-        `).join('');
+        // دریافت پاسخ‌های از پیش ذخیره شده دانش‌آموز از دیتابیس
+        const sRes = await fetch(`/api/save-response?studentId=${encodeURIComponent(currentStudent.id || currentStudent.username)}`);
+        savedResponsesMap = await sRes.json();
+
+        refreshSkillDropdown();
 
         document.getElementById('auth-box').classList.add('hidden');
         document.getElementById('survey-box').classList.remove('hidden');
@@ -159,9 +162,18 @@
         loadCurrentSkillQuestions();
 
       } catch (e) {
-        errBox.innerText = 'خطا در برقراری ارتباط با سامانه: ' + e.message;
+        errBox.innerText = 'خطا در ارتباط: ' + e.message;
         errBox.classList.remove('hidden');
       }
+    }
+
+    function refreshSkillDropdown() {
+      const selectBox = document.getElementById('skill-jump-select');
+      selectBox.innerHTML = skillsList.map((s, idx) => {
+        const isDone = Array.isArray(savedResponsesMap[s.slug]) && savedResponsesMap[s.slug].length > 0;
+        return `<option value="${idx}">مهارت ${idx + 1}: ${s.title} ${isDone ? '✓' : ''}</option>`;
+      }).join('');
+      selectBox.value = currentSkillIndex;
     }
 
     async function loadCurrentSkillQuestions() {
@@ -177,7 +189,15 @@
 
       const res = await fetch(`/api/questions?skill=${encodeURIComponent(skill.slug)}`);
       currentQuestions = await res.json();
-      currentAnswers = new Array(currentQuestions.length).fill(2);
+
+      // بازیابی نمرات ثبت‌شده قبلی از دیتابیس، یا مقدار پیش‌فرض ۲
+      const previousAnswers = savedResponsesMap[skill.slug];
+      currentAnswers = currentQuestions.map((_, idx) => {
+        if (Array.isArray(previousAnswers) && previousAnswers[idx] !== undefined) {
+          return Number(previousAnswers[idx]);
+        }
+        return 2;
+      });
 
       qBox.innerHTML = currentQuestions.map((q, idx) => `
         <div class="pt-4 space-y-2.5">
@@ -187,7 +207,7 @@
           <div class="grid grid-cols-5 gap-1.5 text-center text-xs">
             ${[0, 1, 2, 3, 4].map(val => `
               <label class="cursor-pointer border border-slate-200 rounded-xl p-2 hover:bg-indigo-50 transition flex flex-col items-center">
-                <input type="radio" name="q_${idx}" value="${val}" ${val === 2 ? 'checked' : ''} onchange="currentAnswers[${idx}] = ${val}" class="text-indigo-600 mb-1">
+                <input type="radio" name="q_${idx}" value="${val}" ${currentAnswers[idx] === val ? 'checked' : ''} onchange="onAnswerChanged(${idx}, ${val})" class="text-indigo-600 mb-1">
                 <span class="text-[10px] text-slate-500">${['هرگز', 'به‌ندرت', 'گاهی', 'معمولاً', 'همیشه'][val]}</span>
               </label>
             `).join('')}
@@ -198,16 +218,28 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    async function onAnswerChanged(qIdx, val) {
+      currentAnswers[qIdx] = val;
+      const skill = skillsList[currentSkillIndex];
+      savedResponsesMap[skill.slug] = currentAnswers;
+      await saveCurrentSkillAnswers();
+
+      const ind = document.getElementById('save-indicator');
+      ind.classList.remove('hidden');
+      setTimeout(() => ind.classList.add('hidden'), 1500);
+      refreshSkillDropdown();
+    }
+
     async function saveCurrentSkillAnswers() {
       const skill = skillsList[currentSkillIndex];
-      if (!skill) return;
+      if (!skill || !currentStudent) return;
       const totalScore = currentAnswers.reduce((a, b) => a + b, 0);
 
       await fetch('/api/save-response', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          student_id: currentStudent.username || currentStudent.id,
+          student_id: String(currentStudent.id || currentStudent.username).trim(),
           skill_slug: skill.slug,
           answers: currentAnswers,
           total_score: totalScore
@@ -217,7 +249,6 @@
 
     async function nextSkill() {
       await saveCurrentSkillAnswers();
-
       if (currentSkillIndex < skillsList.length - 1) {
         currentSkillIndex++;
         loadCurrentSkillQuestions();
