@@ -7,8 +7,9 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
   }
 
+  // کوئری از جدول واقعی roadmaps
   const { results } = await env.DB.prepare(
-    "SELECT version, analysis, created_at FROM student_roadmaps WHERE student_id = ? ORDER BY version DESC"
+    "SELECT version, analysis, created_at FROM roadmaps WHERE student_id = ? ORDER BY version DESC"
   ).bind(studentId).all();
 
   return new Response(JSON.stringify(results || []), { headers: { 'Content-Type': 'application/json' } });
@@ -24,51 +25,79 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'کلید GEMINI_API_KEY تعریف نشده است.' }), { status: 400 });
     }
 
-    // ۱. دریافت نمرات به تفکیک مهارت و تیپ هالند
+    // ۱. دریافت نمرات دانش‌آموز از جدول واقعی responses به همراه کدهای هالند و تمرکز گاردنر
     const { results: skillScores } = await env.DB.prepare(`
       SELECT 
-        s.slug, 
+        r.skill_slug, 
         s.title, 
         s.holland_primary,
         s.holland_secondary,
-        SUM(r.score) as total_score
-      FROM quiz_responses r
+        s.gardner_focus,
+        r.total_score,
+        r.answers
+      FROM responses r
       JOIN skills s ON r.skill_slug = s.slug
       WHERE r.student_id = ?
-      GROUP BY s.slug
-      ORDER BY total_score DESC
+      ORDER BY r.total_score DESC
     `).bind(studentId).all();
 
     if (!skillScores || skillScores.length === 0) {
-      return new Response(JSON.stringify({ error: 'ابتدا باید پرسش‌نامه برای این دانش‌آموز ثبت شود.' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'هنوز هیچ آزمونی برای این دانش‌آموز ثبت نشده است.' }), { status: 400 });
     }
 
-    // ۲. محاسبه سرجمع هوش‌های چندگانه گاردنر
-    const { results: gardnerScores } = await env.DB.prepare(`
-      SELECT 
-        q.gardner_intelligence,
-        ROUND(SUM(r.score) * 100.0 / (COUNT(r.id) * 4), 1) as percentage
-      FROM quiz_responses r
-      JOIN questions q ON r.skill_slug = q.skill_slug AND r.question_index = q.display_order
-      WHERE r.student_id = ? AND q.gardner_intelligence IS NOT NULL
-      GROUP BY q.gardner_intelligence
-      ORDER BY percentage DESC
-    `).bind(studentId).all();
+    // ۲. دریافت تمام سوالات و متادیتای گاردنر و نیازمندی‌ها
+    const { results: allQuestions } = await env.DB.prepare(`
+      SELECT skill_slug, display_order, requirement, gardner_intelligence 
+      FROM questions
+    `).all();
 
-    // ۳. محاسبه ۳ شاخص رفتاری برتر (Top Requirements)
-    const { results: topRequirements } = await env.DB.prepare(`
-      SELECT 
-        q.requirement,
-        s.title as skill_title,
-        ROUND(SUM(r.score) * 100.0 / (COUNT(r.id) * 4), 1) as percentage
-      FROM quiz_responses r
-      JOIN questions q ON r.skill_slug = q.skill_slug AND r.question_index = q.display_order
-      JOIN skills s ON r.skill_slug = s.slug
-      WHERE r.student_id = ? AND q.requirement IS NOT NULL
-      GROUP BY q.requirement
-      ORDER BY percentage DESC
-      LIMIT 5
-    `).bind(studentId).all();
+    // محاسبه امتیازات گاردنر و نیازمندی‌ها از روی پاسخ‌های داده شده
+    const gardnerTotals = {};
+    const gardnerCounts = {};
+    const reqTotals = {};
+    const reqCounts = {};
+    const reqSkill = {};
+
+    skillScores.forEach(row => {
+      let ansList = [];
+      try {
+        ansList = typeof row.answers === 'string' ? JSON.parse(row.answers) : row.answers;
+      } catch (e) {
+        ansList = [];
+      }
+
+      // مطابقت سوالات این مهارت
+      const qList = (allQuestions || []).filter(q => q.skill_slug === row.skill_slug);
+
+      qList.forEach((q, idx) => {
+        // نمره سوال (بین ۰ تا ۴)
+        const score = (Array.isArray(ansList) && ansList[idx] !== undefined) ? Number(ansList[idx]) : Math.round((row.total_score / 60) * 4);
+
+        if (q.gardner_intelligence) {
+          gardnerTotals[q.gardner_intelligence] = (gardnerTotals[q.gardner_intelligence] || 0) + score;
+          gardnerCounts[q.gardner_intelligence] = (gardnerCounts[q.gardner_intelligence] || 0) + 4;
+        }
+
+        if (q.requirement) {
+          reqTotals[q.requirement] = (reqTotals[q.requirement] || 0) + score;
+          reqCounts[q.requirement] = (reqCounts[q.requirement] || 0) + 4;
+          reqSkill[q.requirement] = row.title;
+        }
+      });
+    });
+
+    // محاسبه درصدهای گاردنر
+    const gardnerScores = Object.keys(gardnerTotals).map(k => ({
+      gardner_intelligence: k,
+      percentage: Math.round((gardnerTotals[k] / (gardnerCounts[k] || 1)) * 100)
+    })).sort((a, b) => b.percentage - a.percentage);
+
+    // محاسبه ۵ شاخص رفتاری برتر
+    const topRequirements = Object.keys(reqTotals).map(k => ({
+      requirement: k,
+      skill_title: reqSkill[k] || '',
+      percentage: Math.round((reqTotals[k] / (reqCounts[k] || 1)) * 100)
+    })).sort((a, b) => b.percentage - a.percentage).slice(0, 5);
 
     const topSkillsText = skillScores.slice(0, 5).map(s => 
       `- ${s.title} (کد هالند: ${s.holland_primary || '-'}/${s.holland_secondary || '-'}): ${s.total_score} از ۶۰`
@@ -82,15 +111,15 @@ export async function onRequestPost(context) {
       `- شاخص رفتاری «${req.requirement}» در مهارت ${req.skill_title}: ${req.percentage}%`
     ).join('\n');
 
-    // ۴. پرامپت اختصاصی روانشناختی
+    // ۳. پرامپت روانشناختی جهت تحلیل تخصصی کودک
     const systemPrompt = `تو یک روانشناس بالینی کودک و متخصص ارشد استعدادیابی مدارس مهارت‌محور هستی.
 بر اساس نظریه هوش‌های چندگانه گاردنر و مدل رغبت‌سنجی هالند (RIASEC)، تحلیلی حرفه‌ای و کاربردی از وضعیت دانش‌آموز ۷ تا ۱۲ سال ارائه بده.
 گزارش باید شامل ۴ بخش مشخص باشد:
 ۱. تحلیل استعدادهای محوری و تیپ غالب هالند (نقطه A).
 ۲. نقاط قوت رفتاری و هوش‌های شناختی/حرکتی برجسته بر اساس شاخص‌های ثبت‌شده.
-۳. مسیر رشد پله‌ای (A به A1) شامل ۲ تا ۳ پروژه عملی یا چالش رشدی کوتاه‌مدت.
-۴. توصیه‌های کلیدی ویژه کادر مدرسه و اولیا (نقش تسهیل‌گر بدون مداخله مستقیم).
-پاسخ را با لحن بالینی، ساختاریافته، دقیق و کاملاً به زبان فارسی بنویس.`;
+۳. مسیر رشد پله‌ای (A به A1) شامل ۲ تا ۳ چالش و بازی عملی کوتاه‌مدت.
+۴. توصیه‌های کلیدی ویژه کادر مدرسه و اولیا به عنوان تسهیل‌گر رشد.
+پاسخ را با لحن بالینی، شیوا، دقیق و کاملاً به زبان فارسی بنویس.`;
 
     const userPrompt = `داده‌های آزمون دانش‌آموز (کد شناسایی: ${studentId}):
 
@@ -134,13 +163,12 @@ ${reqSummaryText}
 
     const textOutput = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'تحلیلی دریافت نشد.';
 
-    // ذخیره داده‌های ساختاریافته به همراه تحلیل متنی در دیتابیس
+    // ۴. تعیین شماره نسخه و ذخیره در جدول roadmaps
     const lastVer = await env.DB.prepare(
-      "SELECT MAX(version) as max_v FROM student_roadmaps WHERE student_id = ?"
+      "SELECT MAX(version) as max_v FROM roadmaps WHERE student_id = ?"
     ).bind(studentId).first();
     const nextVersion = (lastVer?.max_v || 0) + 1;
 
-    // بسته‌بندی متنی همراه با تگ‌های داده برای استفاده توسط Chart.js
     const payloadToStore = JSON.stringify({
       text: textOutput,
       gardner: gardnerScores,
@@ -149,7 +177,7 @@ ${reqSummaryText}
     });
 
     await env.DB.prepare(`
-      INSERT INTO student_roadmaps (student_id, version, analysis, created_at)
+      INSERT INTO roadmaps (student_id, version, analysis, created_at)
       VALUES (?, ?, ?, datetime('now'))
     `).bind(studentId, nextVersion, payloadToStore).run();
 
