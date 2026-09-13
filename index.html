@@ -77,7 +77,7 @@
     </div>
   </section>
 
-  <!-- ویجت قطب‌نمای تربیتی سریع (تعاملی و جذاب برای والدین) -->
+  <!-- ویجت قطب‌نمای تربیتی سریع -->
   <section class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
     <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
       <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
@@ -174,7 +174,6 @@
           </p>
         </div>
 
-        <!-- پلیر اختصاصی بدون امکان دانلود -->
         <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 no-select">
           <div class="flex items-center gap-3">
             <button onclick="toggleAudio('audio-1', this)" class="w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center font-black shadow-md shadow-indigo-100 transition">
@@ -190,7 +189,6 @@
               </div>
             </div>
           </div>
-          <!-- تگ مدیا با مسدودسازی دانلود و کلیک راست -->
           <audio id="audio-1" src="https://actions.google.com/sounds/v1/water/rain_heavy.ogg" controlsList="nodownload" oncontextmenu="return false;" class="hidden"></audio>
         </div>
       </div>
@@ -215,7 +213,6 @@
           </p>
         </div>
 
-        <!-- باکس قفل دسترسی یا پلیر -->
         <div id="premium-box-1" class="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200/80 flex items-center justify-between gap-3">
           <div class="flex items-center gap-2">
             <span class="text-xl">🔐</span>
@@ -250,7 +247,6 @@
           </p>
         </div>
 
-        <!-- باکس قفل دسترسی -->
         <div id="premium-box-2" class="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200/80 flex items-center justify-between gap-3">
           <div class="flex items-center gap-2">
             <span class="text-xl">🔐</span>
@@ -342,7 +338,6 @@
   </div>
 
   <script>
-    // منطق چالش‌های قطب‌نما
     const CHALLENGE_TIPS = {
       focus: {
         title: "راهکار مواجهه با پرش ذهنی و حواس‌پرتی:",
@@ -370,7 +365,6 @@
       document.getElementById('challenge-result-box').classList.remove('hidden');
     }
 
-    // پخش‌کننده صوتی سفارشی و بدون امکان دانلود
     let currentPlayingAudio = null;
     let currentPlayingBtn = null;
 
@@ -417,7 +411,6 @@
       };
     }
 
-    // فیلتر کردن کارت‌ها
     function filterAudios() {
       const val = document.getElementById('audio-filter').value;
       const cards = document.querySelectorAll('.audio-card');
@@ -430,7 +423,6 @@
       });
     }
 
-    // باز و بستن مودال
     function openAuthModal() {
       document.getElementById('auth-modal').classList.remove('hidden');
     }
@@ -438,44 +430,48 @@
       document.getElementById('auth-modal').classList.add('hidden');
     }
 
- 
-    // تابع کمکی برای تبدیل اعداد فارسی/عربی به انگلیسی
-function toEnglishDigits(str) {
-  return String(str || '')
-    .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
-    .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
-    .trim();
-}
-
-async function loginParent() {
-  const rawId = document.getElementById('parent-id').value;
-  const rawPass = document.getElementById('parent-pass').value;
-
-  const id = toEnglishDigits(rawId);
-  const pass = toEnglishDigits(rawPass);
-
-  if (!id || !pass) return alert('کد ملی و رمز عبور الزامی است.');
-
-  try {
-    const res = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'student-login', studentId: id, password: pass })
-    });
-    const data = await res.json();
-
-    if (res.ok && data.success) {
-      sessionStorage.setItem('activeParent', JSON.stringify({ id, name: data.studentName || id }));
-      applyUnlockedStatus();
-      closeAuthModal();
-      alert(`خوش آمدید! دسترسی کامل فعال شد.`);
-    } else {
-      alert(data.error || 'کد ملی یا رمز عبور اشتباه است.');
+    function toEnglishDigits(str) {
+      return String(str || '')
+        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .trim();
     }
-  } catch (e) {
-    alert('خطا در برقراری ارتباط با سرور.');
-  }
-}
+
+    async function loginParent() {
+      const rawId = document.getElementById('parent-id').value;
+      const rawPass = document.getElementById('parent-pass').value;
+
+      const id = toEnglishDigits(rawId);
+      const pass = toEnglishDigits(rawPass);
+
+      if (!id || !pass) return alert('کد ملی و رمز عبور الزامی است.');
+
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            action: 'student-login', 
+            username: id, 
+            studentId: id, 
+            password: pass 
+          })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          const sName = data.user?.fullName || data.studentName || id;
+          sessionStorage.setItem('activeParent', JSON.stringify({ id, name: sName }));
+          applyUnlockedStatus();
+          closeAuthModal();
+          alert(`خوش آمدید! دسترسی ویژه برای پرونده فعال شد.`);
+        } else {
+          alert(data.error || 'کد ملی یا رمز عبور اشتباه است.');
+        }
+      } catch (e) {
+        alert('خطا در برقراری ارتباط با سرور.');
+      }
+    }
 
     function applyUnlockedStatus() {
       const authSec = document.getElementById('auth-section');
@@ -484,13 +480,12 @@ async function loginParent() {
         authSec.innerHTML = `
           <div class="flex items-center gap-2">
             <span class="text-xs font-bold text-slate-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
-              ✅ اولیای محترم (${saved.id})
+              ✅ اولیای محترم (${saved.name || saved.id})
             </span>
             <button onclick="logoutParent()" class="text-xs text-rose-500 font-bold hover:underline">خروج</button>
           </div>
         `;
 
-        // تبدیل قفل‌های صوتی به پلیر فعال
         document.querySelectorAll('[id^="premium-box-"]').forEach(box => {
           box.className = 'bg-emerald-50 p-3 rounded-2xl border border-emerald-200 flex items-center justify-between';
           box.innerHTML = `
