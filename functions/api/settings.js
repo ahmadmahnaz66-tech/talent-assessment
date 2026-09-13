@@ -18,8 +18,9 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { requesterRole, settings } = body;
 
-    if (requesterRole !== 'super_admin' && requesterRole !== 'principal') {
-      return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز' }), { status: 403 });
+    // دسترسی ذخیره به مدیر ارشد و مدیر امور مالی داده می‌شود
+    if (requesterRole !== 'super_admin' && requesterRole !== 'finance_admin' && requesterRole !== 'principal') {
+      return new Response(JSON.stringify({ error: 'سطح دسترسی شما برای تغییر مشخصات مالی مجاز نیست.' }), { status: 403 });
     }
 
     for (const [k, v] of Object.entries(settings)) {
