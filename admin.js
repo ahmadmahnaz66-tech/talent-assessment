@@ -7,6 +7,7 @@ let cachedExposureTrials = [];
 let editingTrialId = null;
 let gardnerChartInstance = null;
 let reqChartInstance = null;
+let hollandChartInstance = null;
 
 const ROLE_NAMES = {
   super_admin: 'مدیر ارشد سامانه',
@@ -194,7 +195,6 @@ async function submitChangePassword() {
   }
 }
 
-
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -205,8 +205,6 @@ function switchTab(tabId) {
   if (tabId === 'group') {
     loadAnalyticsDashboard();
   }
-
-  // بقیه خطوط کدهای خودتان در ادامه switchTab که کلاس hidden را برمی‌دارند...
 
   const activeContent = document.getElementById(`tab-content-${tabId}`);
   const activeBtn = document.getElementById(`tab-btn-${tabId}`);
@@ -256,7 +254,7 @@ async function loadStudentsList() {
           <td class="p-3 text-slate-600">${s.classroom || '-'}</td>
           <td class="p-3 text-slate-500 font-mono">${s.father_phone || s.parent_phone || '-'}</td>
           <td class="p-3 text-slate-500 font-mono">${s.mother_phone || '-'}</td>
-    <td class="p-3 text-left space-x-1.5 space-x-reverse whitespace-nowrap">
+          <td class="p-3 text-left space-x-1.5 space-x-reverse whitespace-nowrap">
             ${isSuperAdmin ? `
               <button onclick="editStudentInfo('${s.id}')" title="ویرایش اطلاعات دانش‌آموز" class="text-blue-600 hover:text-blue-800 text-xs font-bold bg-blue-50 px-2 py-1 rounded-lg">
                 ویرایش 📝
@@ -272,7 +270,6 @@ async function loadStudentsList() {
               </button>
             ` : '<span class="text-slate-400 text-[11px]">-</span>'}
           </td>
-          
         </tr>
       `;
     }).join('');
@@ -286,7 +283,6 @@ async function loadStudentsList() {
 
     const expStudentSelect = document.getElementById('exposure-student-select');
     if (expStudentSelect) {
-      const currentExpSelected = expStudentSelect.value;
       expStudentSelect.innerHTML = '<option value="">انتخاب پرونده...</option>' +
         loadedStudents.map(s => `<option value="${s.id}">${s.student_name || (s.first_name + ' ' + s.last_name)} (${s.id}) - پایه ${s.grade}</option>`).join('');
     }
@@ -316,14 +312,11 @@ function updateClassDropdown() {
   const classSelect = document.getElementById('filter-classroom');
   const currentClass = classSelect.value;
 
-  // فیلتر کردن کلاس‌ها: اگر پایه‌ای انتخاب شده بود فقط کلاس‌های همان پایه، وگرنه همه کلاس‌ها
   const filteredStats = selectedGrade 
     ? allSchoolStats.filter(s => s.grade === selectedGrade)
     : allSchoolStats;
 
   const availableClasses = [...new Set(filteredStats.map(s => s.classroom).filter(Boolean))];
-
-  // اگر کلاس قبلاً انتخاب‌شده در پایه جدید وجود نداشت، بازنشانی شود
   const isCurrentStillValid = availableClasses.includes(currentClass);
   const activeClassVal = isCurrentStillValid ? currentClass : '';
 
@@ -373,7 +366,6 @@ async function saveSingleStudent() {
   }
 }
 
-// دانلود فایل نمونه (CSV یا XLSX)
 function downloadSampleFile(type) {
   if (type === 'xlsx') {
     if (typeof XLSX === 'undefined') {
@@ -410,7 +402,6 @@ function downloadSampleFile(type) {
   }
 }
 
-// ایمپورت منعطف انواع فایل‌های اکسل (xlsx, xls) و متنی (csv)
 function handleBatchImport() {
   const fileInput = document.getElementById('excel-file-input') || document.getElementById('csv-file-input');
   if (!fileInput || !fileInput.files || !fileInput.files[0]) {
@@ -456,13 +447,11 @@ function handleBatchImport() {
   reader.readAsArrayBuffer(file);
 }
 
-// ارسال داده‌ها به سرور و نرمال‌سازی شماره‌های موبایل
 async function sendBatchToServer(rows, fileInput) {
   const normalizedRows = rows.map(r => {
     let fPhone = String(r['شماره تماس پدر'] || r.father_phone || '').trim();
     let mPhone = String(r['شماره تماس مادر'] || r.mother_phone || '').trim();
     
-    // تصحیح شماره‌های ۱۰ رقمی در صورت افتادن صفر اول در اکسل
     if (fPhone.length === 10 && fPhone.startsWith('9')) fPhone = '0' + fPhone;
     if (mPhone.length === 10 && mPhone.startsWith('9')) mPhone = '0' + mPhone;
 
@@ -494,7 +483,6 @@ async function sendBatchToServer(rows, fileInput) {
   }
 }
 
-// خروجی اکسل رسمی از لیست فیلترشده
 function exportStudentsExcel() {
   if (!loadedStudents || loadedStudents.length === 0) return alert('دانش‌آموزی در لیست وجود ندارد.');
   
@@ -642,7 +630,7 @@ async function fetchStudentReport(studentId) {
         <td class="p-3 text-center font-bold text-slate-400">#${i + 1}</td>
         <td class="p-3 font-bold text-slate-800">${r.skill_title}</td>
         <td class="p-3 text-center font-black text-indigo-600">${r.total_score}</td>
-<td class="p-3 text-center">
+        <td class="p-3 text-center">
           ${r.total_score >= 45 
             ? '<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-700">اولویت طلایی (A1)</span>'
             : (r.total_score === 30 || r.is_default)
@@ -651,7 +639,7 @@ async function fetchStudentReport(studentId) {
                 ? '<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-indigo-100 text-indigo-700">اولویت رشد (A)</span>'
                 : '<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600">پتانسیل ثانویه</span>'}
         </td>
-              </tr>
+      </tr>
     `).join('');
   } catch (e) {
     container.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">خطا در بارگذاری کارنامه.</td></tr>';
@@ -712,8 +700,6 @@ function viewHistoricalRoadmap(index) {
   renderRequirementsBarChart(parsedPayload.topRequirements || []);
 }
 
-
-// دانلود مستقیم فایل PDF کامل و باکیفیت
 async function downloadDirectPDF() {
   if (typeof html2pdf === 'undefined') {
     return alert('کتابخانه ساخت PDF بارگذاری نشده است.');
@@ -733,7 +719,6 @@ async function downloadDirectPDF() {
   const printHeader = element.querySelector('.print-header');
   const printFooter = element.querySelector('.print-footer');
 
-  // آشکارسازی موقت سربرگ و فوتر برای خروجی
   if (printHeader) printHeader.classList.remove('hidden');
   if (printFooter) printFooter.classList.remove('hidden');
 
@@ -1292,19 +1277,16 @@ function filterStudentDropdown(query) {
       </option>
     `).join('');
 
-  // اگر فقط یک نتیجه پیدا شد، خودکار انتخاب و کارنامه‌اش لود شود
   if (filtered.length === 1 && cleanQuery.length >= 2) {
     select.value = filtered[0].id;
     onStudentSelectChanged();
   }
 }
 
-// تابع پر کردن فرم جهت ویرایش اطلاعات دانش‌آموز
 function editStudentInfo(studentId) {
   const student = loadedStudents.find(s => String(s.id) === String(studentId));
   if (!student) return;
 
-  // پر کردن فیلدهای فرم بالای تب ۱
   document.getElementById('std-id').value = student.id;
   document.getElementById('std-first-name').value = student.first_name || (student.student_name ? student.student_name.split(' ')[0] : '');
   document.getElementById('std-last-name').value = student.last_name || (student.student_name ? student.student_name.split(' ').slice(1).join(' ') : '');
@@ -1313,11 +1295,9 @@ function editStudentInfo(studentId) {
   document.getElementById('std-father-phone').value = student.father_phone || student.parent_phone || '';
   document.getElementById('std-mother-phone').value = student.mother_phone || '';
 
-  // اسکرول نرم به بالای فرم برای دسترسی آسان کاربر
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// همگام‌سازی تدریجی پرونده‌های تغییریافته با رعایت سقف مجاز توکن
 async function checkAndSyncPendingRoadmaps() {
   const box = document.getElementById('sync-progress-box');
   const statusText = document.getElementById('sync-status-text');
@@ -1358,7 +1338,6 @@ async function checkAndSyncPendingRoadmaps() {
       const percent = Math.round((completed / total) * 100);
       bar.style.width = `${percent}%`;
 
-      // وقفه ایمن ۵ ثانیه‌ای بین هر تحلیل برای رعایت سقف درخواست در دقیقه (RPM)
       if (completed < total) {
         statusText.innerText = `استراحت ایمن برای سهمیه API (۵ ثانیه)...`;
         await new Promise(r => setTimeout(r, 5000));
@@ -1378,26 +1357,25 @@ async function checkAndSyncPendingRoadmaps() {
   }
 }
 
-
-// متغیرهای نگهدارنده چارت‌ها برای جلوگیری از تداخل در رندر مجدد
-let hollandChartInstance = null;
-
+// تب ۴: داشبورد تحلیلی گاردنر و هالند
 async function loadAnalyticsDashboard() {
   try {
-    const res = await fetch('/api/admin-reports');
+    const res = await fetch('/api/admin-reports?type=analytics-dashboard');
     const data = await res.json();
 
-    if (!data.success) return;
+    if (!data || !data.success) return;
 
-    // آپدیت بج‌های تعداد
+    // آپدیت بج‌های تعداد پرونده‌ها
     const gBadge = document.getElementById('gardner-total-badge');
     const hBadge = document.getElementById('holland-total-badge');
-    if (gBadge) gBadge.textContent = `${data.total_students} پرونده ثبت‌شده`;
-    if (hBadge) hBadge.textContent = `${data.total_students} پرونده ثبت‌شده`;
+    const totalCount = data.total_students || 0;
+    if (gBadge) gBadge.textContent = `${totalCount} پرونده ثبت‌شده`;
+    if (hBadge) hBadge.textContent = `${totalCount} پرونده ثبت‌شده`;
 
     // ۱. رندر نمودار میله‌ای گاردنر
-    const gardnerCtx = document.getElementById('gardnerBarChart')?.getContext('2d');
-    if (gardnerCtx) {
+    const gardnerCanvas = document.getElementById('gardnerBarChart');
+    if (gardnerCanvas) {
+      const gardnerCtx = gardnerCanvas.getContext('2d');
       if (gardnerChartInstance) gardnerChartInstance.destroy();
 
       const labels = [
@@ -1405,15 +1383,16 @@ async function loadAnalyticsDashboard() {
         'موسیقیایی', 'بدنی-جنبشی', 'بین‌فردی', 
         'درون‌فردی', 'طبیعت‌گرا'
       ];
+      const gAvg = data.gardner_averages || {};
       const scores = [
-        data.gardner_averages.linguistic || 0,
-        data.gardner_averages.logical || 0,
-        data.gardner_averages.spatial || 0,
-        data.gardner_averages.musical || 0,
-        data.gardner_averages.bodily || 0,
-        data.gardner_averages.interpersonal || 0,
-        data.gardner_averages.intrapersonal || 0,
-        data.gardner_averages.naturalistic || 0
+        gAvg.linguistic || 0,
+        gAvg.logical || 0,
+        gAvg.spatial || 0,
+        gAvg.musical || 0,
+        gAvg.bodily || 0,
+        gAvg.interpersonal || 0,
+        gAvg.intrapersonal || 0,
+        gAvg.naturalistic || 0
       ];
 
       gardnerChartInstance = new Chart(gardnerCtx, {
@@ -1432,7 +1411,7 @@ async function loadAnalyticsDashboard() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          indexAxis: 'y', // افقی برای خوانایی عالی عناوین فارسی
+          indexAxis: 'y',
           scales: {
             x: { beginAtZero: true, max: 100 }
           },
@@ -1444,8 +1423,9 @@ async function loadAnalyticsDashboard() {
     }
 
     // ۲. رندر نمودار راداری هالند
-    const hollandCtx = document.getElementById('hollandRadarChart')?.getContext('2d');
-    if (hollandCtx) {
+    const hollandCanvas = document.getElementById('hollandRadarChart');
+    if (hollandCanvas) {
+      const hollandCtx = hollandCanvas.getContext('2d');
       if (hollandChartInstance) hollandChartInstance.destroy();
 
       const hLabels = ['واقع‌گرا (R)', 'کاوشگر (I)', 'هنری (A)', 'اجتماعی (S)', 'متهور (E)', 'قراردادی (C)'];
@@ -1490,4 +1470,3 @@ async function loadAnalyticsDashboard() {
     console.error("خطا در بارگذاری داشبورد تحلیلی:", err);
   }
 }
-
