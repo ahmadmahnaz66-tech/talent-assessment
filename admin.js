@@ -1372,7 +1372,6 @@ async function checkAndSyncPendingRoadmaps() {
 
 
 // متغیرهای نگهدارنده چارت‌ها برای جلوگیری از تداخل در رندر مجدد
-let gardnerChartInstance = null;
 let hollandChartInstance = null;
 
 async function loadAnalyticsDashboard() {
