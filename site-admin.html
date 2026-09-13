@@ -57,20 +57,20 @@
     </header>
 
     <!-- تب‌های بالای پنل -->
-    <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
-      <button id="tab-staff-btn" onclick="switchMainTab('staff')" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition">
+    <div id="tabs-container" class="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
+      <button id="tab-staff-btn" onclick="switchMainTab('staff')" class="px-4 py-2 rounded-xl text-xs font-bold transition">
         👥 مدیریت مدیران و پرسنل سایت
       </button>
-      <button id="tab-finance-btn" onclick="switchMainTab('finance')" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition">
+      <button id="tab-finance-btn" onclick="switchMainTab('finance')" class="px-4 py-2 rounded-xl text-xs font-bold transition">
         💳 مدیریت مالی و کارت‌به‌کارت
       </button>
-      <button id="tab-content-btn" onclick="switchMainTab('content')" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition">
+      <button id="tab-content-btn" onclick="switchMainTab('content')" class="px-4 py-2 rounded-xl text-xs font-bold transition">
         🎧 مدیریت پادکست‌ها و محتوا
       </button>
     </div>
 
     <!-- بخش ۱: مدیریت پرسنل سایت (فقط super_admin) -->
-    <div id="section-staff" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div id="section-staff" class="grid grid-cols-1 md:grid-cols-3 gap-6 hidden">
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-1 space-y-4">
         <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
           <span>➕</span>
@@ -130,7 +130,7 @@
       </div>
     </div>
 
-    <!-- بخش ۲: مدیریت مالی و کارت‌به‌کارت -->
+    <!-- بخش ۲: مدیریت مالی و کارت‌به‌کارت (super_admin و finance_admin) -->
     <div id="section-finance" class="grid grid-cols-1 md:grid-cols-3 gap-6 hidden">
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-1 space-y-4">
         <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
@@ -192,7 +192,7 @@
       </div>
     </div>
 
-    <!-- بخش ۳: مدیریت محتوا و پادکست‌ها -->
+    <!-- بخش ۳: مدیریت محتوا و پادکست‌ها (super_admin و content_admin) -->
     <div id="section-content" class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm hidden space-y-4">
       <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
         <span>🎙️</span>
@@ -265,25 +265,32 @@
       const tabFinance = document.getElementById('tab-finance-btn');
       const tabContent = document.getElementById('tab-content-btn');
 
+      // پنهان کردن تمام تب‌ها در شروع
+      tabStaff.classList.add('hidden');
+      tabFinance.classList.add('hidden');
+      tabContent.classList.add('hidden');
+
       if (activeAdmin.role === 'super_admin') {
         badge.className = 'px-2 py-0.5 rounded-lg font-bold text-[10px] bg-purple-100 text-purple-800';
-        badge.innerText = 'مدیر ارشد کلان';
+        badge.innerText = 'مدیر ارشد سامانه';
+        tabStaff.classList.remove('hidden');
+        tabFinance.classList.remove('hidden');
+        tabContent.classList.remove('hidden');
         switchMainTab('staff');
       } else if (activeAdmin.role === 'finance_admin') {
         badge.className = 'px-2 py-0.5 rounded-lg font-bold text-[10px] bg-emerald-100 text-emerald-800';
         badge.innerText = 'مدیر امور مالی';
-        tabStaff.classList.add('hidden');
-        tabContent.classList.add('hidden');
+        tabFinance.classList.remove('hidden');
         switchMainTab('finance');
       } else if (activeAdmin.role === 'content_admin') {
         badge.className = 'px-2 py-0.5 rounded-lg font-bold text-[10px] bg-sky-100 text-sky-800';
-        badge.innerText = 'مدیر محتوا و صوت‌ها';
-        tabStaff.classList.add('hidden');
-        tabFinance.classList.add('hidden');
+        badge.innerText = 'مدیر محتوا و پادکست‌ها';
+        tabContent.classList.remove('hidden');
         switchMainTab('content');
       } else {
         badge.className = 'px-2 py-0.5 rounded-lg font-bold text-[10px] bg-slate-100 text-slate-800';
         badge.innerText = activeAdmin.role;
+        tabFinance.classList.remove('hidden');
         switchMainTab('finance');
       }
     }
@@ -304,7 +311,7 @@
         }
       });
 
-      if (tab === 'staff') loadStaffList();
+      if (tab === 'staff' && activeAdmin.role === 'super_admin') loadStaffList();
       if (tab === 'finance') { loadSettings(); loadReceipts(); }
     }
 
@@ -313,7 +320,6 @@
       tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400">در حال دریافت...</td></tr>';
 
       try {
-        // فیلتر اختصاصی مدیران سایت و مستثنی‌سازی پرسنل مدرسه
         const res = await fetch('/api/auth?type=site');
         const list = await res.json();
 
