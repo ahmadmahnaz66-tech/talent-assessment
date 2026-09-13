@@ -112,14 +112,21 @@
     let currentQuestions = [];
     let currentAnswers = [];
 
+    function toEnglishDigits(str) {
+      return String(str || '')
+        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .trim();
+    }
+
     async function handleStudentAuth() {
       const studentInput = document.getElementById('input-student-id');
       const passInput = document.getElementById('input-student-pass');
       const errBox = document.getElementById('auth-err');
       errBox.classList.add('hidden');
 
-      const studentId = String(studentInput ? studentInput.value : '').trim();
-      const password = String(passInput ? passInput.value : '').trim();
+      const studentId = toEnglishDigits(studentInput ? studentInput.value : '');
+      const password = toEnglishDigits(passInput ? passInput.value : '');
 
       if (!studentId || !password) {
         errBox.innerText = 'کد ملی و رمز عبور را وارد کنید.';
@@ -141,15 +148,19 @@
           return;
         }
 
+        if (data.user?.role === 'public') {
+          errBox.innerText = '⛔ این فرم اختصاصی دانش‌آموزان دبستان آپادانا است. حساب شما به عنوان کاربر مهمان ثبت شده و دسترسی به آزمون مدرسه ندارد.';
+          errBox.classList.remove('hidden');
+          return;
+        }
+
         currentStudent = data.user;
         document.getElementById('std-info-name').innerText = currentStudent.fullName || currentStudent.username;
         document.getElementById('std-info-grade').innerText = currentStudent.grade ? `(پایه ${currentStudent.grade})` : '';
 
-        // دریافت لیست ۱۸ مهارت
         const skillsRes = await fetch('/api/admin-reports?type=all-skills');
         skillsList = await skillsRes.json();
 
-        // دریافت پاسخ‌های از پیش ذخیره شده دانش‌آموز از دیتابیس
         const sRes = await fetch(`/api/save-response?studentId=${encodeURIComponent(currentStudent.id || currentStudent.username)}`);
         savedResponsesMap = await sRes.json();
 
@@ -190,7 +201,6 @@
       const res = await fetch(`/api/questions?skill=${encodeURIComponent(skill.slug)}`);
       currentQuestions = await res.json();
 
-      // بازیابی نمرات ثبت‌شده قبلی از دیتابیس، یا مقدار پیش‌فرض ۲
       const previousAnswers = savedResponsesMap[skill.slug];
       currentAnswers = currentQuestions.map((_, idx) => {
         if (Array.isArray(previousAnswers) && previousAnswers[idx] !== undefined) {
