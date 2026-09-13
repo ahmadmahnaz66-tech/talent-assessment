@@ -438,37 +438,44 @@
       document.getElementById('auth-modal').classList.add('hidden');
     }
 
-    // شبیه‌ساز یا اتصال به ورود با جدول students
-    async function loginParent() {
-      const id = document.getElementById('parent-id').value.trim();
-      const pass = document.getElementById('parent-pass').value.trim();
+ 
+    // تابع کمکی برای تبدیل اعداد فارسی/عربی به انگلیسی
+function toEnglishDigits(str) {
+  return String(str || '')
+    .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+    .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .trim();
+}
 
-      if (!id || !pass) return alert('کد ملی و رمز عبور را وارد نمایید.');
+async function loginParent() {
+  const rawId = document.getElementById('parent-id').value;
+  const rawPass = document.getElementById('parent-pass').value;
 
-      try {
-        const res = await fetch('/api/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'student-login', studentId: id, password: pass })
-        });
-        const data = await res.json();
+  const id = toEnglishDigits(rawId);
+  const pass = toEnglishDigits(rawPass);
 
-        if (res.ok && data.success) {
-          sessionStorage.setItem('activeParent', JSON.stringify({ id, name: data.studentName || id }));
-          applyUnlockedStatus();
-          closeAuthModal();
-          alert(`خوش آمدید! دسترسی ویژه برای پرونده فعال شد.`);
-        } else {
-          alert(data.error || 'کد ملی یا رمز عبور اشتباه است.');
-        }
-      } catch (e) {
-        // در صورت عدم تنظیم اندپوینت، شبیه‌سازی برای تست سریع
-        sessionStorage.setItem('activeParent', JSON.stringify({ id, name: id }));
-        applyUnlockedStatus();
-        closeAuthModal();
-        alert('ورود با موفقیت انجام شد و تمام محتواها باز شدند.');
-      }
+  if (!id || !pass) return alert('کد ملی و رمز عبور الزامی است.');
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'student-login', studentId: id, password: pass })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      sessionStorage.setItem('activeParent', JSON.stringify({ id, name: data.studentName || id }));
+      applyUnlockedStatus();
+      closeAuthModal();
+      alert(`خوش آمدید! دسترسی کامل فعال شد.`);
+    } else {
+      alert(data.error || 'کد ملی یا رمز عبور اشتباه است.');
     }
+  } catch (e) {
+    alert('خطا در برقراری ارتباط با سرور.');
+  }
+}
 
     function applyUnlockedStatus() {
       const authSec = document.getElementById('auth-section');
