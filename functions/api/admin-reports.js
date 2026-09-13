@@ -72,10 +72,10 @@ export async function onRequestGet(context) {
         SELECT sr.roadmap_data 
         FROM student_roadmaps sr
         INNER JOIN (
-          SELECT student_id, MAX(generated_at) as max_gen
+          SELECT student_id, MAX(created_at) as max_gen
           FROM student_roadmaps
           GROUP BY student_id
-        ) latest ON sr.student_id = latest.student_id AND sr.generated_at = latest.max_gen
+        ) latest ON sr.student_id = latest.student_id AND sr.created_at = latest.max_gen
       `;
 
       const { results } = await env.DB.prepare(query).all();
