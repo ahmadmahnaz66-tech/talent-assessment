@@ -1,9 +1,17 @@
 export async function onRequestGet(context) {
-  const { env } = context;
+  const { env, request } = context;
+  const url = new URL(request.url);
+  const type = url.searchParams.get('type');
+
   try {
-    const { results } = await env.DB.prepare(
-      "SELECT id, username, full_name, role, created_at FROM staff_users ORDER BY id ASC"
-    ).all();
+    let query = "SELECT id, username, full_name, role, created_at FROM staff_users ORDER BY id ASC";
+
+    // در صورتی که درخواست از پنل سایت باشد، تنها مدیران مربوط به سایت بازگردانده می‌شوند
+    if (type === 'site') {
+      query = "SELECT id, username, full_name, role, created_at FROM staff_users WHERE role IN ('super_admin', 'finance_admin', 'content_admin') ORDER BY id ASC";
+    }
+
+    const { results } = await env.DB.prepare(query).all();
     return new Response(JSON.stringify(results || []), {
       headers: { 'Content-Type': 'application/json' }
     });
