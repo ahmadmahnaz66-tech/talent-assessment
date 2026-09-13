@@ -66,6 +66,88 @@ export async function onRequestGet(context) {
       return new Response(JSON.stringify(results || []), { headers: corsHeaders });
     }
 
+    // داشبورد تحلیلی هوش‌های گاردنر و تیپ‌های هالند
+    if (type === 'analytics-dashboard') {
+      const query = `
+        SELECT sr.roadmap_data 
+        FROM student_roadmaps sr
+        INNER JOIN (
+          SELECT student_id, MAX(generated_at) as max_gen
+          FROM student_roadmaps
+          GROUP BY student_id
+        ) latest ON sr.student_id = latest.student_id AND sr.generated_at = latest.max_gen
+      `;
+
+      const { results } = await env.DB.prepare(query).all();
+
+      const gardnerTotals = {
+        linguistic: 0,
+        logical: 0,
+        spatial: 0,
+        musical: 0,
+        bodily: 0,
+        interpersonal: 0,
+        intrapersonal: 0,
+        naturalistic: 0
+      };
+      const gardnerCounts = { ...gardnerTotals };
+
+      const hollandTotals = {
+        realistic: 0,
+        investigative: 0,
+        artistic: 0,
+        social: 0,
+        enterprising: 0,
+        conventional: 0
+      };
+
+      let totalValidProfiles = 0;
+
+      if (results && results.length > 0) {
+        for (const row of results) {
+          try {
+            const data = typeof row.roadmap_data === 'string' ? JSON.parse(row.roadmap_data) : row.roadmap_data;
+            if (!data) continue;
+
+            if (data.gardner_scores) {
+              totalValidProfiles++;
+              for (const [key, val] of Object.entries(data.gardner_scores)) {
+                const k = key.toLowerCase();
+                const num = Number(val);
+                if (!isNaN(num) && gardnerTotals.hasOwnProperty(k)) {
+                  gardnerTotals[k] += num;
+                  gardnerCounts[k]++;
+                }
+              }
+            }
+
+            if (data.holland_profile && data.holland_profile.dominant_type) {
+              const domType = data.holland_profile.dominant_type.toLowerCase();
+              if (hollandTotals.hasOwnProperty(domType)) {
+                hollandTotals[domType]++;
+              }
+            }
+          } catch (e) {
+            // نادیده گرفتن رکوردهای نامعتبر
+          }
+        }
+      }
+
+      const gardnerAverages = {};
+      for (const key of Object.keys(gardnerTotals)) {
+        gardnerAverages[key] = gardnerCounts[key] > 0 
+          ? Math.round((gardnerTotals[key] / gardnerCounts[key]) * 10) / 10 
+          : 0;
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        total_students: totalValidProfiles,
+        gardner_averages: gardnerAverages,
+        holland_distribution: hollandTotals
+      }), { headers: corsHeaders });
+    }
+
     return new Response(JSON.stringify({ error: 'نوع درخواست نامعتبر است.' }), { status: 400, headers: corsHeaders });
 
   } catch (err) {
