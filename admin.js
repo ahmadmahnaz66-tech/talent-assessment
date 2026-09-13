@@ -1369,3 +1369,117 @@ async function checkAndSyncPendingRoadmaps() {
     statusText.innerText = 'خطا در اجرای همگام‌سازی: ' + err.message;
   }
 }
+
+
+// متغیرهای نگهدارنده چارت‌ها برای جلوگیری از تداخل در رندر مجدد
+let gardnerChartInstance = null;
+let hollandChartInstance = null;
+
+async function loadAnalyticsDashboard() {
+  try {
+    const res = await fetch('/api/admin-reports');
+    const data = await res.json();
+
+    if (!data.success) return;
+
+    // آپدیت بج‌های تعداد
+    const gBadge = document.getElementById('gardner-total-badge');
+    const hBadge = document.getElementById('holland-total-badge');
+    if (gBadge) gBadge.textContent = `${data.total_students} پرونده ثبت‌شده`;
+    if (hBadge) hBadge.textContent = `${data.total_students} پرونده ثبت‌شده`;
+
+    // ۱. رندر نمودار میله‌ای گاردنر
+    const gardnerCtx = document.getElementById('gardnerBarChart')?.getContext('2d');
+    if (gardnerCtx) {
+      if (gardnerChartInstance) gardnerChartInstance.destroy();
+
+      const labels = [
+        'زبانی-کلامی', 'منطقی-ریاضی', 'فضایی-دیداری', 
+        'موسیقیایی', 'بدنی-جنبشی', 'بین‌فردی', 
+        'درون‌فردی', 'طبیعت‌گرا'
+      ];
+      const scores = [
+        data.gardner_averages.linguistic || 0,
+        data.gardner_averages.logical || 0,
+        data.gardner_averages.spatial || 0,
+        data.gardner_averages.musical || 0,
+        data.gardner_averages.bodily || 0,
+        data.gardner_averages.interpersonal || 0,
+        data.gardner_averages.intrapersonal || 0,
+        data.gardner_averages.naturalistic || 0
+      ];
+
+      gardnerChartInstance = new Chart(gardnerCtx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'میانگین نمره مدرسه',
+            data: scores,
+            backgroundColor: 'rgba(99, 102, 241, 0.75)',
+            borderColor: 'rgb(79, 70, 229)',
+            borderWidth: 1.5,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y', // افقی برای خوانایی عالی عناوین فارسی
+          scales: {
+            x: { beginAtZero: true, max: 100 }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    // ۲. رندر نمودار راداری هالند
+    const hollandCtx = document.getElementById('hollandRadarChart')?.getContext('2d');
+    if (hollandCtx) {
+      if (hollandChartInstance) hollandChartInstance.destroy();
+
+      const hLabels = ['واقع‌گرا (R)', 'کاوشگر (I)', 'هنری (A)', 'اجتماعی (S)', 'متهور (E)', 'قراردادی (C)'];
+      const hDist = data.holland_distribution || {};
+      const hData = [
+        hDist.realistic || 0,
+        hDist.investigative || 0,
+        hDist.artistic || 0,
+        hDist.social || 0,
+        hDist.enterprising || 0,
+        hDist.conventional || 0
+      ];
+
+      hollandChartInstance = new Chart(hollandCtx, {
+        type: 'radar',
+        data: {
+          labels: hLabels,
+          datasets: [{
+            label: 'تعداد دانش‌آموزان با تیپ غالب',
+            data: hData,
+            backgroundColor: 'rgba(16, 185, 129, 0.25)',
+            borderColor: 'rgb(16, 185, 129)',
+            borderWidth: 2,
+            pointBackgroundColor: 'rgb(5, 150, 105)',
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    }
+
+  } catch (err) {
+    console.error("خطا در بارگذاری داشبورد تحلیلی:", err);
+  }
+}
