@@ -9,6 +9,17 @@ export async function onRequestGet(context) {
   };
 
   try {
+    // اطمینان از وجود جدول student_roadmaps برای جلوگیری از کرش
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS student_roadmaps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        analysis TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
     // دریافت فهرست مهارت‌ها
     if (type === 'all-skills') {
       const { results } = await env.DB.prepare(
@@ -69,7 +80,7 @@ export async function onRequestGet(context) {
     // داشبورد تحلیلی هوش‌های گاردنر و تیپ‌های هالند
     if (type === 'analytics-dashboard') {
       const query = `
-        SELECT sr.roadmap_data 
+        SELECT sr.analysis 
         FROM student_roadmaps sr
         INNER JOIN (
           SELECT student_id, MAX(created_at) as max_gen
@@ -79,6 +90,17 @@ export async function onRequestGet(context) {
       `;
 
       const { results } = await env.DB.prepare(query).all();
+
+      const keyMapping = {
+        linguistic: 'linguistic',
+        logical_mathematical: 'logical',
+        spatial_visual: 'spatial',
+        musical_rhythmic: 'musical',
+        bodily_kinesthetic: 'bodily',
+        interpersonal: 'interpersonal',
+        intrapersonal: 'intrapersonal',
+        naturalist: 'naturalistic'
+      };
 
       const gardnerTotals = {
         linguistic: 0,
@@ -106,29 +128,51 @@ export async function onRequestGet(context) {
       if (results && results.length > 0) {
         for (const row of results) {
           try {
-            const data = typeof row.roadmap_data === 'string' ? JSON.parse(row.roadmap_data) : row.roadmap_data;
+            const data = typeof row.analysis === 'string' ? JSON.parse(row.analysis) : row.analysis;
             if (!data) continue;
 
-            if (data.gardner_scores) {
-              totalValidProfiles++;
-              for (const [key, val] of Object.entries(data.gardner_scores)) {
-                const k = key.toLowerCase();
-                const num = Number(val);
-                if (!isNaN(num) && gardnerTotals.hasOwnProperty(k)) {
-                  gardnerTotals[k] += num;
-                  gardnerCounts[k]++;
+            let hasGardner = false;
+
+            if (Array.isArray(data.gardner)) {
+              for (const item of data.gardner) {
+                const rawKey = item.gardner_intelligence || '';
+                const mappedKey = keyMapping[rawKey] || rawKey.replace('_', '');
+                const score = Number(item.percentage);
+
+                if (!isNaN(score) && gardnerTotals.hasOwnProperty(mappedKey)) {
+                  gardnerTotals[mappedKey] += score;
+                  gardnerCounts[mappedKey]++;
+                  hasGardner = true;
                 }
               }
             }
 
+            if (hasGardner) {
+              totalValidProfiles++;
+            }
+
+            // استخراج یا برآورد تیپ رغبتی غالب هالند بر اساس داده‌ها یا متن
             if (data.holland_profile && data.holland_profile.dominant_type) {
               const domType = data.holland_profile.dominant_type.toLowerCase();
               if (hollandTotals.hasOwnProperty(domType)) {
                 hollandTotals[domType]++;
               }
+            } else {
+              // نگاشت بر مبنای هوش برتر در صورت نبود کلید مستقل هالند
+              const logicalScore = data.gardner?.find(g => g.gardner_intelligence === 'logical_mathematical')?.percentage || 0;
+              const spatialScore = data.gardner?.find(g => g.gardner_intelligence === 'spatial_visual')?.percentage || 0;
+              const socialScore = data.gardner?.find(g => g.gardner_intelligence === 'interpersonal')?.percentage || 0;
+              const artisticScore = data.gardner?.find(g => g.gardner_intelligence === 'musical_rhythmic')?.percentage || 0;
+
+              if (logicalScore >= 80) hollandTotals.investigative++;
+              else if (socialScore >= 80) hollandTotals.social++;
+              else if (artisticScore >= 75) hollandTotals.artistic++;
+              else if (spatialScore >= 75) hollandTotals.realistic++;
+              else hollandTotals.enterprising++;
             }
+
           } catch (e) {
-            // نادیده گرفتن رکوردهای نامعتبر
+            // رد کردن داده‌های نامعتبر
           }
         }
       }
