@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>مدیریت سایت و درگاه کارت‌به‌کارت | مهناز مسعودی</title>
+  <title>سامانه مدیریت سایت و پرسنل | مهناز مسعودی</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css">
   <style>
@@ -12,26 +12,26 @@
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased min-h-screen p-4 sm:p-8">
 
-  <!-- کادر ورود به مدیریت سایت -->
+  <!-- کادر ورود -->
   <div id="login-box" class="max-w-md mx-auto my-16 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200">
     <div class="text-center mb-6">
       <div class="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-2">
-        ⚙️
+        🛡️
       </div>
-      <h1 class="text-lg font-black text-slate-900">ورود به مدیریت سایت اختصاصی</h1>
-      <p class="text-xs text-slate-500 mt-1">مدیریت مالی، شماره کارت و تایید فیش‌ها</p>
+      <h1 class="text-lg font-black text-slate-900">ورود به مدیریت سایت</h1>
+      <p class="text-xs text-slate-500 mt-1">مدیر ارشد، مدیر مالی یا مدیر محتوا</p>
     </div>
 
     <div class="space-y-4">
       <div>
-        <label class="block text-xs font-bold text-slate-700 mb-1">نام کاربری مدیر ارشد:</label>
+        <label class="block text-xs font-bold text-slate-700 mb-1">نام کاربری:</label>
         <input type="text" id="admin-user" placeholder="نام کاربری" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-700 mb-1">رمز عبور:</label>
         <input type="password" id="admin-pass" placeholder="رمز عبور" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
       </div>
-      <button onclick="loginSiteAdmin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition">
+      <button onclick="loginSiteAdmin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
         ورود به پنل
       </button>
       <p id="login-err" class="text-xs text-rose-500 text-center font-bold hidden"></p>
@@ -41,19 +41,99 @@
   <!-- داشبورد مدیریت سایت -->
   <div id="admin-dashboard" class="max-w-5xl mx-auto hidden space-y-6">
     
-    <!-- هدر پنل -->
-    <header class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between">
+    <!-- هدر پنل و هویت کاربر -->
+    <header class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h2 class="text-base font-black text-slate-900">پنل مدیریت سایت | مهناز مسعودی</h2>
-        <p class="text-xs text-slate-500 mt-0.5">تنظیمات پرداخت، تایید فیش‌های کارت‌به‌کارت و کاربران</p>
+        <h2 class="text-base font-black text-slate-900">پنل مدیریت یکپارچه سایت</h2>
+        <div class="flex items-center gap-2 mt-1 text-xs text-slate-500">
+          <span>کاربر: <strong id="admin-name-display" class="text-slate-800"></strong></span>
+          <span>•</span>
+          <span>نقش: <span id="admin-role-badge" class="px-2 py-0.5 rounded-lg font-bold text-[10px]"></span></span>
+        </div>
       </div>
       <button onclick="logoutAdmin()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold px-4 py-2 rounded-xl transition">
-        خروج از پنل
+        خروج از حساب
       </button>
     </header>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- تب‌های بالای پنل -->
+    <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
+      <button id="tab-staff-btn" onclick="switchMainTab('staff')" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition">
+        👥 مدیریت مدیران و پرسنل
+      </button>
+      <button id="tab-finance-btn" onclick="switchMainTab('finance')" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition">
+        💳 مدیریت مالی و کارت‌به‌کارت
+      </button>
+      <button id="tab-content-btn" onclick="switchMainTab('content')" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition">
+        🎧 مدیریت پادکست‌ها و محتوا
+      </button>
+    </div>
 
+    <!-- بخش ۱: مدیریت مدیران و پرسنل (فقط super_admin) -->
+    <div id="section-staff" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- فرم افزودن مدیر جدید -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-1 space-y-4">
+        <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+          <span>➕</span>
+          <span>تعریف مدیر جدید</span>
+        </h3>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">نام و نام خانوادگی:</label>
+          <input type="text" id="new-staff-name" placeholder="مثال: مریم علوی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">نام کاربری ورود:</label>
+          <input type="text" id="new-staff-user" placeholder="مثال: finance_user" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">رمز عبور:</label>
+          <input type="password" id="new-staff-pass" placeholder="حداقل ۴ کاراکتر" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">نقش و حیطه دسترسی:</label>
+          <select id="new-staff-role" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none bg-white font-bold">
+            <option value="finance_admin">مدیر مالی (تایید فیش‌ها و کارت بانکی)</option>
+            <option value="content_admin">مدیر محتوا (پادکست‌ها و نکات بالینی)</option>
+            <option value="super_admin">مدیر ارشد (دسترسی کامل)</option>
+          </select>
+        </div>
+
+        <button onclick="addNewStaff()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
+          ثبت و ایجاد حساب مدیر
+        </button>
+      </div>
+
+      <!-- جدول لیست مدیران و پرسنل -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-2 space-y-4">
+        <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
+          <span>📋 لیست مدیران فعال سایت</span>
+          <button onclick="loadStaffList()" class="text-xs text-indigo-600 font-bold hover:underline">⟳ به‌روزرسانی</button>
+        </h3>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-50 text-slate-600 border-b border-slate-100">
+              <tr>
+                <th class="p-3">نام کاربر</th>
+                <th class="p-3">نام کاربری</th>
+                <th class="p-3">نقش سازمانی</th>
+                <th class="p-3 text-center">عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="staff-tbody" class="divide-y divide-slate-100">
+              <tr><td colspan="4" class="text-center py-6 text-slate-400">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- بخش ۲: مدیریت مالی و کارت‌به‌کارت (super_admin و finance_admin) -->
+    <div id="section-finance" class="grid grid-cols-1 md:grid-cols-3 gap-6 hidden">
       <!-- فرم ویرایش اطلاعات بانکی -->
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-1 space-y-4">
         <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
@@ -63,17 +143,17 @@
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">شماره کارت بانکی:</label>
-          <input type="text" id="set-card-number" placeholder="مثال: 6037..." class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none font-mono">
+          <input type="text" id="set-card-number" placeholder="6037..." class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none font-mono">
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">نام صاحب حساب:</label>
-          <input type="text" id="set-card-holder" placeholder="مثال: مهناز مسعودی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          <input type="text" id="set-card-holder" placeholder="مهناز مسعودی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">نام بانک:</label>
-          <input type="text" id="set-card-bank" placeholder="مثال: بانک ملی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          <input type="text" id="set-card-bank" placeholder="بانک ملی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
         </div>
 
         <div>
@@ -82,20 +162,18 @@
         </div>
 
         <button onclick="saveSiteSettings()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
-          ذخیره تغییرات مشخصات کارت
+          ذخیره مشخصات کارت
         </button>
       </div>
 
-      <!-- جدول تایید فیش‌های واریزی کاربران -->
+      <!-- جدول تایید فیش‌ها -->
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-2 space-y-4">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
             <span>📥</span>
             <span>فیش‌های کارت‌به‌کارت دریافتی</span>
           </h3>
-          <button onclick="loadReceipts()" class="text-indigo-600 text-xs font-bold hover:underline">
-            ⟳ به‌روزرسانی لیست
-          </button>
+          <button onclick="loadReceipts()" class="text-indigo-600 text-xs font-bold hover:underline">⟳ به‌روزرسانی</button>
         </div>
 
         <div class="overflow-x-auto">
@@ -111,15 +189,25 @@
               </tr>
             </thead>
             <tbody id="receipts-tbody" class="divide-y divide-slate-100">
-              <tr>
-                <td colspan="6" class="text-center py-6 text-slate-400">در حال دریافت داده‌ها...</td>
-              </tr>
+              <tr><td colspan="6" class="text-center py-6 text-slate-400">در حال دریافت...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
-
     </div>
+
+    <!-- بخش ۳: مدیریت محتوا و پادکست‌ها (super_admin و content_admin) -->
+    <div id="section-content" class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm hidden space-y-4">
+      <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+        <span>🎙️</span>
+        <span>مدیریت فایل‌های صوتی و پادکست‌ها</span>
+      </h3>
+      <div class="p-6 bg-indigo-50/60 rounded-2xl border border-indigo-100 text-center space-y-2">
+        <p class="text-xs font-bold text-indigo-900">پادکست‌ها هم‌اکنون به صورت آنلاین در صفحه اصلی فعال هستند.</p>
+        <p class="text-[11px] text-slate-500">مدیر محتوا می‌تواند برای ویرایش تیترها و لینک‌های مستقیم R2 اقدام نماید.</p>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -148,7 +236,7 @@
         if (res.ok && data.success) {
           activeAdmin = data.user;
           sessionStorage.setItem('siteAdminUser', JSON.stringify(activeAdmin));
-          showDashboard();
+          setupRoleUI();
         } else {
           err.innerText = data.error || 'اطلاعات ورود نادرست است.';
           err.classList.remove('hidden');
@@ -159,13 +247,153 @@
       }
     }
 
-    function showDashboard() {
+    function setupRoleUI() {
       document.getElementById('login-box').classList.add('hidden');
       document.getElementById('admin-dashboard').classList.remove('hidden');
-      loadSettings();
-      loadReceipts();
+
+      document.getElementById('admin-name-display').innerText = activeAdmin.fullName || activeAdmin.username;
+      
+      const badge = document.getElementById('admin-role-badge');
+      const tabStaff = document.getElementById('tab-staff-btn');
+      const tabFinance = document.getElementById('tab-finance-btn');
+      const tabContent = document.getElementById('tab-content-btn');
+
+      if (activeAdmin.role === 'super_admin') {
+        badge.className = 'px-2 py-0.5 rounded-lg font-bold text-[10px] bg-purple-100 text-purple-800';
+        badge.innerText = 'مدیر ارشد کلان';
+        switchMainTab('staff');
+      } else if (activeAdmin.role === 'finance_admin') {
+        badge.className = 'px-2 py-0.5 rounded-lg font-bold text-[10px] bg-emerald-100 text-emerald-800';
+        badge.innerText = 'مدیر امور مالی';
+        tabStaff.classList.add('hidden');
+        tabContent.classList.add('hidden');
+        switchMainTab('finance');
+      } else if (activeAdmin.role === 'content_admin') {
+        badge.className = 'px-2 py-0.5 rounded-lg font-bold text-[10px] bg-sky-100 text-sky-800';
+        badge.innerText = 'مدیر محتوا و صوت‌ها';
+        tabStaff.classList.add('hidden');
+        tabFinance.classList.add('hidden');
+        switchMainTab('content');
+      } else {
+        // مدیر مدرسه معمولی
+        badge.className = 'px-2 py-0.5 rounded-lg font-bold text-[10px] bg-slate-100 text-slate-800';
+        badge.innerText = activeAdmin.role;
+        switchMainTab('finance');
+      }
     }
 
+    function switchMainTab(tab) {
+      const tabs = ['staff', 'finance', 'content'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-${t}-btn`);
+        const sec = document.getElementById(`section-${t}`);
+        if (!btn || !sec) return;
+
+        if (t === tab) {
+          btn.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition';
+          sec.classList.remove('hidden');
+        } else {
+          btn.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition';
+          sec.classList.add('hidden');
+        }
+      });
+
+      if (tab === 'staff') loadStaffList();
+      if (tab === 'finance') { loadSettings(); loadReceipts(); }
+    }
+
+    // لود لیست مدیران
+    async function loadStaffList() {
+      const tbody = document.getElementById('staff-tbody');
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400">در حال دریافت...</td></tr>';
+
+      try {
+        const res = await fetch('/api/auth');
+        const list = await res.json();
+
+        const roleLabels = {
+          super_admin: 'مدیر ارشد',
+          finance_admin: 'مدیر مالی',
+          content_admin: 'مدیر محتوا',
+          principal: 'مدیر مدرسه',
+          teacher: 'معلم'
+        };
+
+        tbody.innerHTML = list.map(u => `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 font-bold text-slate-800">${u.full_name}</td>
+            <td class="p-3 font-mono">${u.username}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px]">${roleLabels[u.role] || u.role}</span></td>
+            <td class="p-3 text-center">
+              ${u.role !== 'super_admin' ? `
+                <button onclick="deleteStaff(${u.id}, '${u.full_name}')" class="text-rose-500 hover:text-rose-700 text-xs font-bold">حذف ✕</button>
+              ` : '<span class="text-slate-300">-</span>'}
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-rose-500 font-bold">خطا در بارگذاری لیست</td></tr>';
+      }
+    }
+
+    async function addNewStaff() {
+      const full_name = document.getElementById('new-staff-name').value.trim();
+      const username = document.getElementById('new-staff-user').value.trim();
+      const password = document.getElementById('new-staff-pass').value.trim();
+      const role = document.getElementById('new-staff-role').value;
+
+      if (!full_name || !username || !password) return alert('تمام فیلدها الزامی هستند.');
+
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'add-staff',
+            requesterRole: activeAdmin.role,
+            full_name, username, password, role
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert('مدیر جدید با موفقیت ایجاد شد.');
+          document.getElementById('new-staff-name').value = '';
+          document.getElementById('new-staff-user').value = '';
+          document.getElementById('new-staff-pass').value = '';
+          loadStaffList();
+        } else {
+          alert(data.error || 'خطا در ثبت مدیر');
+        }
+      } catch (e) {
+        alert('خطا در برقراری ارتباط با سرور.');
+      }
+    }
+
+    async function deleteStaff(staffId, name) {
+      if (!confirm(`آیا از حذف دسترسی (${name}) اطمینان دارید؟`)) return;
+
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete-staff',
+            requesterRole: activeAdmin.role,
+            staffId
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          loadStaffList();
+        } else {
+          alert(data.error || 'خطا در حذف کاربر');
+        }
+      } catch (e) {
+        alert('خطا در ارتباط با سرور.');
+      }
+    }
+
+    // توابع مالی
     async function loadSettings() {
       try {
         const res = await fetch('/api/settings');
@@ -174,9 +402,7 @@
         if (s.card_holder) document.getElementById('set-card-holder').value = s.card_holder;
         if (s.card_bank) document.getElementById('set-card-bank').value = s.card_bank;
         if (s.sub_price) document.getElementById('set-sub-price').value = s.sub_price;
-      } catch (e) {
-        console.error('خطا در بارگذاری تنظیمات:', e);
-      }
+      } catch (e) {}
     }
 
     async function saveSiteSettings() {
@@ -195,19 +421,16 @@
           body: JSON.stringify({ requesterRole: activeAdmin.role, settings })
         });
         const data = await res.json();
-        if (res.ok && data.success) {
-          alert('مشخصات بانکی با موفقیت ذخیره شد.');
-        } else {
-          alert(data.error || 'خطا در ذخیره مشخصات.');
-        }
+        if (res.ok && data.success) alert('مشخصات کارت ذخیره شد.');
+        else alert(data.error || 'خطا در ذخیره');
       } catch (e) {
-        alert('خطا در برقراری ارتباط با سرور.');
+        alert('خطا در ارتباط.');
       }
     }
 
     async function loadReceipts() {
       const tbody = document.getElementById('receipts-tbody');
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-slate-400">در حال دریافت...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-slate-400">در حال بارگذاری...</td></tr>';
 
       try {
         const res = await fetch('/api/payment-receipt');
@@ -245,7 +468,7 @@
     }
 
     async function updateReceiptStatus(paymentId, status) {
-      if (!confirm(`آیا از ${status === 'approved' ? 'تایید' : 'رد'} این فیش مطمئن هستید؟`)) return;
+      if (!confirm(`آیا از ${status === 'approved' ? 'تایید' : 'رد'} این فیش اطمینان دارید؟`)) return;
 
       try {
         const res = await fetch('/api/payment-receipt', {
@@ -254,13 +477,10 @@
           body: JSON.stringify({ action: 'update-status', paymentId, status })
         });
         const data = await res.json();
-        if (res.ok && data.success) {
-          loadReceipts();
-        } else {
-          alert(data.error || 'خطا در ثبت وضعیت');
-        }
+        if (res.ok && data.success) loadReceipts();
+        else alert(data.error || 'خطا در ثبت وضعیت');
       } catch (e) {
-        alert('خطا در برقراری ارتباط با سرور.');
+        alert('خطا در ارتباط.');
       }
     }
 
@@ -273,7 +493,7 @@
       const saved = sessionStorage.getItem('siteAdminUser');
       if (saved) {
         activeAdmin = JSON.parse(saved);
-        showDashboard();
+        setupRoleUI();
       }
     });
   </script>
