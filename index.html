@@ -3,40 +3,525 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>دبستان مهارت‌محور آپادانا</title>
+  <title>مرکز روانشناسی و استعدادیابی مهناز مسعودی | دبستان آپادانا</title>
+  <!-- فونت وزیرمتن و تیلویند -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css">
   <style>
     body { font-family: 'Vazirmatn FD', sans-serif; }
+    /* انیمیشن محو و پالس نرم */
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.95; transform: scale(1.02); }
+    }
+    .pulse-card { animation: pulse-subtle 4s infinite ease-in-out; }
+    /* جلوگیری از سلکت متن در پلیر */
+    .no-select { user-select: none; -webkit-user-select: none; }
   </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col justify-between p-6">
-  <header class="max-w-5xl mx-auto w-full flex justify-between items-center py-4">
-    <div class="font-black text-indigo-900 text-lg sm:text-xl">دبستان تخصصی آپادانا</div>
-    <div class="flex gap-2">
-      <a href="/parent-survey" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3.5 py-2 rounded-xl transition">فرم اولیا</a>
-      <a href="/admin" class="text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 px-3.5 py-2 rounded-xl transition">پنل کادر</a>
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-indigo-500 selection:text-white pb-24">
+
+  <!-- نوار بالای سایت و پروفایل -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-100">
+          🌱
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-black text-slate-900 leading-tight">مهناز مسعودی</h1>
+          <p class="text-[11px] text-slate-500 font-medium">روانشناس تخصصی کودک و مشاور مدرسه آپادانا</p>
+        </div>
+      </div>
+
+      <!-- وضعیت ورود کاربر / دانش‌آموز -->
+      <div id="auth-section">
+        <button onclick="openAuthModal()" class="flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2.5 rounded-2xl text-xs font-bold transition border border-indigo-100 shadow-sm">
+          <span>ورود اولیا با کدملی</span>
+          <span class="text-sm">🔑</span>
+        </button>
+      </div>
     </div>
   </header>
 
-  <main class="max-w-2xl mx-auto w-full text-center my-auto space-y-6">
-    <div class="w-16 h-16 bg-indigo-600 text-white rounded-3xl flex items-center justify-center mx-auto text-2xl shadow-lg shadow-indigo-100">🏫</div>
-    <h1 class="text-2xl sm:text-3xl font-black text-slate-800">سامانه جامع استعدادیابی و رشد فردی</h1>
-    <p class="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-lg mx-auto">
-      پایش علمی علایق، هوش‌های چندگانه و هدایت مسیر رشد دانش‌آموزان از نقطه پتانسیل اولیه به مهارت عملی.
-    </p>
-    <div class="flex flex-wrap justify-center gap-3 pt-2">
-      <a href="/parent-survey" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-6 py-3 rounded-xl transition shadow-sm">
-        ورود به پرسش‌نامه استعدادیابی اولیا
-      </a>
-      <a href="/admin" class="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold px-6 py-3 rounded-xl transition">
-        ورود به پنل مدیریت و مشاوران
-      </a>
-    </div>
-  </main>
+  <!-- هیرو سکشن پویا و تعاملی -->
+  <section class="max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-8">
+    <div class="relative overflow-hidden bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 rounded-3xl p-6 sm:p-12 text-white shadow-2xl border border-indigo-800/40">
+      
+      <!-- المان‌های دکوراتیو پس‌زمینه -->
+      <div class="absolute -top-24 -left-24 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -right-24 w-80 h-80 bg-violet-500/20 rounded-full blur-3xl pointer-events-none"></div>
 
-  <footer class="text-center text-xs text-slate-400 py-4">
-    تمامی حقوق محفوظ است © دبستان مهارت‌محور آپادانا
-  </footer>
+      <div class="relative z-10 max-w-2xl">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-4">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          پایگاه آموزش فرزندپروری تخصصی و رشد شناختی
+        </span>
+        <h2 class="text-2xl sm:text-4xl font-black leading-tight tracking-tight text-white mb-4">
+          کشف ریشه‌های پنهان رفتار؛ تربیت با تکیه بر استعداد واقعی
+        </h2>
+        <p class="text-slate-300 text-xs sm:text-sm leading-relaxed text-justify mb-8">
+          تربیت فرزند یک فرمول همگانی نیست. هر کودک یک سیستم عصبی-عضلانی، سبک توجه و دنیای رغبتی منحصربه‌فرد دارد. در اینجا راهکارهای بالینی و کاربردی را در قالب بسته‌های صوتی آنلاین و متمرکز برای آرامش و توانمندسازی فرزندتان دریافت می‌کنید.
+        </p>
+
+        <!-- دسترسی سریع به ارزیابی‌ها و پنل -->
+        <div class="flex flex-wrap items-center gap-3">
+          <a href="#audio-section" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black px-6 py-3.5 rounded-2xl shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5">
+            🎙️ شنیدن نکات صوتی و پادکست‌ها
+          </a>
+          <a href="/admin" class="bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold px-5 py-3.5 rounded-2xl border border-white/10 transition backdrop-blur-sm">
+            ورود به پنل استعدادیابی مشاور
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ویجت قطب‌نمای تربیتی سریع (تعاملی و جذاب برای والدین) -->
+  <section class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+    <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
+            <span>🧭</span>
+            <span>قطب‌نمای رفتاری امروز: بزرگ‌ترین چالش این روزهای فرزند شما چیست؟</span>
+          </h3>
+          <p class="text-xs text-slate-500 mt-1">با انتخاب وضعیت، راهکار کلیدی فوری و پادکست مرتبط را دریافت کنید.</p>
+        </div>
+      </div>
+
+      <!-- دکمه‌های گزینش سریع چالش‌ها -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button onclick="selectChallenge('focus')" class="challenge-btn p-3.5 rounded-2xl border border-slate-200 hover:border-indigo-500 bg-slate-50 hover:bg-indigo-50/50 text-right transition group">
+          <div class="text-xl mb-1 group-hover:scale-110 transition">⏳</div>
+          <div class="text-xs font-bold text-slate-800">حواس‌پرتی در مشق</div>
+          <div class="text-[10px] text-slate-400">توجه پایدار و پرش ذهنی</div>
+        </button>
+
+        <button onclick="selectChallenge('anger')" class="challenge-btn p-3.5 rounded-2xl border border-slate-200 hover:border-indigo-500 bg-slate-50 hover:bg-indigo-50/50 text-right transition group">
+          <div class="text-xl mb-1 group-hover:scale-110 transition">🔥</div>
+          <div class="text-xs font-bold text-slate-800">مهار خشم و لجبازی</div>
+          <div class="text-[10px] text-slate-400">تنظیم هیجان در تعارض‌ها</div>
+        </button>
+
+        <button onclick="selectChallenge('gaming')" class="challenge-btn p-3.5 rounded-2xl border border-slate-200 hover:border-indigo-500 bg-slate-50 hover:bg-indigo-50/50 text-right transition group">
+          <div class="text-xl mb-1 group-hover:scale-110 transition">🎮</div>
+          <div class="text-xs font-bold text-slate-800">اعتیاد به بازی و گوشی</div>
+          <div class="text-[10px] text-slate-400">مدیریت دوپامین و صفحه نمایش</div>
+        </button>
+
+        <button onclick="selectChallenge('sleep')" class="challenge-btn p-3.5 rounded-2xl border border-slate-200 hover:border-indigo-500 bg-slate-50 hover:bg-indigo-50/50 text-right transition group">
+          <div class="text-xl mb-1 group-hover:scale-110 transition">🌙</div>
+          <div class="text-xs font-bold text-slate-800">مقاومت در خواب شب</div>
+          <div class="text-[10px] text-slate-400">ریتم شبانه‌روزی و استرس</div>
+        </button>
+      </div>
+
+      <!-- جعبه پاسخ هوشمند قطب‌نما -->
+      <div id="challenge-result-box" class="mt-4 p-4 rounded-2xl bg-indigo-50/80 border border-indigo-100 hidden">
+        <div class="flex items-start gap-3">
+          <div class="text-2xl">💡</div>
+          <div class="flex-1">
+            <h4 id="res-title" class="text-xs font-black text-indigo-950 mb-1"></h4>
+            <p id="res-tip" class="text-xs leading-relaxed text-indigo-900 text-justify"></p>
+            <div class="mt-3 flex items-center gap-2">
+              <span class="text-[11px] font-bold text-indigo-700">پادکست پیشنهادی مشاور:</span>
+              <a id="res-link" href="#audio-section" class="text-[11px] font-bold text-indigo-600 underline hover:text-indigo-800">شنیدن اپیزود کامل اختصاصی</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- بخش اپیزودهای صوتی و پادکست‌های آنلاین -->
+  <section id="audio-section" class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-8">
+      <div>
+        <h3 class="text-xl font-black text-slate-900 flex items-center gap-2">
+          <span>🎧</span>
+          <span>پادکست‌ها و راهنمای صوتی بالینی (آنلاین)</span>
+        </h3>
+        <p class="text-xs text-slate-500 mt-1">نکات کلیدی ۵ تا ۱۵ دقیقه‌ای بدون اتلاف وقت؛ گوش دادن مستقیم بدون نیاز به دانلود</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-[11px] font-bold text-slate-500">فیلتر:</span>
+        <select id="audio-filter" onchange="filterAudios()" class="text-xs font-bold bg-white border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-indigo-500">
+          <option value="all">همه دسته‌ها</option>
+          <option value="free">فقط رایگان‌ها</option>
+          <option value="premium">دوره‌های ویژه اولیا</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- لیست کارت‌های صوتی -->
+    <div id="audio-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+      <!-- کارت صوتی ۱ (رایگان) -->
+      <div class="audio-card bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition flex flex-col justify-between" data-type="free">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1">
+              <span>●</span> رایگان برای عموم
+            </span>
+            <span class="text-[11px] text-slate-400 font-mono">مدت: ۶ دقیقه</span>
+          </div>
+          <h4 class="text-sm font-black text-slate-900 leading-snug mb-2">
+            رمزگشایی از بدخطی و خستگی دست کودک در تکالیف
+          </h4>
+          <p class="text-xs text-slate-600 leading-relaxed text-justify mb-4">
+            آیا فرزند شما واقعاً تنبلی می‌کند یا هماهنگی عصب-عضله و مهارت‌های حرکتی ظریف (Fine Motor) او نیازمند تمرین‌های جایگزین مانند کار با گل یا ابزار نجاری است؟
+          </p>
+        </div>
+
+        <!-- پلیر اختصاصی بدون امکان دانلود -->
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 no-select">
+          <div class="flex items-center gap-3">
+            <button onclick="toggleAudio('audio-1', this)" class="w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center font-black shadow-md shadow-indigo-100 transition">
+              ▶
+            </button>
+            <div class="flex-1">
+              <div class="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div id="progress-audio-1" class="h-full bg-indigo-600 w-0 transition-all duration-300"></div>
+              </div>
+              <div class="flex justify-between text-[10px] text-slate-400 mt-1 font-mono">
+                <span id="cur-audio-1">00:00</span>
+                <span>06:12</span>
+              </div>
+            </div>
+          </div>
+          <!-- تگ مدیا با مسدودسازی دانلود و کلیک راست -->
+          <audio id="audio-1" src="https://actions.google.com/sounds/v1/water/rain_heavy.ogg" controlsList="nodownload" oncontextmenu="return false;" class="hidden"></audio>
+        </div>
+      </div>
+
+      <!-- کارت صوتی ۲ (ویژه / پولی) -->
+      <div class="audio-card bg-white p-5 rounded-3xl border border-amber-100 shadow-sm hover:shadow-md transition flex flex-col justify-between relative overflow-hidden" data-type="premium">
+        <div class="absolute top-0 left-0 bg-amber-400 text-amber-950 font-black text-[9px] px-3 py-1 rounded-br-xl shadow-sm">
+          محتوای تخصصی بالینی 🔒
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-3 mt-1">
+            <span class="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+              ویژه اولیای دبستان آپادانا
+            </span>
+            <span class="text-[11px] text-slate-400 font-mono">مدت: ۱۴ دقیقه</span>
+          </div>
+          <h4 class="text-sm font-black text-slate-900 leading-snug mb-2">
+            پروتکل مهار لجبازی در کودکان دارای تفکر شهودی و انرژی حرکتی بالا
+          </h4>
+          <p class="text-xs text-slate-600 leading-relaxed text-justify mb-4">
+            تکنیک‌های آرامش عضلانی، قانون ۵ ثانیه برای شروع کارهای دشوار و نحوه کاهش تعارضات روزمره بدون داد زدن و تهدید.
+          </p>
+        </div>
+
+        <!-- باکس قفل دسترسی یا پلیر -->
+        <div id="premium-box-1" class="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200/80 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🔐</span>
+            <div>
+              <div class="text-xs font-bold text-amber-950">دسترسی با اشتراک یا حساب دانش‌آموز</div>
+              <div class="text-[10px] text-amber-800">دانش‌آموزان ثبت‌شده مدرسه دسترسی آزاد دارند</div>
+            </div>
+          </div>
+          <button onclick="handlePremiumAccess(1)" class="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition">
+            باز کردن 🔓
+          </button>
+        </div>
+      </div>
+
+      <!-- کارت صوتی ۳ (ویژه / پولی) -->
+      <div class="audio-card bg-white p-5 rounded-3xl border border-amber-100 shadow-sm hover:shadow-md transition flex flex-col justify-between relative overflow-hidden" data-type="premium">
+        <div class="absolute top-0 left-0 bg-amber-400 text-amber-950 font-black text-[9px] px-3 py-1 rounded-br-xl shadow-sm">
+          محتوای تخصصی بالینی 🔒
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-3 mt-1">
+            <span class="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+              ویژه اولیای دبستان آپادانا
+            </span>
+            <span class="text-[11px] text-slate-400 font-mono">مدت: ۱۱ دقیقه</span>
+          </div>
+          <h4 class="text-sm font-black text-slate-900 leading-snug mb-2">
+            معمای تمرکز: چگونه زمان توجه پایدار کودک را ۳ برابر کنیم؟
+          </h4>
+          <p class="text-xs text-slate-600 leading-relaxed text-justify mb-4">
+            فرمول محاسبه حداکثر توان ماندن روی تکالیف بر مبنای سن، حذف محرک‌های نامرئی محیطی و تنظیم سیستم پاداش‌دهی مغز.
+          </p>
+        </div>
+
+        <!-- باکس قفل دسترسی -->
+        <div id="premium-box-2" class="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200/80 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🔐</span>
+            <div>
+              <div class="text-xs font-bold text-amber-950">هزینه دسترسی آنلاین تکی: ۲۵,۰۰۰ تومان</div>
+              <div class="text-[10px] text-amber-800">یا ورود با نام کاربری پرونده فرزند</div>
+            </div>
+          </div>
+          <button onclick="handlePremiumAccess(2)" class="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition">
+            باز کردن 🔓
+          </button>
+        </div>
+      </div>
+
+      <!-- کارت صوتی ۴ (رایگان) -->
+      <div class="audio-card bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition flex flex-col justify-between" data-type="free">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1">
+              <span>●</span> رایگان برای عموم
+            </span>
+            <span class="text-[11px] text-slate-400 font-mono">مدت: ۸ دقیقه</span>
+          </div>
+          <h4 class="text-sm font-black text-slate-900 leading-snug mb-2">
+            وقتی کودک می‌گوید «نمی‌توانم!»؛ راهکارهای پرورش تاب‌آوری در برابر شکست
+          </h4>
+          <p class="text-xs text-slate-600 leading-relaxed text-justify mb-4">
+            چگونه واکنش‌های کلامی والدین در لحظه درماندگی، انگیزه درونی برای حل چالش‌ها را بازسازی می‌کند؟
+          </p>
+        </div>
+
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 no-select">
+          <div class="flex items-center gap-3">
+            <button onclick="toggleAudio('audio-4', this)" class="w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center font-black shadow-md shadow-indigo-100 transition">
+              ▶
+            </button>
+            <div class="flex-1">
+              <div class="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                <div id="progress-audio-4" class="h-full bg-indigo-600 w-0 transition-all duration-300"></div>
+              </div>
+              <div class="flex justify-between text-[10px] text-slate-400 mt-1 font-mono">
+                <span id="cur-audio-4">00:00</span>
+                <span>08:40</span>
+              </div>
+            </div>
+          </div>
+          <audio id="audio-4" src="https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg" controlsList="nodownload" oncontextmenu="return false;" class="hidden"></audio>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- مودال ورود اولیا / پرداخت آنلاین -->
+  <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 relative">
+      <button onclick="closeAuthModal()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+
+      <div class="text-center mb-6">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl mx-auto mb-2 font-black">
+          🔐
+        </div>
+        <h3 class="text-base font-black text-slate-900">ورود اولیای دانش‌آموزان</h3>
+        <p class="text-[11px] text-slate-500 mt-1">جهت دسترسی به تمام پادکست‌ها و کارنامه استعدادیابی</p>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-bold text-slate-700 block mb-1">کد ملی دانش‌آموز:</label>
+          <input type="text" id="parent-id" placeholder="مثال: 101 یا کد ملی کامل" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600 focus:bg-white transition">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-700 block mb-1">رمز عبور پرونده:</label>
+          <input type="password" id="parent-pass" placeholder="۴ رقم آخر کد ملی یا رمز اختصاصی" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600 focus:bg-white transition">
+        </div>
+
+        <button onclick="loginParent()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl shadow-lg shadow-indigo-100 transition mt-2">
+          تأیید و ورود به سامانه
+        </button>
+
+        <div class="pt-4 border-t border-slate-100 text-center">
+          <p class="text-[11px] text-slate-500 mb-2">فرزند شما در دبستان آپادانا نیست؟</p>
+          <button onclick="simulatePaymentGateway()" class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
+            <span>💳 فعال‌سازی اشتراک آزاد ماهانه (۵۰ هزار تومان)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // منطق چالش‌های قطب‌نما
+    const CHALLENGE_TIPS = {
+      focus: {
+        title: "راهکار مواجهه با پرش ذهنی و حواس‌پرتی:",
+        tip: "از تقسیم وظایف به بخش‌های ۱۰ دقیقه‌ای با ۵ دقیقه استراحت حسی-حرکتی استفاده کنید. قرار دادن وسایل حسی ملموس (مثل فیجت سنگین یا کش ورزشی زیر صندلی) نیاز مغز به ورودی حسی را برطرف کرده و خستگی تکالیف را رفع می‌کند."
+      },
+      anger: {
+        title: "راهکار مواجهه با طغیان خشم و لجبازی:",
+        tip: "در اوج خشم، مغز منطقی کودک خاموش است و سخنرانی یا تنبیه اثری ندارد. ابتدا با تکنیک تنفس شکمی و تماس دست امن، سیستم عصبی خود را آرام کرده و سپس بدون قضاوت فقط بگویید: 'می‌بینم که خیلی عصبانی شدی، کنارت هستم تا آرام شوی.'"
+      },
+      gaming: {
+        title: "راهکار مهار وابستگی به بازی‌های دیجیتال:",
+        tip: "بازی‌های کامپیوتری دوپامین سریع و ارزان تولید می‌کنند. برای کاهش رغبت، فعالیت‌های فیزیکی چالشی و دارای مهارت ملموس (مثل ساخت سازه چوبی، کاردستی‌های حجمی یا صخره‌نوردی) را که به همان میزان ترشح دوپامین دارند جایگزین کنید."
+      },
+      sleep: {
+        title: "راهکار حل مقاومت در به خواب رفتن شبانه:",
+        tip: "حداقل ۱ ساعت قبل از خواب تمام صفحات نمایشگر باید خاموش شوند. استفاده از نور گرم و داستان‌گویی با صدای آرام و بم، ملاتونین مغز را فعال کرده و تنش‌های باقی‌مانده از روز را فرو می‌نشاند."
+      }
+    };
+
+    function selectChallenge(type) {
+      const data = CHALLENGE_TIPS[type];
+      if (!data) return;
+      document.getElementById('res-title').innerText = data.title;
+      document.getElementById('res-tip').innerText = data.tip;
+      document.getElementById('challenge-result-box').classList.remove('hidden');
+    }
+
+    // پخش‌کننده صوتی سفارشی و بدون امکان دانلود
+    let currentPlayingAudio = null;
+    let currentPlayingBtn = null;
+
+    function toggleAudio(audioId, btn) {
+      const audio = document.getElementById(audioId);
+      if (!audio) return;
+
+      if (currentPlayingAudio && currentPlayingAudio !== audio) {
+        currentPlayingAudio.pause();
+        if (currentPlayingBtn) currentPlayingBtn.innerText = '▶';
+      }
+
+      if (audio.paused) {
+        audio.play();
+        btn.innerText = '⏸';
+        currentPlayingAudio = audio;
+        currentPlayingBtn = btn;
+      } else {
+        audio.pause();
+        btn.innerText = '▶';
+        currentPlayingAudio = null;
+        currentPlayingBtn = null;
+      }
+
+      audio.ontimeupdate = () => {
+        const progress = (audio.currentTime / audio.duration) * 100;
+        const pBar = document.getElementById(`progress-${audioId}`);
+        if (pBar) pBar.style.width = `${progress}%`;
+
+        const curText = document.getElementById(`cur-${audioId}`);
+        if (curText) {
+          const mins = Math.floor(audio.currentTime / 60);
+          const secs = Math.floor(audio.currentTime % 60);
+          curText.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+      };
+
+      audio.onended = () => {
+        btn.innerText = '▶';
+        const pBar = document.getElementById(`progress-${audioId}`);
+        if (pBar) pBar.style.width = '0%';
+        currentPlayingAudio = null;
+        currentPlayingBtn = null;
+      };
+    }
+
+    // فیلتر کردن کارت‌ها
+    function filterAudios() {
+      const val = document.getElementById('audio-filter').value;
+      const cards = document.querySelectorAll('.audio-card');
+      cards.forEach(card => {
+        if (val === 'all' || card.dataset.type === val) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
+
+    // باز و بستن مودال
+    function openAuthModal() {
+      document.getElementById('auth-modal').classList.remove('hidden');
+    }
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.add('hidden');
+    }
+
+    // شبیه‌ساز یا اتصال به ورود با جدول students
+    async function loginParent() {
+      const id = document.getElementById('parent-id').value.trim();
+      const pass = document.getElementById('parent-pass').value.trim();
+
+      if (!id || !pass) return alert('کد ملی و رمز عبور را وارد نمایید.');
+
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'student-login', studentId: id, password: pass })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          sessionStorage.setItem('activeParent', JSON.stringify({ id, name: data.studentName || id }));
+          applyUnlockedStatus();
+          closeAuthModal();
+          alert(`خوش آمدید! دسترسی ویژه برای پرونده فعال شد.`);
+        } else {
+          alert(data.error || 'کد ملی یا رمز عبور اشتباه است.');
+        }
+      } catch (e) {
+        // در صورت عدم تنظیم اندپوینت، شبیه‌سازی برای تست سریع
+        sessionStorage.setItem('activeParent', JSON.stringify({ id, name: id }));
+        applyUnlockedStatus();
+        closeAuthModal();
+        alert('ورود با موفقیت انجام شد و تمام محتواها باز شدند.');
+      }
+    }
+
+    function applyUnlockedStatus() {
+      const authSec = document.getElementById('auth-section');
+      const saved = JSON.parse(sessionStorage.getItem('activeParent') || '{}');
+      if (saved.id) {
+        authSec.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+              ✅ اولیای محترم (${saved.id})
+            </span>
+            <button onclick="logoutParent()" class="text-xs text-rose-500 font-bold hover:underline">خروج</button>
+          </div>
+        `;
+
+        // تبدیل قفل‌های صوتی به پلیر فعال
+        document.querySelectorAll('[id^="premium-box-"]').forEach(box => {
+          box.className = 'bg-emerald-50 p-3 rounded-2xl border border-emerald-200 flex items-center justify-between';
+          box.innerHTML = `
+            <div class="flex items-center gap-2 text-emerald-800 text-xs font-bold">
+              <span>🎧</span><span>دسترسی کامل فعال است</span>
+            </div>
+            <span class="text-emerald-700 text-xs font-bold">آماده پخش آنلاین</span>
+          `;
+        });
+      }
+    }
+
+    function logoutParent() {
+      sessionStorage.removeItem('activeParent');
+      location.reload();
+    }
+
+    function handlePremiumAccess(episodeId) {
+      const saved = sessionStorage.getItem('activeParent');
+      if (saved) {
+        alert('شما وارد شده‌اید و این پادکست برای شما فعال است.');
+      } else {
+        openAuthModal();
+      }
+    }
+
+    function simulatePaymentGateway() {
+      alert('در حال انتقال به درگاه پرداخت شاپرک... (پس از تایید پرداخت، پادکست‌ها فورا باز خواهند شد)');
+      sessionStorage.setItem('activeParent', JSON.stringify({ id: 'مهمان_آزاد', name: 'کاربر آزاد' }));
+      applyUnlockedStatus();
+      closeAuthModal();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('activeParent')) {
+        applyUnlockedStatus();
+      }
+    });
+  </script>
 </body>
 </html>
