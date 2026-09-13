@@ -39,7 +39,7 @@
   </div>
 
   <!-- داشبورد مدیریت سایت -->
-  <div id="admin-dashboard" style="display: none;" class="max-w-5xl mx-auto space-y-6">
+  <div id="admin-dashboard" style="display: none;" class="max-w-6xl mx-auto space-y-6">
     
     <!-- هدر پنل و هویت کاربر -->
     <header class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
@@ -62,10 +62,10 @@
         👥 مدیریت مدیران و پرسنل سایت
       </button>
       <button id="tab-finance-btn" onclick="switchMainTab('finance')" class="px-4 py-2 rounded-xl text-xs font-bold transition">
-        💳 مدیریت مالی و کارت‌به‌کارت
+        💳 مدیریت مالی، قیمت‌گذاری و تخفیف‌ها
       </button>
       <button id="tab-content-btn" onclick="switchMainTab('content')" class="px-4 py-2 rounded-xl text-xs font-bold transition">
-        🎧 مدیریت پادکست‌ها و محتوا
+        🎧 مدیریت پادکست‌ها و پکیج‌های صوتی
       </button>
     </div>
 
@@ -95,8 +95,8 @@
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">نقش و حیطه دسترسی:</label>
           <select id="new-staff-role" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none bg-white font-bold">
-            <option value="finance_admin">مدیر مالی (تایید فیش‌ها و کارت بانکی)</option>
-            <option value="content_admin">مدیر محتوا (پادکست‌ها و نکات بالینی)</option>
+            <option value="finance_admin">مدیر مالی (تایید فیش‌ها، قیمت‌گذاری و کد تخفیف)</option>
+            <option value="content_admin">مدیر محتوا (پادکست‌ها، پکیج‌ها و صوت‌ها)</option>
             <option value="super_admin">مدیر ارشد (دسترسی کامل)</option>
           </select>
         </div>
@@ -130,84 +130,227 @@
       </div>
     </div>
 
-    <!-- بخش ۲: مدیریت مالی و کارت‌به‌کارت (super_admin و finance_admin) -->
-    <div id="section-finance" style="display: none;" class="grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-1 space-y-4">
-        <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-          <span>💳</span>
-          <span>مشخصات حساب کارت‌به‌کارت</span>
-        </h3>
+    <!-- بخش ۲: مدیریت مالی، کارت‌به‌کارت، قیمت‌گذاری و تخفیف‌ها -->
+    <div id="section-finance" style="display: none;" class="space-y-6">
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- فرم تنظیمات کارت -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-1 space-y-4">
+          <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+            <span>💳</span>
+            <span>مشخصات حساب و اشتراک ماهانه</span>
+          </h3>
 
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">شماره کارت بانکی:</label>
-          <input type="text" id="set-card-number" placeholder="6037..." class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none font-mono">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">شماره کارت بانکی:</label>
+            <input type="text" id="set-card-number" placeholder="6037..." class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none font-mono">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">نام صاحب حساب:</label>
+            <input type="text" id="set-card-holder" placeholder="مهناز مسعودی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">نام بانک:</label>
+            <input type="text" id="set-card-bank" placeholder="بانک ملی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">هزینه اشتراک ماهانه کلی (تومان):</label>
+            <input type="number" id="set-sub-price" placeholder="50000" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none font-mono">
+          </div>
+
+          <button onclick="saveSiteSettings()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
+            ذخیره مشخصات حساب و اشتراک
+          </button>
         </div>
 
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">نام صاحب حساب:</label>
-          <input type="text" id="set-card-holder" placeholder="مهناز مسعودی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
-        </div>
+        <!-- فیش‌های دریافتی -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-2 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
+              <span>📥</span>
+              <span>فیش‌های کارت‌به‌کارت دریافتی</span>
+            </h3>
+            <button onclick="loadReceipts()" class="text-indigo-600 text-xs font-bold hover:underline">⟳ به‌روزرسانی</button>
+          </div>
 
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">نام بانک:</label>
-          <input type="text" id="set-card-bank" placeholder="بانک ملی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          <div class="overflow-x-auto">
+            <table class="w-full text-right text-xs">
+              <thead class="bg-slate-50 text-slate-600 border-b border-slate-100">
+                <tr>
+                  <th class="p-3">کاربر</th>
+                  <th class="p-3">مبلغ</th>
+                  <th class="p-3">۴ رقم کارت</th>
+                  <th class="p-3">کد پیگیری</th>
+                  <th class="p-3">وضعیت</th>
+                  <th class="p-3 text-center">عملیات</th>
+                </tr>
+              </thead>
+              <tbody id="receipts-tbody" class="divide-y divide-slate-100">
+                <tr><td colspan="6" class="text-center py-6 text-slate-400">در حال دریافت...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">هزینه اشتراک ماهانه (تومان):</label>
-          <input type="number" id="set-sub-price" placeholder="50000" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none font-mono">
-        </div>
-
-        <button onclick="saveSiteSettings()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
-          ذخیره مشخصات کارت
-        </button>
       </div>
 
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-2 space-y-4">
+      <!-- قیمت‌گذاری پکیج‌ها و صوت‌ها توسط مدیر مالی -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
-            <span>📥</span>
-            <span>فیش‌های کارت‌به‌کارت دریافتی</span>
+            <span>🏷️</span>
+            <span>قیمت‌گذاری پکیج‌های موضوعی و تک‌فایل‌ها (توسط مدیر مالی)</span>
           </h3>
-          <button onclick="loadReceipts()" class="text-indigo-600 text-xs font-bold hover:underline">⟳ به‌روزرسانی</button>
+          <button onclick="loadPricingPackages()" class="text-indigo-600 text-xs font-bold hover:underline">⟳ به‌روزرسانی لیست</button>
         </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-right text-xs">
-            <thead class="bg-slate-50 text-slate-600 border-b border-slate-100">
-              <tr>
-                <th class="p-3">کاربر</th>
-                <th class="p-3">مبلغ</th>
-                <th class="p-3">۴ رقم کارت</th>
-                <th class="p-3">کد پیگیری</th>
-                <th class="p-3">وضعیت</th>
-                <th class="p-3 text-center">عملیات</th>
-              </tr>
-            </thead>
-            <tbody id="receipts-tbody" class="divide-y divide-slate-100">
-              <tr><td colspan="6" class="text-center py-6 text-slate-400">در حال دریافت...</td></tr>
-            </tbody>
-          </table>
+        <div id="pricing-packages-list" class="space-y-4">
+          <p class="text-xs text-slate-400 text-center py-4">در حال بارگذاری دوره‌ها و فایل‌ها...</p>
         </div>
       </div>
+
+      <!-- مدیریت کدهای تخفیف -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-1 space-y-4">
+          <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+            <span>🎟️</span>
+            <span>تعریف کد تخفیف جدید</span>
+          </h3>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">عنوان کد (انگلیسی):</label>
+            <input type="text" id="new-disc-code" placeholder="مثال: APADANA100" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none uppercase font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">درصد تخفیف (۱ تا ۱۰۰):</label>
+            <input type="number" id="new-disc-percent" placeholder="مثال: 50 یا 100" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">حداکثر دفعات استفاده:</label>
+            <input type="number" id="new-disc-max" placeholder="مثال: 200" value="100" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none font-mono">
+          </div>
+          <button onclick="createDiscountCode()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
+            ایجاد کد تخفیف
+          </button>
+        </div>
+
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm md:col-span-2 space-y-4">
+          <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
+            <span>📋 لیست کدهای تخفیف فعال</span>
+            <button onclick="loadDiscountCodes()" class="text-indigo-600 text-xs font-bold hover:underline">⟳ به‌روزرسانی</button>
+          </h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-right text-xs">
+              <thead class="bg-slate-50 text-slate-600 border-b border-slate-100">
+                <tr>
+                  <th class="p-3">کد تخفیف</th>
+                  <th class="p-3">درصد</th>
+                  <th class="p-3">تعداد مصرف</th>
+                  <th class="p-3">وضعیت</th>
+                </tr>
+              </thead>
+              <tbody id="discounts-tbody" class="divide-y divide-slate-100">
+                <tr><td colspan="4" class="text-center py-6 text-slate-400">در حال بارگذاری...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- بخش ۳: مدیریت محتوا و پادکست‌ها (super_admin و content_admin) -->
-    <div id="section-content" style="display: none;" class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-      <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-        <span>🎙️</span>
-        <span>مدیریت فایل‌های صوتی و پادکست‌ها</span>
-      </h3>
-      <div class="p-6 bg-indigo-50/60 rounded-2xl border border-indigo-100 text-center space-y-2">
-        <p class="text-xs font-bold text-indigo-900">پادکست‌ها هم‌اکنون به صورت آنلاین در صفحه اصلی فعال هستند.</p>
-        <p class="text-[11px] text-slate-500">مدیر محتوا می‌تواند برای ویرایش تیترها و لینک‌های مستقیم فایل‌های صوتی اقدام نماید.</p>
+    <!-- بخش ۳: مدیریت محتوا و پادکست‌ها (مدیر محتوا و ارشد) -->
+    <div id="section-content" style="display: none;" class="space-y-6">
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- فرم تعریف پکیج موضوعی -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+            <span>📁</span>
+            <span>۱. تعریف پکیج موضوعی جدید</span>
+          </h3>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">دسته اصلی:</label>
+            <input type="text" id="pkg-category" placeholder="مثال: روانشناسی کودک یا مهارت‌های زندگی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">عنوان پکیج موضوعی:</label>
+            <input type="text" id="pkg-title" placeholder="مثال: مهارت کنترل استرس و اضطراب" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">شناسه انگلیسی (Slug):</label>
+            <input type="text" id="pkg-slug" placeholder="مثال: stress-control" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">توضیحات کوتاه پکیج:</label>
+            <textarea id="pkg-desc" rows="2" placeholder="اهداف و سرفصل‌های این مجموعه..." class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600"></textarea>
+          </div>
+
+          <button onclick="saveContentPackage()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
+            ذخیره پکیج موضوعی
+          </button>
+        </div>
+
+        <!-- فرم افزودن فایل صوتی به پکیج -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+            <span>🎵</span>
+            <span>۲. بارگذاری فایل صوتی درون پکیج</span>
+          </h3>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">انتخاب پکیج موضوعی:</label>
+            <select id="track-pkg-select" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none bg-white font-bold">
+              <option value="">ابتدا یک پکیج بسازید...</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">عنوان فایل صوتی:</label>
+            <input type="text" id="track-title" placeholder="مثال: قسمت اول: تنفس شکمی و آرام‌سازی" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">لینک فایل صوتی (آدرس مستقیم یا R2):</label>
+            <input type="text" id="track-url" placeholder="https://pub-....r2.dev/audio1.mp3" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono text-left" dir="ltr">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">مدت زمان (اختیاری):</label>
+            <input type="text" id="track-duration" placeholder="مثال: 12:45" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none font-mono">
+          </div>
+
+          <button onclick="saveContentTrack()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
+            افزودن این فایل صوتی به پکیج
+          </button>
+        </div>
       </div>
+
+      <!-- نمایش کلیه مجموعه‌ها و پادکست‌های ایجاد شده -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
+            <span>📚</span>
+            <span>ساختار پکیج‌ها و صوت‌های ثبت شده در سایت</span>
+          </h3>
+          <button onclick="loadContentHierarchy()" class="text-indigo-600 text-xs font-bold hover:underline">⟳ به‌روزرسانی</button>
+        </div>
+        <div id="content-tree-view" class="space-y-4">
+          <p class="text-xs text-slate-400 text-center py-6">در حال بارگذاری ساختار محتوا...</p>
+        </div>
+      </div>
+
     </div>
 
   </div>
 
   <script>
     let activeAdmin = null;
+    let globalContentData = [];
 
     function toEnglishDigits(str) {
       return String(str || '')
@@ -265,7 +408,6 @@
       const tabFinance = document.getElementById('tab-finance-btn');
       const tabContent = document.getElementById('tab-content-btn');
 
-      // پنهان‌سازی صریح به صورت inline style
       tabStaff.style.display = 'none';
       tabFinance.style.display = 'none';
       tabContent.style.display = 'none';
@@ -279,12 +421,12 @@
         switchMainTab('staff');
       } else if (activeAdmin.role === 'finance_admin') {
         badge.className = 'px-2 py-0.5 rounded-lg font-bold text-[10px] bg-emerald-100 text-emerald-800';
-        badge.innerText = 'مدیر امور مالی';
+        badge.innerText = 'مدیر امور مالی و قیمت‌گذاری';
         tabFinance.style.display = 'inline-flex';
         switchMainTab('finance');
       } else if (activeAdmin.role === 'content_admin') {
         badge.className = 'px-2 py-0.5 rounded-lg font-bold text-[10px] bg-sky-100 text-sky-800';
-        badge.innerText = 'مدیر محتوا و پادکست‌ها';
+        badge.innerText = 'مدیر محتوا و صوت‌ها';
         tabContent.style.display = 'inline-flex';
         switchMainTab('content');
       } else {
@@ -304,7 +446,7 @@
 
         if (t === tab) {
           btn.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition';
-          sec.style.display = (t === 'content') ? 'block' : 'grid';
+          sec.style.display = (t === 'staff') ? 'grid' : 'block';
         } else {
           btn.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition';
           sec.style.display = 'none';
@@ -312,64 +454,49 @@
       });
 
       if (tab === 'staff' && activeAdmin.role === 'super_admin') loadStaffList();
-      if (tab === 'finance') { loadSettings(); loadReceipts(); }
+      if (tab === 'finance') { loadSettings(); loadReceipts(); loadPricingPackages(); loadDiscountCodes(); }
+      if (tab === 'content') { loadContentHierarchy(); }
     }
 
+    // پرسنل
     async function loadStaffList() {
       const tbody = document.getElementById('staff-tbody');
       tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400">در حال دریافت...</td></tr>';
-
       try {
         const res = await fetch('/api/auth?type=site');
         const list = await res.json();
-
-        const roleLabels = {
-          super_admin: 'مدیر ارشد سامانه',
-          finance_admin: 'مدیر مالی',
-          content_admin: 'مدیر محتوا'
-        };
-
+        const roleLabels = { super_admin: 'مدیر ارشد سامانه', finance_admin: 'مدیر مالی', content_admin: 'مدیر محتوا' };
         tbody.innerHTML = list.map(u => `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3 font-bold text-slate-800">${u.full_name}</td>
             <td class="p-3 font-mono">${u.username}</td>
             <td class="p-3"><span class="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px]">${roleLabels[u.role] || u.role}</span></td>
             <td class="p-3 text-center">
-              ${u.role !== 'super_admin' ? `
-                <button onclick="deleteStaff(${u.id}, '${u.full_name}')" class="text-rose-500 hover:text-rose-700 text-xs font-bold">حذف ✕</button>
-              ` : '<span class="text-slate-300">-</span>'}
+              ${u.role !== 'super_admin' ? `<button onclick="deleteStaff(${u.id}, '${u.full_name}')" class="text-rose-500 hover:text-rose-700 text-xs font-bold">حذف ✕</button>` : '<span class="text-slate-300">-</span>'}
             </td>
           </tr>
         `).join('');
       } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-rose-500 font-bold">خطا در بارگذاری لیست</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-rose-500 font-bold">خطا در بارگذاری</td></tr>';
       }
     }
 
     async function addNewStaff() {
       const full_name = document.getElementById('new-staff-name').value.trim();
-      const rawUser = document.getElementById('new-staff-user').value;
-      const rawPass = document.getElementById('new-staff-pass').value;
+      const username = toEnglishDigits(document.getElementById('new-staff-user').value);
+      const password = toEnglishDigits(document.getElementById('new-staff-pass').value);
       const role = document.getElementById('new-staff-role').value;
 
-      const username = toEnglishDigits(rawUser);
-      const password = toEnglishDigits(rawPass);
-
       if (!full_name || !username || !password) return alert('تمام فیلدها الزامی هستند.');
-
       try {
         const res = await fetch('/api/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'add-staff',
-            requesterRole: activeAdmin.role,
-            full_name, username, password, role
-          })
+          body: JSON.stringify({ action: 'add-staff', requesterRole: activeAdmin.role, full_name, username, password, role })
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          alert('مدیر جدید با موفقیت ایجاد شد.');
+          alert('مدیر جدید ایجاد شد.');
           document.getElementById('new-staff-name').value = '';
           document.getElementById('new-staff-user').value = '';
           document.getElementById('new-staff-pass').value = '';
@@ -378,34 +505,27 @@
           alert(data.error || 'خطا در ثبت مدیر');
         }
       } catch (e) {
-        alert('خطا در برقراری ارتباط با سرور.');
+        alert('خطا در ارتباط با سرور.');
       }
     }
 
     async function deleteStaff(staffId, name) {
       if (!confirm(`آیا از حذف دسترسی (${name}) اطمینان دارید؟`)) return;
-
       try {
         const res = await fetch('/api/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'delete-staff',
-            requesterRole: activeAdmin.role,
-            staffId
-          })
+          body: JSON.stringify({ action: 'delete-staff', requesterRole: activeAdmin.role, staffId })
         });
         const data = await res.json();
-        if (res.ok && data.success) {
-          loadStaffList();
-        } else {
-          alert(data.error || 'خطا در حذف کاربر');
-        }
+        if (res.ok && data.success) loadStaffList();
+        else alert(data.error || 'خطا در حذف کاربر');
       } catch (e) {
-        alert('خطا در ارتباط با سرور.');
+        alert('خطا در ارتباط.');
       }
     }
 
+    // مالی و کارت
     async function loadSettings() {
       try {
         const res = await fetch('/api/settings');
@@ -425,7 +545,6 @@
         card_bank: document.getElementById('set-card-bank').value.trim(),
         sub_price: toEnglishDigits(document.getElementById('set-sub-price').value)
       };
-
       try {
         const res = await fetch('/api/settings', {
           method: 'POST',
@@ -433,7 +552,7 @@
           body: JSON.stringify({ requesterRole: activeAdmin.role, settings })
         });
         const data = await res.json();
-        if (res.ok && data.success) alert('مشخصات کارت ذخیره شد.');
+        if (res.ok && data.success) alert('مشخصات کارت و اشتراک ذخیره شد.');
         else alert(data.error || 'خطا در ذخیره');
       } catch (e) {
         alert('خطا در ارتباط.');
@@ -443,21 +562,17 @@
     async function loadReceipts() {
       const tbody = document.getElementById('receipts-tbody');
       tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-slate-400">در حال بارگذاری...</td></tr>';
-
       try {
         const res = await fetch('/api/payment-receipt');
         const receipts = await res.json();
-
         if (!Array.isArray(receipts) || receipts.length === 0) {
           tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-slate-400">هیچ فیشی ثبت نشده است.</td></tr>';
           return;
         }
-
         tbody.innerHTML = receipts.map(r => {
           let badge = '<span class="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 font-bold text-[10px]">در انتظار بررسی</span>';
           if (r.status === 'approved') badge = '<span class="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 font-bold text-[10px]">تایید شده ✓</span>';
           if (r.status === 'rejected') badge = '<span class="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 font-bold text-[10px]">رد شده ✕</span>';
-
           return `
             <tr class="hover:bg-slate-50 transition">
               <td class="p-3 font-bold">${r.user_name || '-'}<br><span class="text-[10px] text-slate-400 font-mono">${r.user_phone}</span></td>
@@ -481,7 +596,6 @@
 
     async function updateReceiptStatus(paymentId, status) {
       if (!confirm(`آیا از ${status === 'approved' ? 'تایید' : 'رد'} این فیش اطمینان دارید؟`)) return;
-
       try {
         const res = await fetch('/api/payment-receipt', {
           method: 'POST',
@@ -493,6 +607,280 @@
         else alert(data.error || 'خطا در ثبت وضعیت');
       } catch (e) {
         alert('خطا در ارتباط.');
+      }
+    }
+
+    // قیمت‌گذاری پکیج‌ها و تک‌فایل‌ها (مدیر مالی)
+    async function loadPricingPackages() {
+      const container = document.getElementById('pricing-packages-list');
+      container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">در حال بارگذاری دوره‌ها...</p>';
+      try {
+        const res = await fetch('/api/content-manager');
+        const list = await res.json();
+        globalContentData = list;
+        if (!Array.isArray(list) || list.length === 0) {
+          container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">هنوز پکیجی توسط مدیر محتوا تعریف نشده است.</p>';
+          return;
+        }
+
+        container.innerHTML = list.map((pkg, pIdx) => `
+          <div class="p-4 border border-slate-200 rounded-2xl bg-slate-50/50 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div>
+                <span class="text-[11px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">${pkg.category}</span>
+                <h4 class="text-xs font-black text-slate-900 mt-1">${pkg.title}</h4>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="text-xs font-bold text-slate-600">قیمت کل پکیج (تومان):</label>
+                <input type="number" id="pkg-price-${pkg.id}" value="${pkg.price || 0}" class="border border-slate-200 p-1.5 rounded-lg text-xs font-mono w-28 text-center">
+              </div>
+            </div>
+            
+            <div class="space-y-2">
+              <p class="text-[11px] font-bold text-slate-500">قیمت تک‌فایل‌های این پکیج:</p>
+              ${pkg.tracks && pkg.tracks.length > 0 ? pkg.tracks.map(t => `
+                <div class="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-200">
+                  <span class="text-xs text-slate-700 font-medium">🎵 ${t.title}</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[11px] text-slate-400 font-mono">${t.duration || ''}</span>
+                    <input type="number" data-track-id="${t.id}" id="track-price-${t.id}" value="${t.price_single || 0}" class="border border-slate-200 p-1 rounded-lg text-xs font-mono w-24 text-center">
+                    <span class="text-[11px] text-slate-400">تومان</span>
+                  </div>
+                </div>
+              `).join('') : '<p class="text-[11px] text-slate-400">هنوز فایلی در این پکیج قرار نگرفته است.</p>'}
+            </div>
+
+            <button onclick="savePackagePricing(${pkg.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition">
+              ذخیره قیمت‌های این مجموعه
+            </button>
+          </div>
+        `).join('');
+      } catch (e) {
+        container.innerHTML = '<p class="text-xs text-rose-500 text-center py-4">خطا در بارگذاری دوره‌ها</p>';
+      }
+    }
+
+    async function savePackagePricing(packageId) {
+      const pkgPriceInput = document.getElementById(`pkg-price-${packageId}`);
+      const pkgPrice = toEnglishDigits(pkgPriceInput.value);
+
+      const pkg = globalContentData.find(p => p.id === packageId);
+      const trackPrices = [];
+      if (pkg && Array.isArray(pkg.tracks)) {
+        pkg.tracks.forEach(t => {
+          const tInput = document.getElementById(`track-price-${t.id}`);
+          if (tInput) {
+            trackPrices.push({ track_id: t.id, price: Number(toEnglishDigits(tInput.value)) });
+          }
+        });
+      }
+
+      try {
+        const res = await fetch('/api/content-manager', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update-pricing',
+            requesterRole: activeAdmin.role,
+            package_id: packageId,
+            package_price: Number(pkgPrice),
+            track_prices: trackPrices
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) alert('قیمت‌ها با موفقیت به‌روزرسانی شد.');
+        else alert(data.error || 'خطا در ثبت قیمت‌ها');
+      } catch (e) {
+        alert('خطا در ارتباط با سرور.');
+      }
+    }
+
+    // کدهای تخفیف (مدیر مالی)
+    async function loadDiscountCodes() {
+      const tbody = document.getElementById('discounts-tbody');
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400">در حال دریافت...</td></tr>';
+      try {
+        const res = await fetch('/api/content-manager?type=discounts');
+        const list = await res.json();
+        if (!Array.isArray(list) || list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-slate-400">هیچ کد تخفیفی ایجاد نشده است.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(d => `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 font-mono font-bold text-indigo-600">${d.code}</td>
+            <td class="p-3 font-mono font-bold">${d.percent}٪</td>
+            <td class="p-3 font-mono">${d.used_count || 0} از ${d.max_uses}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 font-bold text-[10px]">فعال</span></td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-rose-500 font-bold">خطا در بارگذاری تخفیف‌ها</td></tr>';
+      }
+    }
+
+    async function createDiscountCode() {
+      const code = document.getElementById('new-disc-code').value.trim();
+      const percent = toEnglishDigits(document.getElementById('new-disc-percent').value);
+      const max_uses = toEnglishDigits(document.getElementById('new-disc-max').value);
+
+      if (!code || !percent) return alert('کد تخفیف و درصد تخفیف الزامی است.');
+
+      try {
+        const res = await fetch('/api/content-manager', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create-discount',
+            requesterRole: activeAdmin.role,
+            code, percent, max_uses
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert('کد تخفیف با موفقیت ایجاد شد.');
+          document.getElementById('new-disc-code').value = '';
+          document.getElementById('new-disc-percent').value = '';
+          loadDiscountCodes();
+        } else {
+          alert(data.error || 'خطا در ثبت کد تخفیف');
+        }
+      } catch (e) {
+        alert('خطا در برقراری ارتباط.');
+      }
+    }
+
+    // مدیر محتوا: ثبت پکیج و فایل صوتی
+    async function loadContentHierarchy() {
+      const treeView = document.getElementById('content-tree-view');
+      const pkgSelect = document.getElementById('track-pkg-select');
+      treeView.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">در حال بارگذاری محتوا...</p>';
+
+      try {
+        const res = await fetch('/api/content-manager');
+        const packages = await res.json();
+        globalContentData = packages;
+
+        if (!Array.isArray(packages) || packages.length === 0) {
+          treeView.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">هیچ پکیج یا صوتی هنوز ثبت نشده است.</p>';
+          pkgSelect.innerHTML = '<option value="">ابتدا یک پکیج ثبت کنید...</option>';
+          return;
+        }
+
+        pkgSelect.innerHTML = packages.map(p => `<option value="${p.slug}">${p.title} (${p.category})</option>`).join('');
+
+        treeView.innerHTML = packages.map(p => `
+          <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50/60 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+              <div>
+                <span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-lg font-bold">${p.category}</span>
+                <h4 class="text-xs font-black text-slate-800 mt-1">${p.title} <span class="text-[10px] text-slate-400 font-mono">(${p.slug})</span></h4>
+              </div>
+              <span class="text-[11px] text-slate-500 font-mono">${(p.tracks || []).length} فایل صوتی</span>
+            </div>
+
+            <div class="space-y-2">
+              ${(p.tracks && p.tracks.length > 0) ? p.tracks.map(t => `
+                <div class="flex flex-wrap items-center justify-between gap-2 bg-white p-3 rounded-xl border border-slate-100">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm">🎧</span>
+                    <div>
+                      <p class="text-xs font-bold text-slate-800">${t.title}</p>
+                      <span class="text-[10px] text-slate-400 font-mono">${t.duration ? t.duration + ' • ' : ''}${t.audio_url}</span>
+                    </div>
+                  </div>
+                  <button onclick="deleteContentTrack(${t.id}, '${t.title}')" class="text-rose-500 hover:text-rose-700 text-xs font-bold">
+                    حذف صوت ✕
+                  </button>
+                </div>
+              `).join('') : '<p class="text-[11px] text-slate-400">هنوز فایلی در این پکیج ثبت نشده است.</p>'}
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        treeView.innerHTML = '<p class="text-xs text-rose-500 text-center py-4">خطا در دریافت لیست محتوا</p>';
+      }
+    }
+
+    async function saveContentPackage() {
+      const category = document.getElementById('pkg-category').value.trim();
+      const title = document.getElementById('pkg-title').value.trim();
+      const slug = toEnglishDigits(document.getElementById('pkg-slug').value).toLowerCase();
+      const description = document.getElementById('pkg-desc').value.trim();
+
+      if (!category || !title || !slug) return alert('دسته اصلی، عنوان و شناسه انگلیسی الزامی است.');
+
+      try {
+        const res = await fetch('/api/content-manager', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'save-package',
+            requesterRole: activeAdmin.role,
+            category, title, slug, description
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert('پکیج موضوعی با موفقیت ثبت شد.');
+          document.getElementById('pkg-title').value = '';
+          document.getElementById('pkg-slug').value = '';
+          document.getElementById('pkg-desc').value = '';
+          loadContentHierarchy();
+        } else {
+          alert(data.error || 'خطا در ذخیره پکیج');
+        }
+      } catch (e) {
+        alert('خطا در ارتباط با سرور.');
+      }
+    }
+
+    async function saveContentTrack() {
+      const package_slug = document.getElementById('track-pkg-select').value;
+      const title = document.getElementById('track-title').value.trim();
+      const audio_url = document.getElementById('track-url').value.trim();
+      const duration = toEnglishDigits(document.getElementById('track-duration').value);
+
+      if (!package_slug || !title || !audio_url) return alert('انتخاب پکیج، عنوان صوت و لینک فایل الزامی است.');
+
+      try {
+        const res = await fetch('/api/content-manager', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'save-track',
+            requesterRole: activeAdmin.role,
+            package_slug, title, audio_url, duration
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert('فایل صوتی به پکیج افزوده شد.');
+          document.getElementById('track-title').value = '';
+          document.getElementById('track-url').value = '';
+          document.getElementById('track-duration').value = '';
+          loadContentHierarchy();
+        } else {
+          alert(data.error || 'خطا در ثبت فایل صوتی');
+        }
+      } catch (e) {
+        alert('خطا در ارتباط با سرور.');
+      }
+    }
+
+    async function deleteContentTrack(trackId, title) {
+      if (!confirm(`آیا از حذف صوت "${title}" مطمئن هستید؟`)) return;
+      try {
+        const res = await fetch('/api/content-manager', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'delete-track', requesterRole: activeAdmin.role, track_id: trackId })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) loadContentHierarchy();
+        else alert(data.error || 'خطا در حذف فایل');
+      } catch (e) {
+        alert('خطا در برقراری ارتباط.');
       }
     }
 
