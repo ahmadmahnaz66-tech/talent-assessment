@@ -1483,4 +1483,3 @@ async function loadAnalyticsDashboard() {
   }
 }
 
-const res = await fetch('/api/admin-reports?type=analytics-dashboard');
