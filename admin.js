@@ -670,6 +670,7 @@ async function loadRoadmapHistory(studentId) {
   }
 }
 
+
 function viewHistoricalRoadmap(index) {
   const item = cachedHistory[index];
   const select = document.getElementById('student-select');
@@ -686,18 +687,31 @@ function viewHistoricalRoadmap(index) {
 
   let parsedPayload = null;
   try {
-    parsedPayload = JSON.parse(item.analysis);
+    let raw = item.analysis;
+    if (typeof raw === 'string') raw = JSON.parse(raw);
+    if (typeof raw === 'string') raw = JSON.parse(raw);
+    parsedPayload = raw;
   } catch (e) {
     parsedPayload = { text: item.analysis, gardner: [], topRequirements: [] };
   }
 
-  const rawMarkdown = parsedPayload.text || item.analysis || '';
-  document.getElementById('modal-content').innerHTML = parseMarkdownToHTML(rawMarkdown);
+  let reportText = parsedPayload?.text || (typeof parsedPayload === 'string' ? parsedPayload : '');
+  if (typeof reportText === 'string' && reportText.trim().startsWith('{')) {
+    try {
+      const inner = JSON.parse(reportText);
+      if (inner.text) reportText = inner.text;
+    } catch(err) {}
+  }
 
+  document.getElementById('modal-content').innerHTML = parseMarkdownToHTML(reportText);
   document.getElementById('roadmap-modal').classList.remove('hidden');
 
-  renderGardnerRadarChart(parsedPayload.gardner || []);
-  renderRequirementsBarChart(parsedPayload.topRequirements || []);
+  setTimeout(() => {
+    const gardnerList = parsedPayload?.gardner || [];
+    const reqList = parsedPayload?.topRequirements || [];
+    renderGardnerRadarChart(gardnerList);
+    renderRequirementsBarChart(reqList);
+  }, 50);
 }
 
 async function downloadDirectPDF() {
