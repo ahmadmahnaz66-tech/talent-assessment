@@ -1483,3 +1483,5 @@ async function loadAnalyticsDashboard() {
     console.error("خطا در بارگذاری داشبورد تحلیلی:", err);
   }
 }
+
+const res = await fetch('/api/admin-reports?type=analytics-dashboard');
