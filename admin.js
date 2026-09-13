@@ -194,11 +194,19 @@ async function submitChangePassword() {
   }
 }
 
+
 function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition';
   });
+
+  // اگر کاربر وارد تب ۴ (غربالگری گروهی) شد، داشبورد لود شود
+  if (tabId === 'group') {
+    loadAnalyticsDashboard();
+  }
+
+  // بقیه خطوط کدهای خودتان در ادامه switchTab که کلاس hidden را برمی‌دارند...
 
   const activeContent = document.getElementById(`tab-content-${tabId}`);
   const activeBtn = document.getElementById(`tab-btn-${tabId}`);
