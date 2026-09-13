@@ -50,7 +50,7 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { action, requesterRole } = body;
 
-    // ثبت یا ویرایش پکیج توسط مدیر محتوا
+    // ثبت یا ویرایش پکیج توسط مدیر محتوا (با مقداردهی پیش‌فرض 0 برای قیمت)
     if (action === 'save-package') {
       if (requesterRole !== 'super_admin' && requesterRole !== 'content_admin') {
         return new Response(JSON.stringify({ error: 'دسترسی غیرمجاز' }), { status: 403 });
@@ -58,13 +58,13 @@ export async function onRequestPost(context) {
 
       const { title, slug, category, description } = body;
       await env.DB.prepare(
-        "INSERT INTO content_packages (title, slug, category, description) VALUES (?, ?, ?, ?) ON CONFLICT(slug) DO UPDATE SET title = excluded.title, category = excluded.category, description = excluded.description"
+        "INSERT INTO content_packages (title, slug, category, description, price) VALUES (?, ?, ?, ?, 0) ON CONFLICT(slug) DO UPDATE SET title = excluded.title, category = excluded.category, description = excluded.description"
       ).bind(title.trim(), slug.trim(), category.trim(), description || '').run();
 
       return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ثبت ترک صوتی جدید توسط مدیر محتوا
+    // ثبت ترک صوتی جدید توسط مدیر محتوا (با مقداردهی پیش‌فرض 0 برای قیمت تک‌فایل)
     if (action === 'save-track') {
       if (requesterRole !== 'super_admin' && requesterRole !== 'content_admin') {
         return new Response(JSON.stringify({ error: 'دسترسی غیرمجاز' }), { status: 403 });
@@ -72,7 +72,7 @@ export async function onRequestPost(context) {
 
       const { package_slug, title, audio_url, duration } = body;
       await env.DB.prepare(
-        "INSERT INTO content_tracks (package_slug, title, audio_url, duration) VALUES (?, ?, ?, ?)"
+        "INSERT INTO content_tracks (package_slug, title, audio_url, duration, price_single) VALUES (?, ?, ?, ?, 0)"
       ).bind(package_slug.trim(), title.trim(), audio_url.trim(), duration || '').run();
 
       return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
