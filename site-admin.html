@@ -315,8 +315,8 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">لینک فایل صوتی (آدرس مستقیم یا R2):</label>
-            <input type="text" id="track-url" placeholder="https://pub-....r2.dev/audio1.mp3" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono text-left" dir="ltr">
+            <label class="block text-xs font-bold text-slate-700 mb-1">لینک فایل صوتی (آدرس مستقیم دامنه یا گیت‌هاب):</label>
+            <input type="text" id="track-url" placeholder="https://apadana.maharatkhanema.ir/audio1.mp3" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono text-left" dir="ltr">
           </div>
 
           <div>
@@ -750,7 +750,7 @@
       }
     }
 
-    // مدیر محتوا: ثبت پکیج و فایل صوتی
+    // مدیر محتوا: ثبت پکیج و فایل صوتی (نسخه هوشمند و ضدخطا)
     async function loadContentHierarchy() {
       const treeView = document.getElementById('content-tree-view');
       const pkgSelect = document.getElementById('track-pkg-select');
@@ -838,10 +838,31 @@
     async function saveContentTrack() {
       const package_slug = document.getElementById('track-pkg-select').value;
       const title = document.getElementById('track-title').value.trim();
-      const audio_url = document.getElementById('track-url').value.trim();
+      let audio_url = document.getElementById('track-url').value.trim();
       const duration = toEnglishDigits(document.getElementById('track-duration').value);
 
-      if (!package_slug || !title || !audio_url) return alert('انتخاب پکیج، عنوان صوت و لینک فایل الزامی است.');
+      if (!package_slug || !title || !audio_url) {
+        return alert('انتخاب پکیج، عنوان صوت و لینک فایل الزامی است.');
+      }
+
+      // ۱. اصلاح خودکار لینک‌های صفحه گیت‌هاب به لینک خام
+      if (audio_url.includes('github.com') && audio_url.includes('/blob/')) {
+        audio_url = audio_url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+      }
+
+      // ۲. اعتبارسنجی پسوند فایل صوتی
+      const validExtensions = ['.mp3', '.m4a', '.wav', '.ogg', '.aac'];
+      const hasValidExt = validExtensions.some(ext => audio_url.toLowerCase().split('?')[0].endsWith(ext));
+      if (!hasValidExt) {
+        return alert('خطا: آدرس وارد شده یک فایل صوتی معتبر نیست!\nآدرس باید به پسوندهایی نظیر .mp3 یا .m4a ختم شود.');
+      }
+
+      // ۳. بررسی ساختار آدرس
+      try {
+        new URL(audio_url);
+      } catch (e) {
+        return alert('خطا: فرمت آدرس اینترنتی (URL) نامعتبر است.');
+      }
 
       try {
         const res = await fetch('/api/content-manager', {
@@ -850,12 +871,15 @@
           body: JSON.stringify({
             action: 'save-track',
             requesterRole: activeAdmin.role,
-            package_slug, title, audio_url, duration
+            package_slug,
+            title,
+            audio_url,
+            duration
           })
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          alert('فایل صوتی به پکیج افزوده شد.');
+          alert('فایل صوتی با موفقیت تایید و به پکیج افزوده شد.');
           document.getElementById('track-title').value = '';
           document.getElementById('track-url').value = '';
           document.getElementById('track-duration').value = '';
