@@ -9,12 +9,15 @@
   <style>
     body { font-family: 'Vazirmatn FD', sans-serif; }
     .no-select { user-select: none; -webkit-user-select: none; }
+    input[type=range] {
+      accent-color: #4f46e5;
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased selection:bg-indigo-500 selection:text-white pb-24">
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-indigo-500 selection:text-white pb-36">
 
   <!-- نوار بالای سایت و حساب کاربر -->
-  <header class="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40">
+  <header class="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-indigo-100">
@@ -47,7 +50,7 @@
           کشف ریشه‌های پنهان رفتار؛ تربیت با تکیه بر استعداد واقعی
         </h2>
         <p class="text-slate-300 text-xs sm:text-sm leading-relaxed text-justify mb-8">
-          راهکارهای بالینی و کاربردی را در قالب بسته‌های صوتی آنلاین و متمرکز برای آرامش و توانمندسازی فرزندتان دریافت کنید. امکان تهیه تکی فایل‌ها، پکیج‌های موضوعی و یا اشتراک جامع ماهانه فراهم است.
+          راهکارهای بالینی و کاربردی را در قالب بسته‌های صوتی آنلاین و متمرکز برای آرامش و توانمندسازی فرزندتان دریافت کنید.
         </p>
 
         <div class="flex flex-wrap items-center gap-3">
@@ -62,7 +65,7 @@
     </div>
   </section>
 
-  <!-- بخش صوت‌ها و دوره‌ها (پویا از دیتابیس) -->
+  <!-- بخش دوره‌ها و صوت‌ها -->
   <section id="audio-section" class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
     <div class="flex items-center justify-between gap-2 mb-8 border-b border-slate-200 pb-4">
       <div>
@@ -70,18 +73,88 @@
           <span>🎧</span>
           <span>پادکست‌ها و راهنمای صوتی بالینی</span>
         </h3>
-        <p class="text-xs text-slate-500 mt-1">امکان پخش مستقیم آنلاین بدون نیاز به دانلود</p>
+        <p class="text-xs text-slate-500 mt-1">پخش زنده آنلاین همراه با کنترل کامل پیشرفت و سرعت پخش</p>
       </div>
       <button onclick="initPageData()" class="text-xs text-indigo-600 font-bold hover:underline">
         ⟳ بروزرسانی لیست
       </button>
     </div>
 
-    <!-- کانتینر پکیج‌های موضوعی و فایل‌ها -->
     <div id="packages-dynamic-container" class="space-y-8">
-      <div class="text-center py-12 text-slate-400 text-xs">در حال دریافت جدیدترین دوره‌ها و فایل‌های صوتی...</div>
+      <div class="text-center py-12 text-slate-400 text-xs">در حال بارگذاری دوره‌ها...</div>
     </div>
   </section>
+
+  <!-- پلیر سراسری شناور و پیشرفته در پایین صفحه -->
+  <div id="floating-audio-bar" class="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-2xl z-50 transition-all duration-300 translate-y-full">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-2">
+      
+      <!-- ردیف اول: میله پیشرفت و زمان -->
+      <div class="flex items-center gap-3 w-full">
+        <span id="player-current-time" class="text-[11px] font-mono text-slate-500 font-bold min-w-[36px]">00:00</span>
+        <div class="flex-1 relative flex items-center">
+          <input type="range" id="player-seek-bar" min="0" max="100" value="0" step="0.1" class="w-full h-1.5 bg-slate-200 rounded-lg cursor-pointer transition-all">
+        </div>
+        <span id="player-duration-time" class="text-[11px] font-mono text-slate-500 font-bold min-w-[36px]">00:00</span>
+      </div>
+
+      <!-- ردیف دوم: مشخصات فایل، کلیدهای کنترل و تنظیمات -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        
+        <!-- مشخصات صوت در حال پخش -->
+        <div class="flex items-center gap-2.5 min-w-[180px]">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+            🎵
+          </div>
+          <div>
+            <h4 id="player-track-title" class="text-xs font-black text-slate-900 truncate max-w-[200px] sm:max-w-[300px]">عنوان پادکست</h4>
+            <span id="player-status-badge" class="text-[10px] text-slate-400 font-medium">آماده پخش</span>
+          </div>
+        </div>
+
+        <!-- کلیدهای اصلی کنترل صوت -->
+        <div class="flex items-center gap-2 sm:gap-4 mx-auto">
+          <!-- عقب بردن ۱۰ ثانیه -->
+          <button onclick="skipTime(-10)" title="۱۰ ثانیه به عقب" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition">
+            ⏪۱۰
+          </button>
+
+          <!-- دکمه توقف / پخش -->
+          <button id="player-play-btn" onclick="togglePlayPause()" class="w-11 h-11 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center text-base shadow-lg shadow-indigo-200 transition transform hover:scale-105">
+            ▶
+          </button>
+
+          <!-- جلو بردن ۱۰ ثانیه -->
+          <button onclick="skipTime(10)" title="۱۰ ثانیه به جلو" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition">
+            ۱۰⏩
+          </button>
+        </div>
+
+        <!-- سرعت پخش و ولوم صدا -->
+        <div class="flex items-center gap-3">
+          <!-- دکمه سرعت پخش -->
+          <button id="player-speed-btn" onclick="changePlaybackSpeed()" class="text-xs font-mono font-black bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl border border-indigo-100 transition" title="تغییر سرعت پخش">
+            1.0x
+          </button>
+
+          <!-- کنترل صدا -->
+          <div class="hidden sm:flex items-center gap-1.5">
+            <button id="player-mute-btn" onclick="toggleMute()" class="text-slate-500 hover:text-slate-800 text-sm">
+              🔊
+            </button>
+            <input type="range" id="player-volume-bar" min="0" max="1" step="0.05" value="1" class="w-16 h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+          </div>
+
+          <!-- بستن پلیر -->
+          <button onclick="closeFloatingPlayer()" title="بستن پلیر" class="text-slate-400 hover:text-slate-600 text-sm p-1">
+            ✕
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
 
   <!-- مودال ورود و ثبت‌نام -->
   <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
@@ -97,7 +170,6 @@
         </button>
       </div>
 
-      <!-- فرم ورود -->
       <div id="form-login" class="space-y-3">
         <div>
           <label class="text-xs font-bold text-slate-700 block mb-1">کد ملی دانش‌آموز یا شماره موبایل:</label>
@@ -112,7 +184,6 @@
         </button>
       </div>
 
-      <!-- فرم ثبت‌نام -->
       <div id="form-register" class="space-y-3 hidden">
         <div>
           <label class="text-xs font-bold text-slate-700 block mb-1">نام و نام خانوادگی:</label>
@@ -133,7 +204,7 @@
     </div>
   </div>
 
-  <!-- مودال واریز کارت‌به‌کارت و پرداخت آفلاین -->
+  <!-- مودال واریز کارت‌به‌کارت -->
   <div id="payment-modal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 relative space-y-4">
       <button onclick="closePaymentModal()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
@@ -144,7 +215,6 @@
         <p id="pay-item-title" class="text-xs text-indigo-600 font-bold mt-0.5">-</p>
       </div>
 
-      <!-- مشخصات کارت مبدأ سایت -->
       <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 text-xs">
         <div class="flex justify-between items-center">
           <span class="text-slate-500 font-bold">شماره کارت مقصد:</span>
@@ -163,7 +233,6 @@
         </div>
       </div>
 
-      <!-- کادر کد تخفیف -->
       <div class="bg-indigo-50/50 p-3 rounded-2xl border border-indigo-100 space-y-2">
         <div class="flex items-center gap-2">
           <input type="text" id="disc-code-input" placeholder="کد تخفیف (مثلاً اولیای مدرسه)" class="flex-1 bg-white border border-slate-200 p-2 rounded-xl text-xs font-mono uppercase outline-none focus:border-indigo-600">
@@ -174,13 +243,11 @@
         <p id="disc-feedback" class="text-[11px] font-bold hidden"></p>
       </div>
 
-      <!-- محاسبه مبلغ نهایی -->
       <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-100 border border-slate-200">
         <span class="text-xs font-bold text-slate-600">مبلغ قابل واریز:</span>
         <span class="text-sm font-black text-emerald-700 font-mono"><strong id="pay-final-amount">0</strong> تومان</span>
       </div>
 
-      <!-- فرم ورود اطلاعات فیش -->
       <div class="space-y-3">
         <div>
           <label class="block text-[11px] font-bold text-slate-700 mb-1">۴ رقم آخر شماره کارت واریزکننده:</label>
@@ -256,9 +323,8 @@
             </div>
           </div>
 
-          <!-- لیست تک فایل‌های درون این پکیج -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            ${(pkg.tracks && pkg.tracks.length > 0) ? pkg.tracks.map((t, idx) => `
+            ${(pkg.tracks && pkg.tracks.length > 0) ? pkg.tracks.map((t) => `
               <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between">
                 <div class="flex items-start justify-between gap-2 mb-3">
                   <h5 class="text-xs font-bold text-slate-800 leading-snug">🎵 ${t.title}</h5>
@@ -277,8 +343,8 @@
                       </button>
                     ` : ''}
                     
-                    <button onclick="playTrackDirect('${t.audio_url}', this)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 transition">
-                      <span>▶ پخش</span>
+                    <button onclick="loadAndPlayAudio('${t.audio_url}', '${t.title}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1 transition shadow-sm">
+                      <span>▶ پخش آنلاین</span>
                     </button>
                   </div>
                 </div>
@@ -289,57 +355,139 @@
       `).join('');
     }
 
-    // پخش صوتی آنلاین (نسخه اصلاح‌شده و ضدخطا)
-    let activeAudioObj = null;
-    let activePlayBtn = null;
+    // ==========================================
+    // هسته پلیر صوتی پیشرفته و شناور
+    // ==========================================
+    const audioCore = new Audio();
+    const floatingBar = document.getElementById('floating-audio-bar');
+    const playBtn = document.getElementById('player-play-btn');
+    const trackTitleEl = document.getElementById('player-track-title');
+    const statusBadgeEl = document.getElementById('player-status-badge');
+    const curTimeEl = document.getElementById('player-current-time');
+    const durTimeEl = document.getElementById('player-duration-time');
+    const seekBar = document.getElementById('player-seek-bar');
+    const speedBtn = document.getElementById('player-speed-btn');
+    const volumeBar = document.getElementById('player-volume-bar');
+    const muteBtn = document.getElementById('player-mute-btn');
 
-    function playTrackDirect(url, btn) {
-      if (!url) return alert('آدرس فایل صوتی نامعتبر است.');
+    const speeds = [1.0, 1.25, 1.5, 2.0];
+    let currentSpeedIdx = 0;
+    let isSeeking = false;
 
-      let cleanUrl = url.trim();
-      // تبدیل خودکار لینک صفحه گیت‌هاب به سورس مستقیم و خام
+    function formatTime(seconds) {
+      if (isNaN(seconds) || seconds < 0) return '00:00';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function loadAndPlayAudio(rawUrl, title) {
+      if (!rawUrl) return alert('آدرس فایل صوتی یافت نشد.');
+
+      let cleanUrl = rawUrl.trim();
       if (cleanUrl.includes('github.com') && cleanUrl.includes('/blob/')) {
         cleanUrl = cleanUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
       }
 
-      if (activeAudioObj) {
-        activeAudioObj.pause();
-        if (activePlayBtn) activePlayBtn.innerHTML = '<span>▶ پخش</span>';
-        if (activeAudioObj.src === cleanUrl && !activeAudioObj.paused) {
-          activeAudioObj = null;
-          return;
-        }
-      }
+      floatingBar.classList.remove('translate-y-full');
+      trackTitleEl.innerText = title || 'پادکست اختصاصی';
+      statusBadgeEl.innerText = 'در حال بارگذاری...';
+      playBtn.innerText = '⏳';
 
-      const audio = new Audio();
-      audio.preload = 'auto';
-      audio.crossOrigin = 'anonymous';
-      audio.src = cleanUrl;
-
-      activeAudioObj = audio;
-      activePlayBtn = btn;
-      btn.innerHTML = '<span>⏳ بارگذاری...</span>';
-
-      audio.play().then(() => {
-        btn.innerHTML = '<span>⏸ توقف</span>';
+      audioCore.src = cleanUrl;
+      audioCore.playbackRate = speeds[currentSpeedIdx];
+      audioCore.play().then(() => {
+        playBtn.innerText = '⏸';
+        statusBadgeEl.innerText = 'در حال پخش';
       }).catch(err => {
-        console.error('Audio Play Error:', err);
-        btn.innerHTML = '<span>▶ پخش</span>';
-        alert('امکان پخش این فایل صوتی وجود ندارد. لطفاً از اتصال مستقیم به فایل مطمئن شوید.');
+        console.error('Audio play error:', err);
+        playBtn.innerText = '▶';
+        statusBadgeEl.innerText = 'خطا در بارگذاری منبع';
+        alert('امکان پخش این فایل صوتی وجود ندارد.');
       });
-
-      audio.onended = () => {
-        btn.innerHTML = '<span>▶ پخش</span>';
-        activeAudioObj = null;
-      };
-
-      audio.onerror = (e) => {
-        console.error('Media Source Error:', audio.error);
-        btn.innerHTML = '<span>▶ پخش</span>';
-        alert('خطا در دریافت منبع فایل صوتی (کد خطای رسانه).');
-      };
     }
 
+    function togglePlayPause() {
+      if (!audioCore.src) return;
+      if (audioCore.paused) {
+        audioCore.play();
+        playBtn.innerText = '⏸';
+        statusBadgeEl.innerText = 'در حال پخش';
+      } else {
+        audioCore.pause();
+        playBtn.innerText = '▶';
+        statusBadgeEl.innerText = 'متوقف شد';
+      }
+    }
+
+    function skipTime(seconds) {
+      if (!audioCore.src) return;
+      audioCore.currentTime = Math.max(0, Math.min(audioCore.duration || 0, audioCore.currentTime + seconds));
+    }
+
+    function changePlaybackSpeed() {
+      currentSpeedIdx = (currentSpeedIdx + 1) % speeds.length;
+      const speed = speeds[currentSpeedIdx];
+      audioCore.playbackRate = speed;
+      speedBtn.innerText = `${speed.toFixed(speed === 1 || speed === 2 ? 1 : 2)}x`;
+    }
+
+    function toggleMute() {
+      audioCore.muted = !audioCore.muted;
+      muteBtn.innerText = audioCore.muted ? '🔇' : (audioCore.volume > 0.5 ? '🔊' : '🔉');
+    }
+
+    function closeFloatingPlayer() {
+      audioCore.pause();
+      floatingBar.classList.add('translate-y-full');
+    }
+
+    // رویدادهای هسته صوتی
+    audioCore.ontimeupdate = () => {
+      if (!isSeeking && audioCore.duration) {
+        const progress = (audioCore.currentTime / audioCore.duration) * 100;
+        seekBar.value = progress;
+        curTimeEl.innerText = formatTime(audioCore.currentTime);
+      }
+    };
+
+    audioCore.onloadedmetadata = () => {
+      durTimeEl.innerText = formatTime(audioCore.duration);
+    };
+
+    audioCore.onended = () => {
+      playBtn.innerText = '▶';
+      seekBar.value = 0;
+      curTimeEl.innerText = '00:00';
+      statusBadgeEl.innerText = 'به پایان رسید';
+    };
+
+    // اسلایدر پیشرفت
+    seekBar.oninput = () => {
+      isSeeking = true;
+      if (audioCore.duration) {
+        const targetTime = (seekBar.value / 100) * audioCore.duration;
+        curTimeEl.innerText = formatTime(targetTime);
+      }
+    };
+
+    seekBar.onchange = () => {
+      if (audioCore.duration) {
+        audioCore.currentTime = (seekBar.value / 100) * audioCore.duration;
+      }
+      isSeeking = false;
+    };
+
+    // اسلایدر ولوم صدا
+    volumeBar.oninput = () => {
+      audioCore.volume = volumeBar.value;
+      audioCore.muted = false;
+      muteBtn.innerText = audioCore.volume == 0 ? '🔇' : (audioCore.volume > 0.5 ? '🔊' : '🔉');
+    };
+
+    // ==========================================
+    // توابع پرداخت و مودال
+    // ==========================================
     function initiatePayment(type, id, title, defaultAmount = 0) {
       if (!activeUser) {
         alert('لطفاً ابتدا وارد حساب کاربری خود شوید.');
@@ -447,6 +595,9 @@
       }
     }
 
+    // ==========================================
+    // توابع احراز هویت
+    // ==========================================
     function openAuthModal() {
       document.getElementById('auth-modal').classList.remove('hidden');
     }
