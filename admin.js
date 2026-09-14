@@ -333,19 +333,37 @@ async function saveSingleStudent() {
   const id = document.getElementById('std-id').value.trim();
   const first_name = document.getElementById('std-first-name').value.trim();
   const last_name = document.getElementById('std-last-name').value.trim();
-  const grade = document.getElementById('std-grade').value.trim();
-  const classroom = document.getElementById('std-class').value.trim();
+  const grade = document.getElementById('std-grade').value;
+  const classNum = document.getElementById('std-class').value;
   const father_phone = document.getElementById('std-father-phone').value.trim();
   const mother_phone = document.getElementById('std-mother-phone').value.trim();
 
-  if (!id || !first_name || !last_name || !grade) {
-    return alert('کد ملی، نام، نام خانوادگی و پایه الزامی هستند.');
+  if (!id || !first_name || !last_name) {
+    return alert('کد ملی، نام و نام خانوادگی الزامی هستند.');
   }
+  if (!grade) {
+    return alert('لطفاً پایه تحصیلی را انتخاب فرمایید.');
+  }
+  if (!classNum) {
+    return alert('لطفاً شماره کلاس را انتخاب فرمایید.');
+  }
+
+  // ثبت استاندارد نام کلاس به فرمت: «چهارمِ ۲»
+  const formattedClassroom = `${grade}ِ ${classNum}`;
 
   const res = await fetch('/api/students', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'save-single', id, first_name, last_name, grade, classroom, father_phone, mother_phone })
+    body: JSON.stringify({
+      action: 'save-single',
+      id,
+      first_name,
+      last_name,
+      grade,
+      classroom: formattedClassroom,
+      father_phone,
+      mother_phone
+    })
   });
 
   if (res.ok) {
@@ -373,7 +391,7 @@ function downloadSampleFile(type) {
         'نام': 'علی',
         'نام خانوادگی': 'رضایی',
         'پایه': 'چهارم',
-        'کلاس': '۴/۱',
+        'کلاس': '۲',
         'شماره تماس پدر': '09123456789',
         'شماره تماس مادر': '09129876543'
       }
@@ -385,7 +403,7 @@ function downloadSampleFile(type) {
     XLSX.writeFile(wb, 'نمونه_دانش_آموزان.xlsx');
   } else {
     const headers = ['کد ملی', 'نام', 'نام خانوادگی', 'پایه', 'کلاس', 'شماره تماس پدر', 'شماره تماس مادر'];
-    const row = ['101', 'علی', 'رضایی', 'چهارم', '۴/۱', '09123456789', '09129876543'];
+    const row = ['101', 'علی', 'رضایی', 'چهارم', '۲', '09123456789', '09129876543'];
     const csvContent = '\uFEFF' + headers.join(',') + '\r\n' + row.join(',') + '\r\n';
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -444,19 +462,63 @@ function handleBatchImport() {
 }
 
 async function sendBatchToServer(rows, fileInput) {
-  const normalizedRows = rows.map(r => {
+  const GRADE_MAP = {
+    '1': 'اول', '2': 'دوم', '3': 'سوم', '4': 'چهارم', '5': 'پنجم', '6': 'ششم',
+    '7': 'هفتم', '8': 'هشتم', '9': 'نهم', '10': 'دهم', '11': 'یازدهم', '12': 'دوازدهم',
+    '۱': 'اول', '۲': 'دوم', '۳': 'سوم', '۴': 'چهارم', '۵': 'پنجم', '۶': 'ششم',
+    '۷': 'هفتم', '۸': 'هشتم', '۹': 'نهم', '۱۰': 'دهم', '۱۱': 'یازدهم', '۱۲': 'دوازدهم'
+  };
+  const VALID_GRADES = ['اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم', 'هشتم', 'نهم', 'دهم', 'یازدهم', 'دوازدهم'];
+  const FA_DIGITS = { '1': '۱', '2': '۲', '3': '۳', '4': '۴', '5': '۵' };
+
+  const invalidRows = [];
+  const normalizedRows = rows.map((r, index) => {
+    // ۱. استانداردسازی پایه
+    let rawGrade = String(r['پایه'] || r.grade || '').trim();
+    let grade = GRADE_MAP[rawGrade] || rawGrade;
+
+    // ۲. استخراج شماره کلاس از ورودی (۲، ۴/۲، یا چهارمِ ۲)
+    let rawClass = String(r['کلاس'] || r.classroom || '').trim();
+    let classPart = rawClass;
+    if (classPart.includes('/')) {
+      classPart = classPart.split('/')[1].trim();
+    } else if (classPart.includes('ِ')) {
+      classPart = classPart.split('ِ')[1].trim();
+    } else if (classPart.includes(' ')) {
+      classPart = classPart.split(' ').pop().trim();
+    }
+
+    const digitMatch = classPart.match(/[1-5۱-۵]/);
+    let classNum = digitMatch ? (FA_DIGITS[digitMatch[0]] || digitMatch[0]) : '';
+    let classroom = (grade && classNum) ? `${grade}ِ ${classNum}` : rawClass;
+
+    if (!VALID_GRADES.includes(grade) || !classNum) {
+      invalidRows.push(`ردیف ${index + 1}: پایه (${rawGrade}) یا کلاس (${rawClass}) نامعتبر است.`);
+    }
+
     let fPhone = String(r['شماره تماس پدر'] || r.father_phone || '').trim();
     let mPhone = String(r['شماره تماس مادر'] || r.mother_phone || '').trim();
-    
     if (fPhone.length === 10 && fPhone.startsWith('9')) fPhone = '0' + fPhone;
     if (mPhone.length === 10 && mPhone.startsWith('9')) mPhone = '0' + mPhone;
 
     return {
       ...r,
+      'پایه': grade,
+      'کلاس': classroom,
+      grade: grade,
+      classroom: classroom,
       'شماره تماس پدر': fPhone,
       'شماره تماس مادر': mPhone
     };
   });
+
+  if (invalidRows.length > 0) {
+    const preview = invalidRows.slice(0, 4).join('\n');
+    const extra = invalidRows.length > 4 ? `\n... و ${invalidRows.length - 4} ردیف دیگر` : '';
+    if (!confirm(`خطا در اعتبارسنجی مقادیر اکسل:\n${preview}${extra}\n\nپایه باید «اول تا دوازدهم» و کلاس باید «۱ تا ۵» باشد. آیا مایلید ردیف‌های صحیح ثبت شوند؟`)) {
+      return;
+    }
+  }
 
   try {
     const res = await fetch('/api/students', {
@@ -1294,7 +1356,13 @@ function editStudentInfo(studentId) {
   document.getElementById('std-first-name').value = student.first_name || (student.student_name ? student.student_name.split(' ')[0] : '');
   document.getElementById('std-last-name').value = student.last_name || (student.student_name ? student.student_name.split(' ').slice(1).join(' ') : '');
   document.getElementById('std-grade').value = student.grade || '';
-  document.getElementById('std-class').value = student.classroom || '';
+
+  let cls = student.classroom || '';
+  if (cls.includes('ِ ')) {
+    cls = cls.split('ِ ')[1];
+  }
+  document.getElementById('std-class').value = cls;
+
   document.getElementById('std-father-phone').value = student.father_phone || student.parent_phone || '';
   document.getElementById('std-mother-phone').value = student.mother_phone || '';
 
