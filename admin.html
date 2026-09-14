@@ -474,6 +474,31 @@
 
     <!-- تب ۵: مدیریت مهارت‌ها و سوالات -->
     <section id="tab-content-manage" class="tab-content hidden space-y-5">
+      
+      <!-- نوار ابزار پشتیبان‌گیری و بارگذاری اکسل برای مهارت‌ها و سوالات -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📊</span>
+          <div>
+            <h4 class="text-xs font-black text-slate-800">عملیات گروهی با اکسل</h4>
+            <p class="text-[10px] text-slate-400">دریافت فایل پشتیبان کامل یا بارگذاری یکباره مهارت‌ها و گویه‌ها</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- دکمه استخراج اکسل -->
+          <button onclick="exportSkillsAndQuestionsToExcel()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm">
+            <span>📥 دانلود اکسل تمام سوالات</span>
+          </button>
+
+          <!-- دکمه و ورودی بارگذاری از اکسل -->
+          <label class="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm cursor-pointer">
+            <span>📤 بارگذاری از اکسل</span>
+            <input type="file" id="excel-import-questions-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="importSkillsAndQuestionsFromExcel(event)">
+          </label>
+        </div>
+      </div>
+
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <h2 class="font-bold text-slate-800 text-sm mb-3">تعریف مهارت جدید</h2>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
