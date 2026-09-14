@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>فرم جامع پایش استعداد و علایق - دبستان آپادانا</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- کتابخانه ساخت تصویر برای اشتراک‌گذاری کارت استعداد -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet">
   <style>
     body { font-family: 'Vazirmatn FD', sans-serif; }
@@ -53,13 +55,13 @@
       <div class="flex items-center gap-2">
         <button onclick="finishSurveyPrematurely()" class="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition shadow-sm flex items-center gap-1">
           <span>✓</span>
-          <span>ثبت نهایی و اتمام آزمون</span>
+          <span>ثبت نهایی و دریافت نتیجه</span>
         </button>
         <button onclick="handleLogout()" class="text-[11px] font-bold text-red-500 bg-red-50 hover:bg-red-100 px-2.5 py-2 rounded-xl transition">خروج</button>
       </div>
     </div>
 
-    <!-- کادر راهنمای کنترل خطای هاله‌ای (مهم و برجسته) -->
+    <!-- کادر راهنمای کنترل خطای هاله‌ای -->
     <div class="bg-amber-50/90 border-r-4 border-amber-500 p-4 sm:p-5 rounded-2xl shadow-sm space-y-2 border border-amber-200">
       <div class="flex items-center gap-2 text-amber-900 font-black text-xs sm:text-sm">
         <span class="text-base">💡</span>
@@ -113,16 +115,95 @@
     </div>
   </div>
 
-  <!-- ۳. پیام پایان ارزیابی -->
-  <div id="completed-box" class="max-w-md w-full mx-auto my-auto bg-white p-8 rounded-3xl shadow-sm border border-slate-200 text-center space-y-4 hidden">
-    <div class="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">✓</div>
-    <h2 class="text-lg font-black text-slate-800">ارزیابی با موفقیت ثبت شد</h2>
-    <p class="text-xs text-slate-500 leading-relaxed">
-      پاسخ‌های شما در سامانه ذخیره گردید. کارنامه بالینی و نقشه رشد بر اساس مدل هالند و گاردنر پس از ارزیابی نهایی در پنل مدرسه صادر خواهد شد.
-    </p>
-    <button onclick="location.reload()" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-4 py-2 rounded-xl text-xs font-bold transition">
-      بازگشت به صفحه اول
-    </button>
+  <!-- ۳. کارنامه پاداش هوشمند و نشان‌های سه‌گانه (پیام پایان ارزیابی) -->
+  <div id="completed-box" class="max-w-2xl w-full mx-auto my-auto space-y-6 hidden">
+    
+    <!-- کارت قابل ذخیره و اشتراک‌گذاری دیجیتال -->
+    <div id="shareable-talent-card" class="bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-indigo-800/60 relative overflow-hidden space-y-6">
+      
+      <!-- افکت نوری پس‌زمینه -->
+      <div class="absolute -top-20 -left-20 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-20 -right-20 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="flex items-center justify-between border-b border-indigo-800/60 pb-4 relative z-10">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center text-2xl border border-white/20">
+            🌟
+          </div>
+          <div>
+            <h2 class="text-base font-black text-white">کارت رسمی قله‌های استعداد دانش‌آموز</h2>
+            <p class="text-[11px] text-indigo-200">دبستان تخصصی مهارت‌محور آپادانا</p>
+          </div>
+        </div>
+        <div class="text-left font-mono">
+          <span class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            تکمیل مرحله A
+          </span>
+        </div>
+      </div>
+
+      <!-- معرفی دانش‌آموز -->
+      <div class="text-center space-y-1 relative z-10">
+        <span class="text-xs text-indigo-300">نشان افتخار کشف استعداد برای:</span>
+        <h3 id="result-student-name" class="text-xl sm:text-2xl font-black text-amber-300 tracking-wide"></h3>
+      </div>
+
+      <!-- نشان‌های ۳ قله برتر -->
+      <div class="space-y-2 relative z-10">
+        <div class="flex items-center justify-between text-xs font-bold text-indigo-200 px-1">
+          <span>🏆 ۳ قله برجسته و متمایز فرزند شما:</span>
+          <span class="text-[10px] text-slate-400">بر مبنای مشاهدات دقیق خانواده</span>
+        </div>
+        <div id="top-skills-container" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <!-- با جاوااسکریپت پر می‌شود -->
+        </div>
+      </div>
+
+      <!-- پیام هوش مصنوعی با نام کودک -->
+      <div class="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-white/15 space-y-2 relative z-10">
+        <div class="flex items-center gap-2 text-indigo-200 text-xs font-bold">
+          <span>✨</span>
+          <span>تحلیل روان‌شناختی اولیه هوش مصنوعی:</span>
+        </div>
+        <p id="ai-quick-summary" class="text-xs sm:text-sm text-slate-100 leading-relaxed text-justify"></p>
+      </div>
+
+      <!-- مأموریت خانوادگی ۲۴ ساعته -->
+      <div class="bg-amber-400/10 border border-amber-400/30 rounded-2xl p-4 space-y-2 relative z-10">
+        <div class="flex items-center gap-2 text-amber-300 text-xs font-black">
+          <span>🎯</span>
+          <span>مأموریت خانوادگی ۲۴ ساعته (Micro-Challenge):</span>
+        </div>
+        <p id="family-challenge-text" class="text-xs text-amber-100 leading-relaxed text-justify"></p>
+      </div>
+
+      <!-- دعوت‌نامه ورود به دوره مجاورت‌سازی ۲ هفته‌ای -->
+      <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative z-10">
+        <div>
+          <h4 class="text-xs font-black text-emerald-300 flex items-center gap-1.5">
+            <span>🚀</span>
+            <span>گام بعدی: ورود به کارگاه‌های مجاورت‌سازی ۲ هفته‌ای مدرسه</span>
+          </h4>
+          <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">
+            این غربالگری نقطه پایانی نیست؛ فرزند شما بر اساس این نتایج به کارگاه‌های تجربی ۲ هفته‌ای دعوت می‌شود تا مربیان در عمل سرعت یادگیری و درخشش او در نقطه A1 را تثبیت کنند.
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- دکمه‌های عملیاتی زیر کارت -->
+    <div class="flex flex-wrap items-center justify-center gap-3">
+      <button onclick="downloadTalentBadge()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-3 rounded-2xl transition shadow-lg shadow-emerald-600/20 flex items-center gap-2">
+        <span>📸</span>
+        <span>ذخیره کارت افتخار استعداد (تصویر)</span>
+      </button>
+
+      <button onclick="location.reload()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold px-5 py-3 rounded-2xl transition shadow-sm">
+        بازگشت به صفحه اول
+      </button>
+    </div>
+
   </div>
 
   <footer class="text-center py-4 text-slate-400 text-xs mt-6">
@@ -136,6 +217,29 @@
     let currentSkillIndex = 0;
     let currentQuestions = [];
     let currentAnswers = [];
+
+    // نشان‌ها، القاب انگیزشی و چالش‌های خانوادگی متناظر با مهارت‌ها
+    const SKILL_METADATA = {
+      ai: { badge: 'نشان معمار آینده و هوش مصنوعی', icon: '🤖', challenge: 'امشب از او بخواهید یک معما یا سوال جالب طراحی کند و پاسخ‌های دو دستیار هوشمند یا موتور جستجو را با هم مقایسه و داوری کند.' },
+      coding: { badge: 'نشان مهندس الگوریتم و کدنویسی', icon: '💻', challenge: 'از او بخواهید مراحل آماده‌سازی صبحانه یا مسیر چیدن میز را مثل دستورات مرحله‌به‌مرحله کامپیوتر به شما دیکته کند!' },
+      chess: { badge: 'نشان استراتژیست ارشد و تصمیم‌گیری', icon: '♟️', challenge: 'یک بازی فکری خانوادگی ترتیب دهید و پیش از هر حرکت، از او بخواهید ۲ حرکت بعدی شما را حدس بزند.' },
+      robotics: { badge: 'نشان مخترع و طراح مکاترونیک', icon: '⚙️', challenge: 'با قطعات دورریز، کارتن یا گیره لباس یک بازوی متحرک ساده بسازید تا نحوه انتقال نیرو را به شما نشان دهد.' },
+      carpentry: { badge: 'نشان استادکار خلاق و سازنده دستی', icon: '🔨', challenge: 'با تکه‌های چوب، کارتن یا خمیر، سازه‌ای سه‌بعدی بسازید و استحکام و ایستایی آن را با هم تست کنید.' },
+      drawing: { badge: 'نشان هنرمند و طراح دیداری', icon: '🎨', challenge: 'از او بخواهید رویداد خنده‌دار امروز خانه را در قالب یک کمیک یا نقاشی پر از جزئیات رسم کند.' },
+      calligraphy: { badge: 'نشان خوش‌نویس و دارنده قلم زرین', icon: '✒️', challenge: 'از او بخواهید جمله‌ای کوتاه و پرانرژی را با خطی بسیار تمیز و متقارن برای نصب روی یخچال بنویسد.' },
+      theater: { badge: 'نشان بازیگر پرشور و زبان بدن', icon: '🎭', challenge: 'امشب پانتومیم خانوادگی بازی کنید و نقش‌آفرینی و تغییر لحن کاراکترها را به او بسپارید.' },
+      music: { badge: 'نشان ریتم‌شناس و ادراک آوایی', icon: '🎵', challenge: 'یک قطعه موسیقی پخش کنید و با ضربات قاشق روی لیوان، از او بخواهید ریتم پنهان اثر را کشف و همراهی کند.' },
+      comedy: { badge: 'نشان طنزپرداز و شوخ‌طبعی هوشمندانه', icon: '😄', challenge: 'یک مسابقه خانوادگی لبخند برگزار کنید و به او ۵ دقیقه وقت بدهید تا با زاویه‌دیدی جدید شما را بخنداند.' },
+      public_speaking: { badge: 'نشان سخنور توانا و سفیر کلام', icon: '🎙️', challenge: '۳ دقیقه به عنوان مجری در مورد فیلم یا موضوع دلخواهش برای جمع خانواده صحبت و نظرخواهی کند.' },
+      gardening: { badge: 'نشان طبیعت‌پژوه و کاشف زیست', icon: '🌱', challenge: 'بررسی سلامت گلدان‌ها را به او بسپارید تا رطوبت خاک و جوانه‌های جدید را گزارش دهد.' },
+      climbing: { badge: 'نشان چابک‌سوار و فاتح دیواره‌ها', icon: '🧗', challenge: 'مسیر عبور مارپیچ با موانع ساده در خانه بسازید تا تعادل و قدرت دست‌ها را به نمایش بگذارد.' },
+      swimming: { badge: 'نشان شناگر تیزپا و آرامش آبی', icon: '🏊', challenge: 'تکنیک حبس نفس و هماهنگی تنفس شکمی را در فضایی شاد با او تمرین کنید.' },
+      football: { badge: 'نشان کاپیتان بازیساز و رهبر تیم', icon: '⚽', challenge: 'چالش دریبل ریتمیک میان چند مانع خانگی با پای راست و چپ بدون برخورد به موانع.' },
+      basketball: { badge: 'نشان نشانه‌گیر دقیق و هماهنگی پرتاب', icon: '🏀', challenge: 'مسابقه پرتاب توپ‌های کوچک اسفنجی به داخل سبد با تغییر متوالی فواصل پرتاب.' },
+      volleyball: { badge: 'نشان مدافع هوایی و چابکی پروازی', icon: '🏐', challenge: 'یک بادکنک را با پنجه و ساعد برای حداقل ۳۰ ثانیه بدون برخورد به زمین در هوا نگه دارد.' },
+      badminton: { badge: 'نشان راکت‌باز تیزچشم و برق‌آسا', icon: '🏸', challenge: 'تمرین تمرکز دیداری با ضربات ملایم و کنترل‌شده به یک شیء معلق سبک.' },
+      tennis: { badge: 'نشان تنیسور جهشی و محاسب مسیر', icon: '🎾', challenge: 'حدس نقطه جهش توپی که از دیوار برمی‌گردد و مهار آن در سریع‌ترین زمان ممکن.' }
+    };
 
     function toEnglishDigits(str) {
       return String(str || '')
@@ -288,8 +392,7 @@
         currentSkillIndex++;
         loadCurrentSkillQuestions();
       } else {
-        document.getElementById('survey-box').classList.add('hidden');
-        document.getElementById('completed-box').classList.remove('hidden');
+        renderSmartCompletionCard();
       }
     }
 
@@ -308,15 +411,97 @@
     }
 
     async function finishSurveyPrematurely() {
-      if (!confirm('آیا از ثبت نهایی پاسخ‌ها و اتمام ارزیابی اطمینان دارید؟')) return;
+      if (!confirm('آیا از ثبت نهایی پاسخ‌ها و مشاهده کارنامه پاداش اطمینان دارید؟')) return;
       await saveCurrentSkillAnswers();
+      renderSmartCompletionCard();
+    }
+
+    // تولید کارنامه هوشمند ۳ قله استعداد و پیام انگیزشی
+    function renderSmartCompletionCard() {
+      const studentName = currentStudent.fullName || currentStudent.username;
+      document.getElementById('result-student-name').innerText = studentName;
+
+      // محاسبه امتیاز کل هر مهارت
+      const scoredSkills = skillsList.map(skill => {
+        const answers = savedResponsesMap[skill.slug] || [];
+        const score = Array.isArray(answers) ? answers.reduce((a, b) => a + Number(b), 0) : 0;
+        return {
+          slug: skill.slug,
+          title: skill.title,
+          score: score
+        };
+      });
+
+      // مرتب‌سازی از بالاترین امتیاز
+      scoredSkills.sort((a, b) => b.score - a.score);
+      const top3 = scoredSkills.slice(0, 3);
+
+      const medalStyles = [
+        { label: 'قله اول (طلایی)', bg: 'bg-amber-400/20 border-amber-400/50 text-amber-300', icon: '🥇' },
+        { label: 'قله دوم (نقره‌ای)', bg: 'bg-slate-300/20 border-slate-300/50 text-slate-200', icon: '🥈' },
+        { label: 'قله سوم (برنزی)', bg: 'bg-amber-700/20 border-amber-600/50 text-amber-200', icon: '🥉' }
+      ];
+
+      const topContainer = document.getElementById('top-skills-container');
+      topContainer.innerHTML = top3.map((s, idx) => {
+        const meta = SKILL_METADATA[s.slug] || { badge: s.title, icon: '🎯' };
+        const style = medalStyles[idx];
+        return `
+          <div class="rounded-2xl p-3.5 border ${style.bg} flex flex-col justify-between space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold">${style.icon} ${style.label}</span>
+              <span class="text-lg">${meta.icon}</span>
+            </div>
+            <div>
+              <h5 class="text-xs sm:text-sm font-black text-white">${s.title}</h5>
+              <p class="text-[10px] opacity-80 mt-0.5">${meta.badge}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // تولید متن پویا و روان‌شناختی با جمنای/الگوریتم داخلی
+      const topSkill = top3[0];
+      const topMeta = SKILL_METADATA[topSkill?.slug] || { challenge: 'یک فعالیت عملی دونفره مرتبط با علایقش در خانه تجربه کنید.' };
+
+      document.getElementById('ai-quick-summary').innerHTML = `
+        <strong>${studentName} عزیز؛</strong> بر مبنای مشاهدات دقیق خانواده‌ات، مغز جستجوگر تو در محور <strong>«${topSkill.title}»</strong> بالاترین میزان تمرکز، اشتیاق و پویایی را نشان می‌دهد. این نقطه متمایز نشان‌دهنده یک بستر شناختی فوق‌العاده برای حل مسائل و درخشش در کارگاه‌های آینده است.
+      `;
+
+      document.getElementById('family-challenge-text').innerText = topMeta.challenge;
+
       document.getElementById('survey-box').classList.add('hidden');
       document.getElementById('completed-box').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // دانلود مستقیم تصویر کارت افتخار با استفاده از html2canvas
+    async function downloadTalentBadge() {
+      const cardEl = document.getElementById('shareable-talent-card');
+      if (!cardEl) return;
+
+      const studentName = (currentStudent.fullName || currentStudent.username).replace(/\s+/g, '_');
+
+      try {
+        const canvas = await html2canvas(cardEl, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#0f172a'
+        });
+
+        const link = document.createElement('a');
+        link.download = `کارت_استعداد_${studentName}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (e) {
+        alert('خطا در ایجاد تصویر: ' + e.message);
+      }
     }
 
     function handleLogout() {
       currentStudent = null;
       document.getElementById('survey-box').classList.add('hidden');
+      document.getElementById('completed-box').classList.add('hidden');
       document.getElementById('auth-box').classList.remove('hidden');
       document.getElementById('input-student-pass').value = '';
     }
