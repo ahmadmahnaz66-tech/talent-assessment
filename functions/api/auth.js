@@ -4,11 +4,14 @@ export async function onRequestGet(context) {
   const type = url.searchParams.get('type');
 
   try {
-    let query = "SELECT id, username, full_name, role, created_at FROM staff_users ORDER BY id ASC";
+    let query = "";
 
-    // در صورتی که درخواست از پنل سایت باشد، تنها مدیران مربوط به سایت بازگردانده می‌شوند
     if (type === 'site') {
+      // فقط مدیران بخش عمومی سایت
       query = "SELECT id, username, full_name, role, created_at FROM staff_users WHERE role IN ('super_admin', 'finance_admin', 'content_admin') ORDER BY id ASC";
+    } else {
+      // کادر اختصاصی مدرسه (پیش‌فرض و type=school)
+      query = "SELECT id, username, full_name, role, created_at FROM staff_users WHERE role IN ('super_admin', 'counselor', 'principal', 'vice_principal') ORDER BY id ASC";
     }
 
     const { results } = await env.DB.prepare(query).all();
@@ -140,7 +143,45 @@ export async function onRequestPost(context) {
       });
     }
 
-    // ۵. حذف پرسنل (فقط مدیر ارشد)
+    // ۵. تغییر رمز عبور پرسنل
+    if (action === 'change-staff-password') {
+      const { username, oldPassword, newPassword } = body;
+      if (!username || !oldPassword || !newPassword) {
+        return new Response(JSON.stringify({ error: 'تمامی فیلدها الزامی است.' }), { status: 400 });
+      }
+
+      const user = await env.DB.prepare("SELECT id, password_hash FROM staff_users WHERE username = ?").bind(String(username).trim()).first();
+      if (!user || user.password_hash !== String(oldPassword).trim()) {
+        return new Response(JSON.stringify({ error: 'رمز عبور فعلی نادرست است.' }), { status: 401 });
+      }
+
+      await env.DB.prepare("UPDATE staff_users SET password_hash = ? WHERE username = ?").bind(String(newPassword).trim(), String(username).trim()).run();
+      return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۶. تعیین رمز دلخواه دانش‌آموز
+    if (action === 'set-student-password') {
+      const { requesterRole, studentId, newPassword } = body;
+      if (!['super_admin', 'principal'].includes(requesterRole)) {
+        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
+      }
+      await env.DB.prepare("UPDATE students SET password_hash = ? WHERE id = ?").bind(String(newPassword).trim(), String(studentId).trim()).run();
+      return new Response(JSON.stringify({ success: true, message: 'رمز جدید دانش‌آموز ثبت شد.' }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۷. بازنشانی رمز دانش‌آموز
+    if (action === 'reset-student-password') {
+      const { requesterRole, studentId } = body;
+      if (!['super_admin', 'principal'].includes(requesterRole)) {
+        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
+      }
+      const rawId = String(studentId).trim();
+      const defaultPass = rawId.length >= 4 ? rawId.slice(-4) : rawId;
+      await env.DB.prepare("UPDATE students SET password_hash = ? WHERE id = ?").bind(defaultPass, rawId).run();
+      return new Response(JSON.stringify({ success: true, message: `رمز دانش‌آموز به ${defaultPass} بازنشانی شد.` }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۸. حذف پرسنل (فقط مدیر ارشد)
     if (action === 'delete-staff') {
       const { requesterRole, staffId } = body;
       if (requesterRole !== 'super_admin') {
