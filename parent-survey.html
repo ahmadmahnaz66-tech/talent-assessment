@@ -43,6 +43,8 @@
 
   <!-- ۲. داشبورد و ارزیابی مهارتی -->
   <div id="survey-box" class="max-w-2xl w-full mx-auto hidden space-y-5 my-auto">
+    
+    <!-- هدر مشخصات دانش‌آموز -->
     <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
       <div>
         <span id="std-info-name" class="font-bold text-sm text-slate-800"></span>
@@ -57,7 +59,30 @@
       </div>
     </div>
 
+    <!-- کادر راهنمای کنترل خطای هاله‌ای (مهم و برجسته) -->
+    <div class="bg-amber-50/90 border-r-4 border-amber-500 p-4 sm:p-5 rounded-2xl shadow-sm space-y-2 border border-amber-200">
+      <div class="flex items-center gap-2 text-amber-900 font-black text-xs sm:text-sm">
+        <span class="text-base">💡</span>
+        <span>نکته بسیار مهم جهت دستیابی به نقشه رشد واقعی فرزندتان:</span>
+      </div>
+      <p class="text-xs text-amber-950 leading-relaxed text-justify">
+        هیچ کودکی در تمام حوزه‌ها توانمندی یا علاقه حداکثری ندارد. انتخاب گزینه‌های <strong>«گاهی / متوسط»</strong> یا <strong>«به‌ندرت / کم»</strong> در برخی مهارت‌ها کاملاً طبیعی، علمی و مورد انتظار است. ثبت نمرات حداکثری و غیرواقعی مانع از تفکیک قله‌های واقعی استعداد شده و مسیر هدایت فرزندتان را مبهم می‌سازد؛ با پاسخ‌های دقیق و صادقانه، زمینه درخشش اصلی او را آشکار کنید.
+      </p>
+    </div>
+
+    <!-- بدنه اصلی پرسشنامه -->
     <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+      
+      <!-- نوار یادآور مداوم در طول اسکرول سوالات -->
+      <div class="sticky top-4 z-20 bg-amber-100/95 backdrop-blur border border-amber-300 py-2 px-3.5 rounded-xl shadow-sm flex items-center justify-between gap-2 text-[11px] text-amber-900">
+        <div class="flex items-center gap-1.5 font-bold">
+          <span>🛡️</span>
+          <span>یادآوری ارزیابی:</span>
+          <span class="font-medium text-amber-950 hidden sm:inline">نمره متوسط یا پایین ضعف نیست؛ کمک به کشف نقطه قوت واقعی است.</span>
+        </div>
+        <span class="text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-lg font-bold">پرهیز از خطای هاله‌ای</span>
+      </div>
+
       <div class="border-b border-slate-100 pb-4 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <label class="text-xs font-bold text-slate-600">انتخاب و پرش به مهارت:</label>
