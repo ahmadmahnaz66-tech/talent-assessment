@@ -295,12 +295,22 @@
           </button>
         </div>
 
-        <!-- فرم افزودن فایل صوتی به پکیج (با آپلود مستقیم به گیت‌هاب) -->
+        <!-- فرم افزودن فایل صوتی به پکیج (مستقیم به گیت‌هاب Client-Side) -->
         <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
           <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
             <span>🎵</span>
             <span>۲. بارگذاری فایل صوتی درون پکیج</span>
           </h3>
+
+          <!-- تنظیم توکن گیت‌هاب در مرورگر برای آپلود مستقیم -->
+          <div class="bg-amber-50 p-3 rounded-2xl border border-amber-200 space-y-1">
+            <div class="flex items-center justify-between">
+              <label class="block text-[11px] font-bold text-amber-900">کلید دسترسی گیت‌هاب (PAT Token):</label>
+              <button onclick="toggleTokenVisibility()" class="text-[10px] text-amber-700 font-bold hover:underline">نمایش / ویرایش</button>
+            </div>
+            <input type="password" id="gh-token-input" placeholder="ghp_... یا github_pat_..." class="w-full border border-amber-300 p-2 rounded-xl text-xs outline-none bg-white font-mono" onchange="saveClientGhToken()">
+            <p class="text-[10px] text-amber-700 leading-relaxed">این توکن فقط روی مرورگر شما برای ارسال مستقیم فایل به مخزن ذخیره می‌شود.</p>
+          </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">انتخاب پکیج موضوعی:</label>
@@ -315,13 +325,13 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">انتخاب فایل صوتی از کامپیوتر یا گوشی:</label>
+            <label class="block text-xs font-bold text-slate-700 mb-1">انتخاب فایل صوتی از دستگاه:</label>
             <input type="file" id="track-file-input" accept="audio/*,.mp3,.m4a,.wav" class="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
             <p id="upload-status-text" class="text-[11px] font-bold mt-1.5 hidden"></p>
           </div>
 
           <div class="pt-2 border-t border-slate-100">
-            <label class="block text-xs font-bold text-slate-500 mb-1">یا وارد کردن لینک مستقیم دستی (اختیاری):</label>
+            <label class="block text-xs font-bold text-slate-500 mb-1">یا درج آدرس مستقیم فایل صوتی (اختیاری):</label>
             <input type="text" id="track-url" placeholder="https://apadana.maharatkhanema.ir/audio1.mp3" class="w-full border border-slate-200 p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono text-left" dir="ltr">
           </div>
 
@@ -331,12 +341,12 @@
           </div>
 
           <button onclick="saveContentTrack()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
-            آپلود و افزودن فایل صوتی به پکیج
+            آپلود مستقیم به گیت‌هاب و ثبت در سایت
           </button>
         </div>
       </div>
 
-      <!-- نمایش کلیه مجموعه‌ها و پادکست‌های ایجاد شده -->
+      <!-- ساختار پکیج‌ها -->
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
@@ -363,6 +373,20 @@
         .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
         .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
         .trim();
+    }
+
+    // ذخیره و بازیابی توکن گیت‌هاب
+    function saveClientGhToken() {
+      const val = document.getElementById('gh-token-input').value.trim();
+      if (val) localStorage.setItem('gh_client_pat', val);
+    }
+    function loadClientGhToken() {
+      const saved = localStorage.getItem('gh_client_pat');
+      if (saved) document.getElementById('gh-token-input').value = saved;
+    }
+    function toggleTokenVisibility() {
+      const inp = document.getElementById('gh-token-input');
+      inp.type = (inp.type === 'password') ? 'text' : 'password';
     }
 
     async function loginSiteAdmin() {
@@ -406,6 +430,7 @@
     function setupRoleUI() {
       document.getElementById('login-box').style.display = 'none';
       document.getElementById('admin-dashboard').style.display = 'block';
+      loadClientGhToken();
 
       document.getElementById('admin-name-display').innerText = activeAdmin.fullName || activeAdmin.username;
       
@@ -616,7 +641,7 @@
       }
     }
 
-    // قیمت‌گذاری پکیج‌ها و تک‌فایل‌ها (مدیر مالی)
+    // قیمت‌گذاری پکیج‌ها
     async function loadPricingPackages() {
       const container = document.getElementById('pricing-packages-list');
       container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">در حال بارگذاری دوره‌ها...</p>';
@@ -701,7 +726,7 @@
       }
     }
 
-    // کدهای تخفیف (مدیر مالی)
+    // کدهای تخفیف
     async function loadDiscountCodes() {
       const tbody = document.getElementById('discounts-tbody');
       tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400">در حال دریافت...</td></tr>';
@@ -756,7 +781,7 @@
       }
     }
 
-    // مدیر محتوا: دریافت ساختار درختی پکیج‌ها
+    // ساختار درختی محتوا
     async function loadContentHierarchy() {
       const treeView = document.getElementById('content-tree-view');
       const pkgSelect = document.getElementById('track-pkg-select');
@@ -841,7 +866,20 @@
       }
     }
 
-    // تابع هوشمند ذخیره صوت (با قابلیت آپلود خودکار روی گیت‌هاب)
+    // تبدیل فایل به Base64 در کلاینت
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          const base64String = reader.result.split(',')[1];
+          resolve(base64String);
+        };
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    // آپلود فایل مستقیم از مرورگر به GitHub API و ثبت در دیتابیس D1
     async function saveContentTrack() {
       const package_slug = document.getElementById('track-pkg-select').value;
       const title = document.getElementById('track-title').value.trim();
@@ -849,6 +887,7 @@
       const duration = toEnglishDigits(document.getElementById('track-duration').value);
       const fileInput = document.getElementById('track-file-input');
       const statusText = document.getElementById('upload-status-text');
+      const ghToken = document.getElementById('gh-token-input').value.trim();
 
       if (!package_slug || !title) {
         return alert('انتخاب پکیج موضوعی و وارد کردن عنوان صوت الزامی است.');
@@ -856,55 +895,76 @@
 
       let audio_url = '';
 
-      // اگر کاربر فایلی را از سیستم انتخاب کرده باشد:
+      // ۱. اگر کاربر فایلی را برای آپلود انتخاب کرده باشد:
       if (fileInput.files && fileInput.files.length > 0) {
+        if (!ghToken) {
+          return alert('برای آپلود مستقیم به گیت‌هاب، لطفاً ابتدا توکن گیت‌هاب (PAT) خود را در کادر زرد رنگ بالای فرم وارد کنید.');
+        }
+
         const file = fileInput.files[0];
-        statusText.innerText = '⏳ در حال آپلود فایل صوتی روی گیت‌هاب... لطفاً منتظر بمانید.';
+        
+        // محدودیت ۲۵ مگابایتی GitHub REST API Contents
+        if (file.size > 25 * 1024 * 1024) {
+          return alert('حجم فایل صوتی نباید بیش از ۲۵ مگابایت باشد.');
+        }
+
+        statusText.innerText = '⏳ در حال تبدیل فایل و ارسال مستقیم به سرورهای گیت‌هاب...';
         statusText.className = 'text-[11px] text-indigo-600 font-bold mt-1.5 block';
 
         try {
-          const fd = new FormData();
-          fd.append('file', file);
+          const contentBase64 = await fileToBase64(file);
+          const cleanName = file.name.toLowerCase().replace(/[^a-z0-9.]/gi, '-').replace(/-+/g, '-');
+          const targetFileName = `${Date.now()}-${cleanName}`;
+          const filePath = `audio/${targetFileName}`;
 
-          const upRes = await fetch('/api/upload-to-github', {
-            method: 'POST',
-            body: fd
+          // رکوئست مستقیم از مرورگر به api.github.com
+          const repoOwner = 'ahmadmahnaz66-tech';
+          const repoName = 'talent-assessment';
+          const ghUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+
+          const ghRes = await fetch(ghUrl, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${ghToken}`,
+              'Accept': 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              message: `Upload ${targetFileName} from admin browser`,
+              content: contentBase64,
+              branch: 'main'
+            })
           });
-          const upData = await upRes.json();
 
-          if (!upRes.ok || !upData.success) {
-            statusText.innerText = '❌ خطا در آپلود روی گیت‌هاب: ' + (upData.error || 'خطای سرور');
+          const ghData = await ghRes.json();
+
+          if (!ghRes.ok) {
+            statusText.innerText = '❌ خطا در گیت‌هاب: ' + (ghData.message || 'توکن نامعتبر یا خطای مخزن');
             statusText.className = 'text-[11px] text-rose-500 font-bold mt-1.5 block';
             return;
           }
 
-          audio_url = upData.audio_url;
-          statusText.innerText = '✅ آپلود در مخزن موفق بود. در حال ثبت اطلاعات...';
+          audio_url = `https://apadana.maharatkhanema.ir/${filePath}`;
+          statusText.innerText = '✅ فایل در مخزن گیت‌هاب ثبت شد. در حال ذخیره در پایگاه داده...';
           statusText.className = 'text-[11px] text-emerald-600 font-bold mt-1.5 block';
+
         } catch (err) {
-          statusText.innerText = '❌ خطا در ارتباط با سرویس آپلود: ' + err.message;
+          statusText.innerText = '❌ خطای شبکه: ' + err.message;
           statusText.className = 'text-[11px] text-rose-500 font-bold mt-1.5 block';
           return;
         }
+
       } else if (manualUrl) {
-        // اگر کاربر مستقیماً آدرس وارد کرده باشد:
+        // ۲. اگر لینک دستی وارد شده باشد:
         audio_url = manualUrl;
         if (audio_url.includes('github.com') && audio_url.includes('/blob/')) {
           audio_url = audio_url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
         }
       } else {
-        return alert('لطفاً یا یک فایل صوتی انتخاب کنید و یا آدرس مستقیم فایل را وارد نمایید.');
+        return alert('لطفاً یک فایل صوتی انتخاب کنید یا آدرس لینک مستقیم را وارد نمایید.');
       }
 
-      // اعتبارسنجی پسوند
-      const validExtensions = ['.mp3', '.m4a', '.wav', '.ogg', '.aac'];
-      const hasValidExt = validExtensions.some(ext => audio_url.toLowerCase().split('?')[0].endsWith(ext));
-      if (!hasValidExt) {
-        statusText.classList.add('hidden');
-        return alert('خطا: آدرس فایل باید مستقیماً با پسوندهای صوتی (.mp3, .m4a و...) باشد.');
-      }
-
-      // ذخیره نهایی در دیتابیس D1
+      // ۳. ذخیره در دیتابیس D1
       try {
         const res = await fetch('/api/content-manager', {
           method: 'POST',
@@ -921,7 +981,7 @@
 
         const data = await res.json();
         if (res.ok && data.success) {
-          alert('فایل صوتی با موفقیت بارگذاری و در پکیج ثبت شد.');
+          alert('فایل صوتی با موفقیت در مخزن ثبت و به پکیج اضافه شد.');
           document.getElementById('track-title').value = '';
           document.getElementById('track-url').value = '';
           document.getElementById('track-duration').value = '';
@@ -929,11 +989,11 @@
           statusText.classList.add('hidden');
           loadContentHierarchy();
         } else {
-          alert(data.error || 'خطا در ثبت اطلاعات ترک');
+          alert(data.error || 'خطا در ثبت نهایی ترک');
           statusText.classList.add('hidden');
         }
       } catch (e) {
-        alert('خطا در برقراری ارتباط با دیتابیس.');
+        alert('خطا در ثبت نهایی در دیتابیس.');
         statusText.classList.add('hidden');
       }
     }
