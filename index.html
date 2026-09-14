@@ -72,7 +72,7 @@
         </h3>
         <p class="text-xs text-slate-500 mt-1">امکان پخش مستقیم آنلاین بدون نیاز به دانلود</p>
       </div>
-      <button onclick="loadContentHierarchy()" class="text-xs text-indigo-600 font-bold hover:underline">
+      <button onclick="initPageData()" class="text-xs text-indigo-600 font-bold hover:underline">
         ⟳ بروزرسانی لیست
       </button>
     </div>
@@ -211,7 +211,6 @@
         .trim();
     }
 
-    // بارگذاری تنظیمات حساب و دوره‌ها از API
     async function initPageData() {
       try {
         const [resSet, resContent] = await Promise.all([
@@ -227,7 +226,6 @@
       }
     }
 
-    // رندر پکیج‌های موضوعی و تک‌فایل‌ها
     function renderDynamicContent() {
       const container = document.getElementById('packages-dynamic-container');
       if (!Array.isArray(contentPackages) || contentPackages.length === 0) {
@@ -291,34 +289,57 @@
       `).join('');
     }
 
-    // پخش صوتی آنلاین
+    // پخش صوتی آنلاین (نسخه اصلاح‌شده و ضدخطا)
     let activeAudioObj = null;
     let activePlayBtn = null;
 
     function playTrackDirect(url, btn) {
-      if (!url) return alert('فایل صوتی یافت نشد.');
+      if (!url) return alert('آدرس فایل صوتی نامعتبر است.');
+
+      let cleanUrl = url.trim();
+      // تبدیل خودکار لینک صفحه گیت‌هاب به سورس مستقیم و خام
+      if (cleanUrl.includes('github.com') && cleanUrl.includes('/blob/')) {
+        cleanUrl = cleanUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+      }
 
       if (activeAudioObj) {
         activeAudioObj.pause();
         if (activePlayBtn) activePlayBtn.innerHTML = '<span>▶ پخش</span>';
-        if (activeAudioObj.src === url) {
+        if (activeAudioObj.src === cleanUrl && !activeAudioObj.paused) {
           activeAudioObj = null;
           return;
         }
       }
 
-      activeAudioObj = new Audio(url);
-      activePlayBtn = btn;
-      btn.innerHTML = '<span>⏸ توقف</span>';
-      activeAudioObj.play();
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.crossOrigin = 'anonymous';
+      audio.src = cleanUrl;
 
-      activeAudioObj.onended = () => {
+      activeAudioObj = audio;
+      activePlayBtn = btn;
+      btn.innerHTML = '<span>⏳ بارگذاری...</span>';
+
+      audio.play().then(() => {
+        btn.innerHTML = '<span>⏸ توقف</span>';
+      }).catch(err => {
+        console.error('Audio Play Error:', err);
+        btn.innerHTML = '<span>▶ پخش</span>';
+        alert('امکان پخش این فایل صوتی وجود ندارد. لطفاً از اتصال مستقیم به فایل مطمئن شوید.');
+      });
+
+      audio.onended = () => {
         btn.innerHTML = '<span>▶ پخش</span>';
         activeAudioObj = null;
       };
+
+      audio.onerror = (e) => {
+        console.error('Media Source Error:', audio.error);
+        btn.innerHTML = '<span>▶ پخش</span>';
+        alert('خطا در دریافت منبع فایل صوتی (کد خطای رسانه).');
+      };
     }
 
-    // فرایند پرداخت کارت‌به‌کارت
     function initiatePayment(type, id, title, defaultAmount = 0) {
       if (!activeUser) {
         alert('لطفاً ابتدا وارد حساب کاربری خود شوید.');
@@ -426,7 +447,6 @@
       }
     }
 
-    // کنترل احراز هویت
     function openAuthModal() {
       document.getElementById('auth-modal').classList.remove('hidden');
     }
