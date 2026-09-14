@@ -295,7 +295,7 @@
           </button>
         </div>
 
-        <!-- فرم افزودن فایل صوتی به پکیج -->
+        <!-- فرم افزودن فایل صوتی به پکیج (با آپلود مستقیم به گیت‌هاب) -->
         <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
           <h3 class="text-sm font-black text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
             <span>🎵</span>
@@ -315,8 +315,14 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">لینک فایل صوتی (آدرس مستقیم دامنه یا گیت‌هاب):</label>
-            <input type="text" id="track-url" placeholder="https://apadana.maharatkhanema.ir/audio1.mp3" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono text-left" dir="ltr">
+            <label class="block text-xs font-bold text-slate-700 mb-1">انتخاب فایل صوتی از کامپیوتر یا گوشی:</label>
+            <input type="file" id="track-file-input" accept="audio/*,.mp3,.m4a,.wav" class="w-full border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+            <p id="upload-status-text" class="text-[11px] font-bold mt-1.5 hidden"></p>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100">
+            <label class="block text-xs font-bold text-slate-500 mb-1">یا وارد کردن لینک مستقیم دستی (اختیاری):</label>
+            <input type="text" id="track-url" placeholder="https://apadana.maharatkhanema.ir/audio1.mp3" class="w-full border border-slate-200 p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono text-left" dir="ltr">
           </div>
 
           <div>
@@ -325,7 +331,7 @@
           </div>
 
           <button onclick="saveContentTrack()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
-            افزودن این فایل صوتی به پکیج
+            آپلود و افزودن فایل صوتی به پکیج
           </button>
         </div>
       </div>
@@ -750,7 +756,7 @@
       }
     }
 
-    // مدیر محتوا: ثبت پکیج و فایل صوتی (نسخه هوشمند و ضدخطا)
+    // مدیر محتوا: دریافت ساختار درختی پکیج‌ها
     async function loadContentHierarchy() {
       const treeView = document.getElementById('content-tree-view');
       const pkgSelect = document.getElementById('track-pkg-select');
@@ -835,35 +841,70 @@
       }
     }
 
+    // تابع هوشمند ذخیره صوت (با قابلیت آپلود خودکار روی گیت‌هاب)
     async function saveContentTrack() {
       const package_slug = document.getElementById('track-pkg-select').value;
       const title = document.getElementById('track-title').value.trim();
-      let audio_url = document.getElementById('track-url').value.trim();
+      let manualUrl = document.getElementById('track-url').value.trim();
       const duration = toEnglishDigits(document.getElementById('track-duration').value);
+      const fileInput = document.getElementById('track-file-input');
+      const statusText = document.getElementById('upload-status-text');
 
-      if (!package_slug || !title || !audio_url) {
-        return alert('انتخاب پکیج، عنوان صوت و لینک فایل الزامی است.');
+      if (!package_slug || !title) {
+        return alert('انتخاب پکیج موضوعی و وارد کردن عنوان صوت الزامی است.');
       }
 
-      // ۱. اصلاح خودکار لینک‌های صفحه گیت‌هاب به لینک خام
-      if (audio_url.includes('github.com') && audio_url.includes('/blob/')) {
-        audio_url = audio_url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+      let audio_url = '';
+
+      // اگر کاربر فایلی را از سیستم انتخاب کرده باشد:
+      if (fileInput.files && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        statusText.innerText = '⏳ در حال آپلود فایل صوتی روی گیت‌هاب... لطفاً منتظر بمانید.';
+        statusText.className = 'text-[11px] text-indigo-600 font-bold mt-1.5 block';
+
+        try {
+          const fd = new FormData();
+          fd.append('file', file);
+
+          const upRes = await fetch('/api/upload-to-github', {
+            method: 'POST',
+            body: fd
+          });
+          const upData = await upRes.json();
+
+          if (!upRes.ok || !upData.success) {
+            statusText.innerText = '❌ خطا در آپلود روی گیت‌هاب: ' + (upData.error || 'خطای سرور');
+            statusText.className = 'text-[11px] text-rose-500 font-bold mt-1.5 block';
+            return;
+          }
+
+          audio_url = upData.audio_url;
+          statusText.innerText = '✅ آپلود در مخزن موفق بود. در حال ثبت اطلاعات...';
+          statusText.className = 'text-[11px] text-emerald-600 font-bold mt-1.5 block';
+        } catch (err) {
+          statusText.innerText = '❌ خطا در ارتباط با سرویس آپلود: ' + err.message;
+          statusText.className = 'text-[11px] text-rose-500 font-bold mt-1.5 block';
+          return;
+        }
+      } else if (manualUrl) {
+        // اگر کاربر مستقیماً آدرس وارد کرده باشد:
+        audio_url = manualUrl;
+        if (audio_url.includes('github.com') && audio_url.includes('/blob/')) {
+          audio_url = audio_url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+        }
+      } else {
+        return alert('لطفاً یا یک فایل صوتی انتخاب کنید و یا آدرس مستقیم فایل را وارد نمایید.');
       }
 
-      // ۲. اعتبارسنجی پسوند فایل صوتی
+      // اعتبارسنجی پسوند
       const validExtensions = ['.mp3', '.m4a', '.wav', '.ogg', '.aac'];
       const hasValidExt = validExtensions.some(ext => audio_url.toLowerCase().split('?')[0].endsWith(ext));
       if (!hasValidExt) {
-        return alert('خطا: آدرس وارد شده یک فایل صوتی معتبر نیست!\nآدرس باید به پسوندهایی نظیر .mp3 یا .m4a ختم شود.');
+        statusText.classList.add('hidden');
+        return alert('خطا: آدرس فایل باید مستقیماً با پسوندهای صوتی (.mp3, .m4a و...) باشد.');
       }
 
-      // ۳. بررسی ساختار آدرس
-      try {
-        new URL(audio_url);
-      } catch (e) {
-        return alert('خطا: فرمت آدرس اینترنتی (URL) نامعتبر است.');
-      }
-
+      // ذخیره نهایی در دیتابیس D1
       try {
         const res = await fetch('/api/content-manager', {
           method: 'POST',
@@ -877,18 +918,23 @@
             duration
           })
         });
+
         const data = await res.json();
         if (res.ok && data.success) {
-          alert('فایل صوتی با موفقیت تایید و به پکیج افزوده شد.');
+          alert('فایل صوتی با موفقیت بارگذاری و در پکیج ثبت شد.');
           document.getElementById('track-title').value = '';
           document.getElementById('track-url').value = '';
           document.getElementById('track-duration').value = '';
+          fileInput.value = '';
+          statusText.classList.add('hidden');
           loadContentHierarchy();
         } else {
-          alert(data.error || 'خطا در ثبت فایل صوتی');
+          alert(data.error || 'خطا در ثبت اطلاعات ترک');
+          statusText.classList.add('hidden');
         }
       } catch (e) {
-        alert('خطا در ارتباط با سرور.');
+        alert('خطا در برقراری ارتباط با دیتابیس.');
+        statusText.classList.add('hidden');
       }
     }
 
