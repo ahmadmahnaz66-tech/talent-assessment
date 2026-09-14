@@ -142,10 +142,10 @@
         </div>
       </div>
 
-      <!-- معرفی دانش‌آموز -->
+      <!-- معرفی دانش‌آموز (با استایل فونت صریح جهت رندر تمیز در تصویر) -->
       <div class="text-center space-y-1 relative z-10">
         <span class="text-xs text-indigo-300">نشان افتخار کشف استعداد برای:</span>
-        <h3 id="result-student-name" class="text-xl sm:text-2xl font-black text-amber-300 tracking-wide"></h3>
+        <h3 id="result-student-name" style="font-family: 'Vazirmatn FD', sans-serif !important; letter-spacing: 0 !important;" class="text-xl sm:text-2xl font-black text-amber-300 tracking-normal"></h3>
       </div>
 
       <!-- نشان‌های ۳ قله برتر -->
@@ -218,7 +218,6 @@
     let currentQuestions = [];
     let currentAnswers = [];
 
-    // نشان‌ها، القاب انگیزشی و چالش‌های خانوادگی متناظر با مهارت‌ها
     const SKILL_METADATA = {
       ai: { badge: 'نشان معمار آینده و هوش مصنوعی', icon: '🤖', challenge: 'امشب از او بخواهید یک معما یا سوال جالب طراحی کند و پاسخ‌های دو دستیار هوشمند یا موتور جستجو را با هم مقایسه و داوری کند.' },
       coding: { badge: 'نشان مهندس الگوریتم و کدنویسی', icon: '💻', challenge: 'از او بخواهید مراحل آماده‌سازی صبحانه یا مسیر چیدن میز را مثل دستورات مرحله‌به‌مرحله کامپیوتر به شما دیکته کند!' },
@@ -475,26 +474,45 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // دانلود مستقیم تصویر کارت افتخار با استفاده از html2canvas
+    // دانلود مستقیم و دقیق تصویر کارت افتخار بدون به‌هم‌ریختگی فونت فارسی
     async function downloadTalentBadge() {
       const cardEl = document.getElementById('shareable-talent-card');
       if (!cardEl) return;
 
       const studentName = (currentStudent.fullName || currentStudent.username).replace(/\s+/g, '_');
+      const scrollY = window.scrollY;
+      window.scrollTo(0, 0);
 
       try {
         const canvas = await html2canvas(cardEl, {
-          scale: 2,
+          scale: 3,
           useCORS: true,
-          backgroundColor: '#0f172a'
+          backgroundColor: '#0f172a',
+          logging: false,
+          letterRendering: false,
+          onclone: (clonedDoc) => {
+            const blurredBoxes = clonedDoc.querySelectorAll('.backdrop-blur, .backdrop-blur-md');
+            blurredBoxes.forEach(el => {
+              el.style.backdropFilter = 'none';
+              el.style.webkitBackdropFilter = 'none';
+              el.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+            });
+
+            const cardInClone = clonedDoc.getElementById('shareable-talent-card');
+            if (cardInClone) {
+              cardInClone.style.fontFamily = "'Vazirmatn FD', sans-serif";
+            }
+          }
         });
 
         const link = document.createElement('a');
         link.download = `کارت_استعداد_${studentName}.png`;
-        link.href = canvas.toDataURL('image/png');
+        link.href = canvas.toDataURL('image/png', 1.0);
         link.click();
       } catch (e) {
-        alert('خطا در ایجاد تصویر: ' + e.message);
+        alert('خطا در ذخیره تصویر: ' + e.message);
+      } finally {
+        window.scrollTo(0, scrollY);
       }
     }
 
