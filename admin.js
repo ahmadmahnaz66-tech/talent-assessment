@@ -27,7 +27,6 @@ const GARDNER_LABELS_FA = {
   naturalist: 'طبیعت‌گرا'
 };
 
-// تابع اختصاصی تبدیل دقیق تاریخ و ساعت به وقت رسمی ایران
 function formatIranDateTime(rawDateStr) {
   if (!rawDateStr) return '-';
   try {
@@ -51,7 +50,6 @@ function formatIranDateTime(rawDateStr) {
   }
 }
 
-// پارسر بومی مارک‌داون بدون وابستگی و پاکسازی هشتگ‌ها و ستاره‌ها
 function parseMarkdownToHTML(markdownText) {
   if (!markdownText) return '';
 
@@ -201,7 +199,6 @@ function switchTab(tabId) {
     btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition';
   });
 
-  // اگر کاربر وارد تب ۴ (غربالگری گروهی) شد، داشبورد لود شود
   if (tabId === 'group') {
     loadAnalyticsDashboard();
   }
@@ -220,7 +217,6 @@ function switchTab(tabId) {
   }
 }
 
-// تب ۱: مدیریت دانش‌آموزان با ستون‌های تفکیک‌شده
 async function loadStudentsList() {
   const grade = document.getElementById('filter-grade').value;
   const classroom = document.getElementById('filter-classroom').value;
@@ -593,7 +589,6 @@ async function loadInitialMetadata() {
   }
 }
 
-// تب ۲: مدیریت گزارش‌های فردی و سوابق هوش مصنوعی
 function onStudentSelectChanged() {
   const studentId = document.getElementById('student-select').value;
   const btnAI = document.getElementById('btn-generate-ai');
@@ -669,7 +664,6 @@ async function loadRoadmapHistory(studentId) {
     box.innerHTML = '<span class="text-red-500">خطا در دریافت سوابق.</span>';
   }
 }
-
 
 function viewHistoricalRoadmap(index) {
   const item = cachedHistory[index];
@@ -896,7 +890,6 @@ function closeRoadmapModal() {
   document.getElementById('roadmap-modal').classList.add('hidden');
 }
 
-// تب ۳: مجاورت‌سازی ۲ هفته‌ای
 async function loadExposureHistory(studentId) {
   const tbody = document.getElementById('exposure-history-body');
   if (!studentId) {
@@ -1051,7 +1044,6 @@ async function deleteExposureTrial(trialId) {
   }
 }
 
-// تب ۴: گزارش گروهی
 async function fetchSkillGroupReport(skillSlug) {
   const container = document.getElementById('skill-group-results');
   if (!skillSlug) { container.innerHTML = ''; return; }
@@ -1095,7 +1087,6 @@ async function fetchSkillGroupReport(skillSlug) {
   }
 }
 
-// تب ۵: مدیریت مهارت‌ها و سوالات
 async function loadQuestionsForAdmin(slug) {
   currentAdminSkillSlug = slug;
   const listContainer = document.getElementById('admin-questions-list');
@@ -1194,7 +1185,6 @@ async function deleteSelectedSkill() {
   if (res.ok) await loadInitialMetadata();
 }
 
-// تب ۶: کادر و پرسنل مدرسه
 async function loadStaffList() {
   try {
     const res = await fetch('/api/auth');
@@ -1269,7 +1259,6 @@ async function deleteStaff(staffId) {
   if (res.ok) loadStaffList();
 }
 
-// تابع جستجوی زنده (Live Search) با تایپ هر کاراکتر
 function filterStudentDropdown(query) {
   const select = document.getElementById('student-select');
   if (!select) return;
@@ -1371,7 +1360,6 @@ async function checkAndSyncPendingRoadmaps() {
   }
 }
 
-// تب ۴: داشبورد تحلیلی گاردنر و هالند
 async function loadAnalyticsDashboard() {
   try {
     const res = await fetch('/api/admin-reports?type=analytics-dashboard');
@@ -1379,14 +1367,12 @@ async function loadAnalyticsDashboard() {
 
     if (!data || !data.success) return;
 
-    // آپدیت بج‌های تعداد پرونده‌ها
     const gBadge = document.getElementById('gardner-total-badge');
     const hBadge = document.getElementById('holland-total-badge');
     const totalCount = data.total_students || 0;
     if (gBadge) gBadge.textContent = `${totalCount} پرونده ثبت‌شده`;
     if (hBadge) hBadge.textContent = `${totalCount} پرونده ثبت‌شده`;
 
-    // ۱. رندر نمودار میله‌ای گاردنر
     const gardnerCanvas = document.getElementById('gardnerBarChart');
     if (gardnerCanvas) {
       const gardnerCtx = gardnerCanvas.getContext('2d');
@@ -1436,7 +1422,6 @@ async function loadAnalyticsDashboard() {
       });
     }
 
-    // ۲. رندر نمودار راداری هالند
     const hollandCanvas = document.getElementById('hollandRadarChart');
     if (hollandCanvas) {
       const hollandCtx = hollandCanvas.getContext('2d');
@@ -1486,23 +1471,20 @@ async function loadAnalyticsDashboard() {
 }
 
 // ==========================================
-// ۱. استخراج کامل مهارت‌ها و سوالات در قالب فایل اکسل
+// عملیات اکسل: استخراج تمام مهارت‌ها و سوالات
 // ==========================================
 async function exportSkillsAndQuestionsToExcel() {
   try {
-    // دریافت اطلاعات تجمیعی از دیتابیس
     const res = await fetch('/api/questions');
     const questions = await res.json();
 
-    // دریافت لیست مهارت‌ها (اگر در کش موجود نباشد)
-    let skillsList = window.allSkillsCache || [];
-    if (!skillsList.length) {
-      const sRes = await fetch('/api/skills');
-      if (sRes.ok) skillsList = await sRes.json();
+    if (!allSkills || allSkills.length === 0) {
+      const sRes = await fetch('/api/admin-reports?type=all-skills');
+      if (sRes.ok) allSkills = await sRes.json();
     }
 
     const skillMap = {};
-    skillsList.forEach(s => {
+    (allSkills || []).forEach(s => {
       skillMap[s.slug] = s.title;
     });
 
@@ -1510,7 +1492,6 @@ async function exportSkillsAndQuestionsToExcel() {
       return alert('هیچ سوال یا مهارتی برای خروجی گرفتن یافت نشد.');
     }
 
-    // مرتب‌سازی داده‌ها برای شیت اکسل
     const rows = questions.map((q, idx) => ({
       'ردیف': idx + 1,
       'شناسه مهارت (Slug)': q.skill_slug,
@@ -1519,14 +1500,12 @@ async function exportSkillsAndQuestionsToExcel() {
       'ترتیب نمایش': q.display_order || 1
     }));
 
-    // ساخت فایل اکسل با SheetJS
     const worksheet = XLSX.utils.json_to_sheet(rows);
-    worksheet['!dir'] = 'rtl'; // راست‌چین کردن ستون‌های اکسل
+    worksheet['!dir'] = 'rtl';
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'مهارت‌ها و گویه‌ها');
 
-    // ایجاد نام فایل همراه با تاریخ
     const fileName = `Talent_Assessment_Questions_${new Date().toISOString().slice(0, 10)}.xlsx`;
     XLSX.writeFile(workbook, fileName);
 
@@ -1537,7 +1516,7 @@ async function exportSkillsAndQuestionsToExcel() {
 }
 
 // ==========================================
-// ۲. بارگذاری و ذخیره دسته‌ای مهارت‌ها و سوالات از اکسل
+// عملیات اکسل: بارگذاری گروهی مهارت‌ها و سوالات
 // ==========================================
 async function importSkillsAndQuestionsFromExcel(event) {
   const file = event.target.files[0];
@@ -1555,7 +1534,6 @@ async function importSkillsAndQuestionsFromExcel(event) {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
 
-      // خواندن اولین شیت
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
       const rows = XLSX.utils.sheet_to_json(worksheet);
@@ -1568,9 +1546,7 @@ async function importSkillsAndQuestionsFromExcel(event) {
       let successCount = 0;
       let errorCount = 0;
 
-      // پردازش سطرهای اکسل
       for (const row of rows) {
-        // خواندن فیلدها با اسامی احتمالی (فارسی یا انگلیسی)
         const skillSlug = (row['شناسه مهارت (Slug)'] || row['skill_slug'] || row['slug'] || '').toString().trim();
         const skillTitle = (row['عنوان فارسی مهارت'] || row['skill_title'] || row['title'] || '').toString().trim();
         const questionText = (row['متن گویه / سوال'] || row['question_text'] || row['text'] || '').toString().trim();
@@ -1581,28 +1557,28 @@ async function importSkillsAndQuestionsFromExcel(event) {
           continue;
         }
 
-        // الف) اگر مهارت جدید است یا عنوان دارد، بررسی یا ثبت مهارت
+        // ثبت مهارت در صورت جدید بودن
         if (skillTitle) {
           try {
-            await fetch('/api/skills', {
+            await fetch('/api/admin-reports', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'add', slug: skillSlug, title: skillTitle })
+              body: JSON.stringify({ action: 'add-skill', slug: skillSlug, title: skillTitle })
             });
           } catch (_) {}
         }
 
-        // ب) درج سوال در جدول questions
+        // درج سوال در دیتابیس
         try {
           const qRes = await fetch('/api/questions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }[cite: 5],
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               action: 'add',
               skillSlug,
               questionText,
               displayOrder
-            })[cite: 5]
+            })
           });
           const qData = await qRes.json();
           if (qRes.ok && qData.success) {
@@ -1618,11 +1594,9 @@ async function importSkillsAndQuestionsFromExcel(event) {
       alert(`عملیات بارگذاری به پایان رسید.\nتعداد موفق: ${successCount}\nتعداد خطا/ردیف‌های ناقص: ${errorCount}`);
       event.target.value = '';
 
-      // بروزرسانی لیست در رابط کاربری
-      if (typeof loadSkillsAndQuestions === 'function') {
-        loadSkillsAndQuestions();
-      } else {
-        location.reload();
+      await loadInitialMetadata();
+      if (currentAdminSkillSlug) {
+        loadQuestionsForAdmin(currentAdminSkillSlug);
       }
 
     } catch (err) {
