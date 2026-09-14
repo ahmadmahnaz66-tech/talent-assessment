@@ -7,15 +7,12 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- کتابخانه استاندارد پردازش و خواندن/نوشتن فایل‌های Excel (XLSX, XLS) و CSV -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- کتابخانه استاندارد ساخت و دانلود مستقیم PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet">
   <style>
     body { font-family: 'Vazirmatn FD', sans-serif; }
     
-    /* استایل‌های شکیل و انتشاراتی برای گزارش بالینی */
     .report-prose h2, .report-prose h3 {
       font-weight: 900;
       color: #1e1b4b;
@@ -113,7 +110,6 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 p-4 sm:p-6">
 
-  <!-- ۱. فرم ورود کادر مدرسه -->
   <div id="login-modal" class="flex items-center justify-center min-h-[80vh]">
     <div class="bg-white p-8 rounded-3xl shadow-lg border border-slate-200 max-w-md w-full space-y-5">
       <div class="text-center space-y-1">
@@ -141,7 +137,6 @@
     </div>
   </div>
 
-  <!-- ۲. داشبورد اصلی -->
   <div id="admin-dashboard" class="hidden max-w-6xl mx-auto space-y-6">
 
     <header class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 no-print">
@@ -184,10 +179,9 @@
       </button>
     </nav>
 
-    <!-- تب ۱: مدیریت دانش‌آموزان با ساختار تفکیک‌شده و ورودی اکسل -->
+    <!-- تب ۱: مدیریت دانش‌آموزان -->
     <section id="tab-content-students" class="tab-content space-y-4">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <!-- فرم ثبت تکی -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2 space-y-3">
           <h2 class="font-bold text-slate-800 text-xs">ثبت / ویرایش سریع پرونده دانش‌آموز</h2>
           <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
@@ -204,7 +198,6 @@
           </div>
         </div>
 
-        <!-- ورود گروهی انواع اکسل و CSV -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
             <h2 class="font-bold text-slate-800 text-xs mb-1">ورود گروهی با فایل Excel / CSV</h2>
@@ -270,11 +263,9 @@
       </div>
     </section>
 
-    <!-- تب ۲: پرونده فردی و تحلیل هوشمند -->
+    <!-- تب ۲: پرونده فردی -->
     <section id="tab-content-individual" class="tab-content hidden space-y-5">
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-end justify-between gap-4">
-        
-        <!-- انتخاب پرونده دانش‌آموز همراه با دکمه همگام‌سازی همیشه آشکار -->
         <div class="flex-1 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div class="max-w-md flex-1 space-y-2">
             <label class="block text-xs font-bold text-slate-700">انتخاب پرونده دانش‌آموز:</label>
@@ -299,7 +290,6 @@
         </button>
       </div>
 
-      <!-- نوار وضعیت همگام‌سازی گروهی (مستقل از پرونده فردی) -->
       <div id="sync-progress-box" class="hidden bg-indigo-50 border border-indigo-200 p-3.5 rounded-2xl space-y-2">
         <div class="flex justify-between items-center text-xs font-bold text-slate-700">
           <span id="sync-status-text">در حال بررسی...</span>
@@ -310,7 +300,6 @@
         </div>
       </div>
 
-      <!-- تاریخچه اسناد مختص دانش‌آموز انتخاب‌شده -->
       <div id="ai-history-card" class="hidden bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
         <h3 class="text-xs font-bold text-slate-800">📁 تاریخچه اسناد و تحلیل‌های صادرشده این پرونده:</h3>
         <div id="history-container" class="flex flex-wrap gap-2 text-xs pt-1"></div>
@@ -430,12 +419,9 @@
       </div>
     </section>
 
-    <!-- تب ۴: گزارش گروهی و داشبورد تحلیلی -->
+    <!-- تب ۴: غربالگری گروهی -->
     <section id="tab-content-group" class="tab-content hidden space-y-5">
-      
-      <!-- ویجت داشبورد آماری و نمودارهای توزیع -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5" id="analytics-dashboard-section">
-        <!-- نمودار هوش‌های چندگانه گاردنر -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
           <div class="flex items-center justify-between mb-4 border-b pb-3">
             <h3 class="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-2">
@@ -448,7 +434,6 @@
           </div>
         </div>
 
-        <!-- نمودار توزیع تیپ‌های شغلی هالند -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
           <div class="flex items-center justify-between mb-4 border-b pb-3">
             <h3 class="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-2">
@@ -462,7 +447,6 @@
         </div>
       </div>
 
-      <!-- فیلتر و جدول مهارت‌ها -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-3">
         <label class="text-xs font-bold text-slate-700">فیلتر مهارت:</label>
         <select id="skill-filter-select" onchange="fetchSkillGroupReport(this.value)" class="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none min-w-[220px]">
@@ -474,8 +458,6 @@
 
     <!-- تب ۵: مدیریت مهارت‌ها و سوالات -->
     <section id="tab-content-manage" class="tab-content hidden space-y-5">
-      
-      <!-- نوار ابزار پشتیبان‌گیری و بارگذاری اکسل برای مهارت‌ها و سوالات -->
       <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <span class="text-xl">📊</span>
@@ -486,12 +468,10 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <!-- دکمه استخراج اکسل -->
           <button onclick="exportSkillsAndQuestionsToExcel()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm">
             <span>📥 دانلود اکسل تمام سوالات</span>
           </button>
 
-          <!-- دکمه و ورودی بارگذاری از اکسل -->
           <label class="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm cursor-pointer">
             <span>📤 بارگذاری از اکسل</span>
             <input type="file" id="excel-import-questions-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="importSkillsAndQuestionsFromExcel(event)">
@@ -534,7 +514,7 @@
           <input type="text" id="staff-name" placeholder="نام و نام خانوادگی (مثال: خانم علوی)" class="border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
           <input type="text" id="staff-username" placeholder="نام کاربری انگلیسی (مثال: alavi)" class="border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
           <input type="password" id="staff-password" placeholder="رمز عبور اولیه (حداقل ۵ رقم)" class="border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
-          <select id="staff-role" class="border p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600">
+          <select id="staff-role" class="border p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 font-bold">
             <option value="counselor">مشاور تخصصی مدرسه</option>
             <option value="principal">مدیر مدرسه</option>
             <option value="vice_principal">معاون مدرسه</option>
@@ -565,7 +545,6 @@
 
   </div>
 
-  <!-- مودال نمایش کارنامه تحلیلی -->
   <div id="roadmap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
       
@@ -575,7 +554,6 @@
           <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5 font-mono"></p>
         </div>
         <div class="flex items-center gap-2">
-          <!-- دکمه دانلود مستقیم PDF -->
           <button id="btn-export-pdf" onclick="downloadDirectPDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
             <span>📥</span>
             <span>ذخیره مستقیم PDF</span>
@@ -658,6 +636,6 @@
     </div>
   </div>
 
-  <script src="admin.js?v=2"></script>
+  <script src="admin.js?v=3"></script>
 </body>
 </html>
