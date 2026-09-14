@@ -1608,3 +1608,41 @@ async function importSkillsAndQuestionsFromExcel(event) {
 
   reader.readAsArrayBuffer(file);
 }
+
+async function generateSkillWithAI() {
+  const slug = document.getElementById('new-skill-slug').value.trim();
+  const title = document.getElementById('new-skill-title').value.trim();
+  const btn = document.getElementById('btn-ai-skill');
+
+  if (!slug || !title) {
+    return alert('لطفاً ابتدا عنوان فارسی و شناسه انگلیسی مهارت را وارد نمایید.');
+  }
+
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span>⏳</span><span>در حال طراحی ۱۵ گویه با جمنای و ذخیره...</span>';
+
+  try {
+    const res = await fetch('/api/ai-skill-generator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, title })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert(data.message);
+      document.getElementById('new-skill-slug').value = '';
+      document.getElementById('new-skill-title').value = '';
+      await loadInitialMetadata(); // رفرش لیست مهارت‌ها
+      loadQuestionsForAdmin(slug); // نمایش سوالات تازه ساخته‌شده در همان صفحه
+    } else {
+      alert(data.error || 'خطا در تولید گویه‌ها');
+    }
+  } catch (err) {
+    alert('خطا در ارتباط با سرور: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
