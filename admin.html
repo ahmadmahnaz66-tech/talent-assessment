@@ -188,8 +188,33 @@
             <input type="text" id="std-id" placeholder="کد ملی (الزامی)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
             <input type="text" id="std-first-name" placeholder="نام" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
             <input type="text" id="std-last-name" placeholder="نام خانوادگی" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
-            <input type="text" id="std-grade" placeholder="پایه (مثلاً: چهارم)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
-            <input type="text" id="std-class" placeholder="نام کلاس (مثلاً: ۴/۱)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+
+            <!-- انتخاب پایه (اول تا دوازدهم) -->
+<select id="std-grade" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 bg-white text-slate-700">
+  <option value="">انتخاب پایه...</option>
+  <option value="اول">پایه اول</option>
+  <option value="دوم">پایه دوم</option>
+  <option value="سوم">پایه سوم</option>
+  <option value="چهارم">پایه چهارم</option>
+  <option value="پنجم">پایه پنجم</option>
+  <option value="ششم">پایه ششم</option>
+  <option value="هفتم">پایه هفتم</option>
+  <option value="هشتم">پایه هشتم</option>
+  <option value="نهم">پایه نهم</option>
+  <option value="دهم">پایه دهم</option>
+  <option value="یازدهم">پایه یازدهم</option>
+  <option value="دوازدهم">پایه دوازدهم</option>
+</select>
+
+<!-- انتخاب شماره کلاس (۱ تا ۵) -->
+<select id="std-class" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 bg-white text-slate-700">
+  <option value="">انتخاب کلاس...</option>
+  <option value="۱">کلاس ۱</option>
+  <option value="۲">کلاس ۲</option>
+  <option value="۳">کلاس ۳</option>
+  <option value="۴">کلاس ۴</option>
+  <option value="۵">کلاس ۵</option>
+</select>
             <input type="text" id="std-father-phone" placeholder="شماره تماس پدر" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
             <input type="text" id="std-mother-phone" placeholder="شماره تماس مادر" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
             <button onclick="saveSingleStudent()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl py-2 transition shadow-sm">
