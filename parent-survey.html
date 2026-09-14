@@ -43,6 +43,33 @@
     </div>
   </div>
 
+  <!-- ۱.۵. گام پیش‌غربالگری: انتخاب حوزه‌های مورد علاقه کودک -->
+  <div id="interest-picker-box" class="max-w-2xl w-full mx-auto hidden space-y-5 my-auto">
+    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+      <div class="text-center space-y-1.5 border-b border-slate-100 pb-4">
+        <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto text-2xl mb-2">
+          ✨
+        </div>
+        <h2 class="text-base font-black text-slate-900">گام نخست: علایق و گرایش‌های ملموس فرزندتان</h2>
+        <p class="text-xs text-slate-500 leading-relaxed max-w-lg mx-auto">
+          فرزند شما در خانه یا اوقات فراغت بیشتر به کدام حوزه‌ها کشش خودجوش دارد؟ حداقل ۳ مورد را انتخاب نمایید تا سوالات متناسب با اولویت‌های او چیده شوند.
+        </p>
+      </div>
+
+      <div id="skills-checkbox-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-96 overflow-y-auto p-1">
+        <!-- چک‌باکس‌ها با جاوااسکریپت تزریق می‌شوند -->
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+        <span id="selected-skills-count" class="text-xs font-bold text-indigo-600">۰ مورد انتخاب شده</span>
+        <button onclick="applyInterestsAndStart()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5">
+          <span>شروع ارزیابی هوشمند</span>
+          <span>←</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ۲. داشبورد و ارزیابی مهارتی -->
   <div id="survey-box" class="max-w-2xl w-full mx-auto hidden space-y-5 my-auto">
     
@@ -142,7 +169,7 @@
         </div>
       </div>
 
-      <!-- معرفی دانش‌آموز (با استایل فونت صریح جهت رندر تمیز در تصویر) -->
+      <!-- معرفی دانش‌آموز -->
       <div class="text-center space-y-1 relative z-10">
         <span class="text-xs text-indigo-300">نشان افتخار کشف استعداد برای:</span>
         <h3 id="result-student-name" style="font-family: 'Vazirmatn FD', sans-serif !important; letter-spacing: 0 !important;" class="text-xl sm:text-2xl font-black text-amber-300 tracking-normal"></h3>
@@ -212,11 +239,23 @@
 
   <script>
     let currentStudent = null;
+    let rawSkillsList = [];
     let skillsList = [];
     let savedResponsesMap = {};
     let currentSkillIndex = 0;
     let currentQuestions = [];
     let currentAnswers = [];
+    let selectedInterestSlugs = new Set();
+
+    // هم‌خانواده‌های پیش‌فرض در صورت خالی بودن category دیتابیس
+    const FALLBACK_CATEGORIES = {
+      'programming': 'investigative', 'ai-tools': 'investigative', 'robotics': 'investigative', 'chess': 'investigative',
+      'theater': 'artistic', 'comedy': 'artistic',
+      'cooking': 'realistic', 'carpentry': 'realistic', 'gardening': 'realistic',
+      'football': 'realistic', 'volleyball': 'realistic', 'basketball': 'realistic',
+      'badminton': 'realistic', 'swimming': 'realistic', 'climbing': 'realistic', 'tennis': 'realistic',
+      'public-speaking': 'social'
+    };
 
     const SKILL_METADATA = {
       ai: { badge: 'نشان معمار آینده و هوش مصنوعی', icon: '🤖', challenge: 'امشب از او بخواهید یک معما یا سوال جالب طراحی کند و پاسخ‌های دو دستیار هوشمند یا موتور جستجو را با هم مقایسه و داوری کند.' },
@@ -287,23 +326,82 @@
         document.getElementById('std-info-grade').innerText = currentStudent.grade ? `(پایه ${currentStudent.grade})` : '';
 
         const skillsRes = await fetch('/api/admin-reports?type=all-skills');
-        skillsList = await skillsRes.json();
+        rawSkillsList = await skillsRes.json();
 
         const sRes = await fetch(`/api/save-response?studentId=${encodeURIComponent(currentStudent.id || currentStudent.username)}`);
         savedResponsesMap = await sRes.json();
 
-        refreshSkillDropdown();
-
         document.getElementById('auth-box').classList.add('hidden');
-        document.getElementById('survey-box').classList.remove('hidden');
-
-        currentSkillIndex = 0;
-        loadCurrentSkillQuestions();
+        renderInterestPicker();
 
       } catch (e) {
         errBox.innerText = 'خطا در ارتباط: ' + e.message;
         errBox.classList.remove('hidden');
       }
+    }
+
+    // رندر کارت‌های پیش‌غربالگری علایق
+    function renderInterestPicker() {
+      const grid = document.getElementById('skills-checkbox-grid');
+      selectedInterestSlugs.clear();
+
+      grid.innerHTML = rawSkillsList.map(s => {
+        const isDone = Array.isArray(savedResponsesMap[s.slug]) && savedResponsesMap[s.slug].length > 0;
+        return `
+          <label class="cursor-pointer border border-slate-200 rounded-2xl p-3 hover:border-indigo-400 hover:bg-indigo-50/50 transition flex items-center justify-between text-xs select-none">
+            <span class="font-bold text-slate-800">${s.title} ${isDone ? '<span class="text-emerald-600 font-bold">✓</span>' : ''}</span>
+            <input type="checkbox" value="${s.slug}" onchange="toggleInterestSlug('${s.slug}', this.checked)" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+          </label>
+        `;
+      }).join('');
+
+      document.getElementById('interest-picker-box').classList.remove('hidden');
+    }
+
+    function toggleInterestSlug(slug, isChecked) {
+      if (isChecked) {
+        selectedInterestSlugs.add(slug);
+      } else {
+        selectedInterestSlugs.delete(slug);
+      }
+      document.getElementById('selected-skills-count').innerText = `${selectedInterestSlugs.size} مورد انتخاب شده`;
+    }
+
+    // اجرای الگوریتم ۳ لایه چینش هوشمند
+    function applyInterestsAndStart() {
+      const selected = Array.from(selectedInterestSlugs);
+
+      // لایه اول: مهارت‌های انتخابی والد
+      const layer1 = rawSkillsList.filter(s => selected.includes(s.slug));
+
+      // استخراج دسته‌های انتخاب‌شده
+      const chosenCategories = new Set(
+        layer1.map(s => s.category || FALLBACK_CATEGORIES[s.slug] || 'general')
+      );
+
+      // لایه دوم: مهارت‌های هم‌خانواده (در همان دسته‌ها)
+      const remaining = rawSkillsList.filter(s => !selected.includes(s.slug));
+      const layer2 = remaining.filter(s => {
+        const cat = s.category || FALLBACK_CATEGORIES[s.slug] || 'general';
+        return chosenCategories.has(cat);
+      });
+
+      // لایه سوم: بقیه مهارت‌ها (به صورت شافل تصادفی)
+      const layer3 = remaining
+        .filter(s => {
+          const cat = s.category || FALLBACK_CATEGORIES[s.slug] || 'general';
+          return !chosenCategories.has(cat);
+        })
+        .sort(() => Math.random() - 0.5);
+
+      skillsList = [...layer1, ...layer2, ...layer3];
+
+      document.getElementById('interest-picker-box').classList.add('hidden');
+      document.getElementById('survey-box').classList.remove('hidden');
+
+      refreshSkillDropdown();
+      currentSkillIndex = 0;
+      loadCurrentSkillQuestions();
     }
 
     function refreshSkillDropdown() {
@@ -459,7 +557,6 @@
         `;
       }).join('');
 
-      // تولید متن پویا و روان‌شناختی با جمنای/الگوریتم داخلی
       const topSkill = top3[0];
       const topMeta = SKILL_METADATA[topSkill?.slug] || { challenge: 'یک فعالیت عملی دونفره مرتبط با علایقش در خانه تجربه کنید.' };
 
@@ -519,6 +616,7 @@
     function handleLogout() {
       currentStudent = null;
       document.getElementById('survey-box').classList.add('hidden');
+      document.getElementById('interest-picker-box').classList.add('hidden');
       document.getElementById('completed-box').classList.add('hidden');
       document.getElementById('auth-box').classList.remove('hidden');
       document.getElementById('input-student-pass').value = '';
