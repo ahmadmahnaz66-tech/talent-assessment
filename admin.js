@@ -1484,3 +1484,153 @@ async function loadAnalyticsDashboard() {
     console.error("خطا در بارگذاری داشبورد تحلیلی:", err);
   }
 }
+
+// ==========================================
+// ۱. استخراج کامل مهارت‌ها و سوالات در قالب فایل اکسل
+// ==========================================
+async function exportSkillsAndQuestionsToExcel() {
+  try {
+    // دریافت اطلاعات تجمیعی از دیتابیس
+    const res = await fetch('/api/questions');
+    const questions = await res.json();
+
+    // دریافت لیست مهارت‌ها (اگر در کش موجود نباشد)
+    let skillsList = window.allSkillsCache || [];
+    if (!skillsList.length) {
+      const sRes = await fetch('/api/skills');
+      if (sRes.ok) skillsList = await sRes.json();
+    }
+
+    const skillMap = {};
+    skillsList.forEach(s => {
+      skillMap[s.slug] = s.title;
+    });
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return alert('هیچ سوال یا مهارتی برای خروجی گرفتن یافت نشد.');
+    }
+
+    // مرتب‌سازی داده‌ها برای شیت اکسل
+    const rows = questions.map((q, idx) => ({
+      'ردیف': idx + 1,
+      'شناسه مهارت (Slug)': q.skill_slug,
+      'عنوان فارسی مهارت': skillMap[q.skill_slug] || q.skill_slug,
+      'متن گویه / سوال': q.question_text,
+      'ترتیب نمایش': q.display_order || 1
+    }));
+
+    // ساخت فایل اکسل با SheetJS
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!dir'] = 'rtl'; // راست‌چین کردن ستون‌های اکسل
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'مهارت‌ها و گویه‌ها');
+
+    // ایجاد نام فایل همراه با تاریخ
+    const fileName = `Talent_Assessment_Questions_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+
+  } catch (err) {
+    console.error('Export Error:', err);
+    alert('خطا در ایجاد خروجی اکسل: ' + err.message);
+  }
+}
+
+// ==========================================
+// ۲. بارگذاری و ذخیره دسته‌ای مهارت‌ها و سوالات از اکسل
+// ==========================================
+async function importSkillsAndQuestionsFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (!confirm('آیا از بارگذاری و ثبت این فایل اکسل در پایگاه داده اطمینان دارید؟')) {
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+
+      // خواندن اولین شیت
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rows = XLSX.utils.sheet_to_json(worksheet);
+
+      if (!rows || rows.length === 0) {
+        event.target.value = '';
+        return alert('فایل اکسل انتخاب‌شده خالی است.');
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // پردازش سطرهای اکسل
+      for (const row of rows) {
+        // خواندن فیلدها با اسامی احتمالی (فارسی یا انگلیسی)
+        const skillSlug = (row['شناسه مهارت (Slug)'] || row['skill_slug'] || row['slug'] || '').toString().trim();
+        const skillTitle = (row['عنوان فارسی مهارت'] || row['skill_title'] || row['title'] || '').toString().trim();
+        const questionText = (row['متن گویه / سوال'] || row['question_text'] || row['text'] || '').toString().trim();
+        const displayOrder = Number(row['ترتیب نمایش'] || row['display_order'] || 1);
+
+        if (!skillSlug || !questionText) {
+          errorCount++;
+          continue;
+        }
+
+        // الف) اگر مهارت جدید است یا عنوان دارد، بررسی یا ثبت مهارت
+        if (skillTitle) {
+          try {
+            await fetch('/api/skills', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'add', slug: skillSlug, title: skillTitle })
+            });
+          } catch (_) {}
+        }
+
+        // ب) درج سوال در جدول questions
+        try {
+          const qRes = await fetch('/api/questions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }[cite: 5],
+            body: JSON.stringify({
+              action: 'add',
+              skillSlug,
+              questionText,
+              displayOrder
+            })[cite: 5]
+          });
+          const qData = await qRes.json();
+          if (qRes.ok && qData.success) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (_) {
+          errorCount++;
+        }
+      }
+
+      alert(`عملیات بارگذاری به پایان رسید.\nتعداد موفق: ${successCount}\nتعداد خطا/ردیف‌های ناقص: ${errorCount}`);
+      event.target.value = '';
+
+      // بروزرسانی لیست در رابط کاربری
+      if (typeof loadSkillsAndQuestions === 'function') {
+        loadSkillsAndQuestions();
+      } else {
+        location.reload();
+      }
+
+    } catch (err) {
+      console.error('Import Error:', err);
+      alert('خطا در پردازش فایل اکسل: ' + err.message);
+      event.target.value = '';
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+}
