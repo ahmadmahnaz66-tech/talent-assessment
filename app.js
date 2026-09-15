@@ -20,7 +20,7 @@ function toEnglishDigits(str) {
             .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 }
 
-// ۱. ورود دانش‌آموز (کد ملی + رمز عبور)
+// ۱. ورود دانش‌آموز (کد ملی یا شماره همراه پدر/مادر + رمز عبور)
 async function handleStudentLogin() {
   const idInput = document.getElementById('input-student-id');
   const passInput = document.getElementById('input-student-pass');
@@ -31,7 +31,7 @@ async function handleStudentLogin() {
   const password = toEnglishDigits(passInput.value.trim());
 
   if (!studentId || !password) {
-    errBox.innerText = 'لطفاً کد ملی و رمز عبور را وارد کنید.';
+    errBox.innerText = 'لطفاً کد ملی یا شماره همراه و رمز عبور را وارد کنید.';
     errBox.classList.remove('hidden');
     return;
   }
@@ -49,16 +49,28 @@ async function handleStudentLogin() {
 
     const data = await res.json();
     if (!res.ok || !data.success) {
-      errBox.innerText = data.error || 'کد ملی یا رمز عبور اشتباه است.';
+      if (data.canRegister) {
+        errBox.innerHTML = `${data.error}<br/><button onclick="openStudentRegisterModal()" class="mt-2 text-indigo-700 underline font-black">پرونده شما در سامانه نیست؟ ثبت‌نام مستقیم 📝</button>`;
+      } else {
+        errBox.innerText = data.error || 'کد ملی/شماره همراه یا رمز عبور اشتباه است.';
+      }
       errBox.classList.remove('hidden');
       return;
     }
 
     currentStudent = data.student;
 
-    // بررسی الزام تغییر رمز در اولین ورود
+    // بررسی الزام تغییر رمز در اولین ورود یا تکمیل کد ملی
     if (currentStudent.mustChangePassword) {
-      document.getElementById('first-login-modal').classList.remove('hidden');
+      const modal = document.getElementById('first-login-modal');
+      if (modal) {
+        // در صورتی که شناسه موقت باشد (مثلاً شماره موبایل ثبت شده باشد)، فیلد کد ملی نشان داده می‌شود
+        const nationalIdBox = document.getElementById('first-national-id-box');
+        if (nationalIdBox) {
+          nationalIdBox.classList.toggle('hidden', !currentStudent.needsNationalId);
+        }
+        modal.classList.remove('hidden');
+      }
     } else {
       await initializeStudentQuiz();
     }
@@ -69,15 +81,29 @@ async function handleStudentLogin() {
   }
 }
 
-// ۲. ثبت رمز جدید در ورود اول
+// ۲. ثبت رمز جدید و تکمیل کد ملی در ورود اول
 async function submitFirstPasswordChange() {
   const newPass = toEnglishDigits(document.getElementById('first-new-pass').value.trim());
   const confirmPass = toEnglishDigits(document.getElementById('first-confirm-pass').value.trim());
+  const nationalIdInput = document.getElementById('first-national-id');
+  const nationalId = nationalIdInput ? toEnglishDigits(nationalIdInput.value.trim()) : '';
   const errBox = document.getElementById('first-change-err');
   errBox.classList.add('hidden');
 
+  if (currentStudent.needsNationalId && (!nationalId || nationalId.length !== 10)) {
+    errBox.innerText = 'لطفاً کد ملی ۱۰ رقمی معتبر دانش‌آموز را وارد کنید.';
+    errBox.classList.remove('hidden');
+    return;
+  }
+
   if (newPass.length < 5) {
     errBox.innerText = 'رمز عبور جدید باید حداقل ۵ کاراکتر باشد.';
+    errBox.classList.remove('hidden');
+    return;
+  }
+
+  if (newPass === '123456') {
+    errBox.innerText = 'رمز عبور جدید نمی‌تواند همان رمز پیش‌فرض (123456) باشد.';
     errBox.classList.remove('hidden');
     return;
   }
@@ -93,18 +119,20 @@ async function submitFirstPasswordChange() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'change-student-password',
+        action: 'complete-student-profile',
         studentId: currentStudent.id,
+        national_id: nationalId || currentStudent.id,
         newPassword: newPass
       })
     });
 
     const data = await res.json();
     if (res.ok && data.success) {
+      if (data.updatedId) currentStudent.id = data.updatedId;
       document.getElementById('first-login-modal').classList.add('hidden');
       await initializeStudentQuiz();
     } else {
-      errBox.innerText = data.error || 'خطا در ذخیره رمز جدید.';
+      errBox.innerText = data.error || 'خطا در ذخیره اطلاعات.';
       errBox.classList.remove('hidden');
     }
   } catch (e) {
@@ -113,7 +141,63 @@ async function submitFirstPasswordChange() {
   }
 }
 
-// ۳. آغاز آزمون و دریافت سوابق و مهارت‌ها
+// ۳. باز و بسته کردن فرم ثبت‌نام مستقیم دانش‌آموزان جا افتاده
+function openStudentRegisterModal() {
+  const regModal = document.getElementById('student-register-modal');
+  if (regModal) regModal.classList.remove('hidden');
+}
+
+function closeStudentRegisterModal() {
+  const regModal = document.getElementById('student-register-modal');
+  if (regModal) regModal.classList.add('hidden');
+}
+
+async function handleStudentDirectRegister() {
+  const national_id = toEnglishDigits(document.getElementById('reg-std-id').value.trim());
+  const first_name = document.getElementById('reg-std-first-name').value.trim();
+  const last_name = document.getElementById('reg-std-last-name').value.trim();
+  const grade = document.getElementById('reg-std-grade').value;
+  const classroom = document.getElementById('reg-std-class').value;
+  const father_phone = toEnglishDigits(document.getElementById('reg-std-father-phone').value.trim());
+  const mother_phone = toEnglishDigits(document.getElementById('reg-std-mother-phone').value.trim());
+  const password = toEnglishDigits(document.getElementById('reg-std-password').value.trim());
+
+  if (!national_id || !first_name || !last_name || !grade) {
+    return alert('کد ملی، نام، نام خانوادگی و پایه الزامی هستند.');
+  }
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'student-register',
+        national_id,
+        first_name,
+        last_name,
+        grade,
+        classroom,
+        father_phone,
+        mother_phone,
+        password: password || '123456'
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert('پرونده با موفقیت ثبت شد.');
+      closeStudentRegisterModal();
+      currentStudent = data.student;
+      await initializeStudentQuiz();
+    } else {
+      alert(data.error || 'خطا در ثبت‌نام پرونده.');
+    }
+  } catch (err) {
+    alert('خطا در برقراری ارتباط با سرور.');
+  }
+}
+
+// ۴. آغاز آزمون و دریافت سوابق و مهارت‌ها
 async function initializeStudentQuiz() {
   try {
     // دریافت پاسخ‌های ثبت‌شده قبلی
