@@ -1312,15 +1312,31 @@ async function handleCreateStaff() {
 }
 
 async function deleteStaff(staffId) {
-  if (!confirm('آیا از حذف دسترسی این کاربر اطمینان دارید؟')) return;
-  const res = await fetch('/api/auth', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'delete-staff', requesterRole: currentStaffUser.role, staffId })
-  });
-  if (res.ok) loadStaffList();
-}
+  if (!confirm('آیا از حذف کامل دسترسی این کاربر اطمینان دارید؟')) return;
 
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'delete-staff',
+        requesterRole: currentStaffUser?.role || 'super_admin',
+        staffId: Number(staffId)
+      })
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      alert('دسترسی کاربر با موفقیت حذف شد.');
+      await loadStaffList();
+    } else {
+      alert(data.error || 'خطا در حذف دسترسی کاربر.');
+    }
+  } catch (err) {
+    alert('خطا در برقراری ارتباط با سرور: ' + err.message);
+  }
+}
 function filterStudentDropdown(query) {
   const select = document.getElementById('student-select');
   if (!select) return;
