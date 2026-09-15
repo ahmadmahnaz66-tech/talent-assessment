@@ -5,12 +5,9 @@ export async function onRequestGet(context) {
 
   try {
     let query = "";
-
     if (type === 'site') {
-      // فقط مدیران بخش عمومی سایت
       query = "SELECT id, username, full_name, role, created_at FROM staff_users WHERE role IN ('super_admin', 'finance_admin', 'content_admin') ORDER BY id ASC";
     } else {
-      // کادر اختصاصی مدرسه (پیش‌فرض و type=school)
       query = "SELECT id, username, full_name, role, created_at FROM staff_users WHERE role IN ('super_admin', 'counselor', 'principal', 'vice_principal') ORDER BY id ASC";
     }
 
@@ -29,7 +26,21 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { action } = body;
 
-    // ۱. ورود پرسنل و مدیران سایت
+    // استعلام زنده موجودی کیف پول
+    if (action === 'get-wallet') {
+      const { user_phone } = body;
+      const cleanPhone = String(user_phone).trim();
+      let user = await env.DB.prepare("SELECT wallet_balance FROM public_users WHERE phone = ?").bind(cleanPhone).first();
+      if (!user) {
+        user = await env.DB.prepare("SELECT wallet_balance FROM students WHERE id = ?").bind(cleanPhone).first();
+      }
+      return new Response(JSON.stringify({
+        success: true,
+        balance: user ? Number(user.wallet_balance || 0) : 0
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۱. ورود پرسنل
     if (action === 'staff-login') {
       const { username, password } = body;
       const user = await env.DB.prepare(
@@ -46,7 +57,7 @@ export async function onRequestPost(context) {
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ۲. ثبت‌نام کاربر آزاد (عمومی)
+    // ۲. ثبت‌نام کاربر آزاد
     if (action === 'public-register') {
       const { full_name, phone, password } = body;
       if (!full_name || !phone || !password) {
@@ -62,12 +73,12 @@ export async function onRequestPost(context) {
       }
 
       await env.DB.prepare(
-        "INSERT INTO public_users (full_name, phone, password_hash) VALUES (?, ?, ?)"
+        "INSERT INTO public_users (full_name, phone, password_hash, wallet_balance) VALUES (?, ?, ?, 0)"
       ).bind(full_name.trim(), cleanPhone, cleanPass).run();
 
       return new Response(JSON.stringify({
         success: true,
-        user: { id: cleanPhone, username: cleanPhone, fullName: full_name.trim(), role: 'public' }
+        user: { id: cleanPhone, username: cleanPhone, fullName: full_name.trim(), role: 'public', wallet_balance: 0 }
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
@@ -83,7 +94,7 @@ export async function onRequestPost(context) {
       const cleanPass = String(password).trim();
 
       const student = await env.DB.prepare(
-        "SELECT id, student_name, grade, classroom, password_hash FROM students WHERE id = ?"
+        "SELECT id, student_name, grade, classroom, password_hash, wallet_balance FROM students WHERE id = ?"
       ).bind(cleanUser).first();
 
       if (student) {
@@ -97,12 +108,19 @@ export async function onRequestPost(context) {
 
         return new Response(JSON.stringify({
           success: true,
-          user: { id: student.id, username: student.id, fullName: student.student_name, grade: student.grade, role: 'student' }
+          user: { 
+            id: student.id, 
+            username: student.id, 
+            fullName: student.student_name, 
+            grade: student.grade, 
+            role: 'student',
+            wallet_balance: Number(student.wallet_balance || 0)
+          }
         }), { headers: { 'Content-Type': 'application/json' } });
       }
 
       const publicUser = await env.DB.prepare(
-        "SELECT id, phone, full_name, password_hash FROM public_users WHERE phone = ?"
+        "SELECT id, phone, full_name, password_hash, wallet_balance FROM public_users WHERE phone = ?"
       ).bind(cleanUser).first();
 
       if (publicUser) {
@@ -111,14 +129,20 @@ export async function onRequestPost(context) {
         }
         return new Response(JSON.stringify({
           success: true,
-          user: { id: publicUser.phone, username: publicUser.phone, fullName: publicUser.full_name, role: 'public' }
+          user: { 
+            id: publicUser.phone, 
+            username: publicUser.phone, 
+            fullName: publicUser.full_name, 
+            role: 'public',
+            wallet_balance: Number(publicUser.wallet_balance || 0)
+          }
         }), { headers: { 'Content-Type': 'application/json' } });
       }
 
       return new Response(JSON.stringify({ error: 'کاربری با این مشخصات یافت نشد.' }), { status: 404 });
     }
 
-    // ۴. افزودن پرسنل جدید (فقط مدیر ارشد)
+    // ۴. افزودن پرسنل جدید
     if (action === 'add-staff') {
       const { requesterRole, full_name, username, password, role } = body;
       if (requesterRole !== 'super_admin') {
@@ -146,49 +170,12 @@ export async function onRequestPost(context) {
     // ۵. تغییر رمز عبور پرسنل
     if (action === 'change-staff-password') {
       const { username, oldPassword, newPassword } = body;
-      if (!username || !oldPassword || !newPassword) {
-        return new Response(JSON.stringify({ error: 'تمامی فیلدها الزامی است.' }), { status: 400 });
-      }
-
       const user = await env.DB.prepare("SELECT id, password_hash FROM staff_users WHERE username = ?").bind(String(username).trim()).first();
       if (!user || user.password_hash !== String(oldPassword).trim()) {
         return new Response(JSON.stringify({ error: 'رمز عبور فعلی نادرست است.' }), { status: 401 });
       }
 
       await env.DB.prepare("UPDATE staff_users SET password_hash = ? WHERE username = ?").bind(String(newPassword).trim(), String(username).trim()).run();
-      return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
-    }
-
-    // ۶. تعیین رمز دلخواه دانش‌آموز
-    if (action === 'set-student-password') {
-      const { requesterRole, studentId, newPassword } = body;
-      if (!['super_admin', 'principal'].includes(requesterRole)) {
-        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
-      }
-      await env.DB.prepare("UPDATE students SET password_hash = ? WHERE id = ?").bind(String(newPassword).trim(), String(studentId).trim()).run();
-      return new Response(JSON.stringify({ success: true, message: 'رمز جدید دانش‌آموز ثبت شد.' }), { headers: { 'Content-Type': 'application/json' } });
-    }
-
-    // ۷. بازنشانی رمز دانش‌آموز
-    if (action === 'reset-student-password') {
-      const { requesterRole, studentId } = body;
-      if (!['super_admin', 'principal'].includes(requesterRole)) {
-        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
-      }
-      const rawId = String(studentId).trim();
-      const defaultPass = rawId.length >= 4 ? rawId.slice(-4) : rawId;
-      await env.DB.prepare("UPDATE students SET password_hash = ? WHERE id = ?").bind(defaultPass, rawId).run();
-      return new Response(JSON.stringify({ success: true, message: `رمز دانش‌آموز به ${defaultPass} بازنشانی شد.` }), { headers: { 'Content-Type': 'application/json' } });
-    }
-
-    // ۸. حذف پرسنل (فقط مدیر ارشد)
-    if (action === 'delete-staff') {
-      const { requesterRole, staffId } = body;
-      if (requesterRole !== 'super_admin') {
-        return new Response(JSON.stringify({ error: 'فقط مدیر ارشد مجاز به حذف است.' }), { status: 403 });
-      }
-
-      await env.DB.prepare("DELETE FROM staff_users WHERE id = ?").bind(staffId).run();
       return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
     }
 
