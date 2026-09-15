@@ -118,30 +118,21 @@ ${exposureSummary}
       }
     });
 
-const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash'];
-    let aiRes = null;
+    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
 
-    for (const modelName of modelsToTry) {
-      const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-      aiRes = await fetch(directUrl, {
+    let aiRes = await fetch(directUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: requestBody
+    });
+
+    if (!aiRes.ok) {
+      aiRes = await fetch(gatewayUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: requestBody
       });
-
-      if (aiRes.ok) break;
-
-      const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-      const gwRes = await fetch(gatewayUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody
-      });
-
-      if (gwRes.ok) {
-        aiRes = gwRes;
-        break;
-      }
     }
 
     if (!aiRes.ok) {
