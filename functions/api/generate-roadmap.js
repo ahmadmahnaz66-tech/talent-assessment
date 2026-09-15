@@ -32,7 +32,7 @@ export async function onRequestPost(context) {
       ORDER BY raw_score DESC
     `).bind(cleanStudentId).all();
 
-    // نادیده گرفتن مهارت‌های پیش‌فرض
+    // نادیده گرفتن مهارت‌های بدون امتیاز یا پیش‌فرض
     const validSkillScores = (skillScores || []).filter(s => {
       const score = Number(s.raw_score);
       return score > 0 && score !== 30;
@@ -61,7 +61,7 @@ export async function onRequestPost(context) {
       exposureSummary = 'اطلاعات مجاورت‌سازی در دسترس نیست.';
     }
 
-    // ۴. آماده‌سازی پرامپت تحلیلی هوش مصنوعی
+    // ۴. آماده‌سازی پرامپت تحلیلی
     const topSkillsSummary = validSkillScores.map(s => `- مهارت ${s.skill_title}: امتیاز کل ${s.raw_score}`).join('\n');
 
     const systemPrompt = `شما یک روانشناس ارشد بالینی کودک و متخصص برجسته استعدادیابی تحصیلی هستید. وظیفه شما تحلیل داده‌های عملکردی دانش‌آموز بر اساس مدل کدهای رغبتی هالند (RIASEC)، نظریه هوش‌های چندگانه گاردنر و مشاهدات عینی مجاورت‌سازی (Exposure) است.
@@ -118,8 +118,8 @@ ${exposureSummary}
       }
     });
 
-    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const modelName = 'gemini-1.5-flash';
+    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
     let aiRes = await fetch(directUrl, {
       method: 'POST',
@@ -127,12 +127,17 @@ ${exposureSummary}
       body: requestBody
     });
 
-    if (!aiRes.ok) {
-      aiRes = await fetch(gatewayUrl, {
+    // در صورتی که اتصال مستقیم با خطای شبکه یا فیلترینگ مواجه شود، تلاش از طریق گیت‌وی
+    if (!aiRes.ok && aiRes.status !== 400 && aiRes.status !== 403) {
+      const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      const gwRes = await fetch(gatewayUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: requestBody
       });
+      if (gwRes.ok) {
+        aiRes = gwRes;
+      }
     }
 
     if (!aiRes.ok) {
@@ -156,19 +161,19 @@ ${exposureSummary}
       };
     }
 
-    // ۵. تعیین نسخه جدید در جدول roadmaps
+    // ۵. تعیین نسخه جدید در جدول اصلی roadmaps
     const latest = await env.DB.prepare(
       "SELECT MAX(version) as max_v FROM roadmaps WHERE student_id = ? AND report_type = ?"
     ).bind(cleanStudentId, currentReportType).first();
     const nextVersion = (latest && latest.max_v ? Number(latest.max_v) : 0) + 1;
 
-    // ۶. ذخیره نسخه جدید در جدول اصلی roadmaps
+    // ۶. ذخیره نسخه جدید در جدول roadmaps
     await env.DB.prepare(`
       INSERT INTO roadmaps (student_id, version, report_type, analysis, created_at)
       VALUES (?, ?, ?, ?, datetime('now'))
     `).bind(cleanStudentId, nextVersion, currentReportType, JSON.stringify(parsedPayload)).run();
 
-    // ۷. ریست کردن پرچم نیاز به همگام‌سازی AI
+    // ۷. ریست کردن وضعیت نیاز به همگام‌سازی دانش‌آموز
     await env.DB.prepare("UPDATE students SET needs_ai_sync = 0 WHERE id = ?").bind(cleanStudentId).run();
 
     return new Response(JSON.stringify({ success: true, version: nextVersion, roadmap: parsedPayload }), {
