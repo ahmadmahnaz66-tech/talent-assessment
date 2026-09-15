@@ -9,9 +9,7 @@
   <style>
     body { font-family: 'Vazirmatn FD', sans-serif; }
     .no-select { user-select: none; -webkit-user-select: none; }
-    input[type=range] {
-      accent-color: #4f46e5;
-    }
+    input[type=range] { accent-color: #4f46e5; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased selection:bg-indigo-500 selection:text-white pb-36">
@@ -57,7 +55,7 @@
           <a href="#audio-section" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black px-6 py-3.5 rounded-2xl shadow-lg shadow-indigo-600/30 transition">
             🎙️ مشاهده بسته‌ها و صوت‌ها
           </a>
-          <button onclick="initiatePayment('subscription', null, 'اشتراک جامع ماهانه (دسترسی به تمام پادکست‌ها)')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-black px-6 py-3.5 rounded-2xl shadow-lg shadow-amber-500/30 transition">
+          <button onclick="handlePurchaseAttempt('subscription', null, 'اشتراک جامع ماهانه (دسترسی به تمام پادکست‌ها)', Number(siteSettings.sub_price || 50000))" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-black px-6 py-3.5 rounded-2xl shadow-lg shadow-amber-500/30 transition">
             💳 فعال‌سازی اشتراک ماهانه
           </button>
         </div>
@@ -85,11 +83,9 @@
     </div>
   </section>
 
-  <!-- پلیر سراسری شناور و پیشرفته در پایین صفحه -->
+  <!-- پلیر سراسری شناور -->
   <div id="floating-audio-bar" class="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-2xl z-50 transition-all duration-300 translate-y-full">
     <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-2">
-      
-      <!-- ردیف اول: میله پیشرفت و زمان -->
       <div class="flex items-center gap-3 w-full">
         <span id="player-current-time" class="text-[11px] font-mono text-slate-500 font-bold min-w-[36px]">00:00</span>
         <div class="flex-1 relative flex items-center">
@@ -98,61 +94,30 @@
         <span id="player-duration-time" class="text-[11px] font-mono text-slate-500 font-bold min-w-[36px]">00:00</span>
       </div>
 
-      <!-- ردیف دوم: مشخصات فایل، کلیدهای کنترل و تنظیمات -->
       <div class="flex flex-wrap items-center justify-between gap-3">
-        
-        <!-- مشخصات صوت در حال پخش -->
         <div class="flex items-center gap-2.5 min-w-[180px]">
-          <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-            🎵
-          </div>
+          <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">🎵</div>
           <div>
             <h4 id="player-track-title" class="text-xs font-black text-slate-900 truncate max-w-[200px] sm:max-w-[300px]">عنوان پادکست</h4>
             <span id="player-status-badge" class="text-[10px] text-slate-400 font-medium">آماده پخش</span>
           </div>
         </div>
 
-        <!-- کلیدهای اصلی کنترل صوت -->
         <div class="flex items-center gap-2 sm:gap-4 mx-auto">
-          <!-- عقب بردن ۱۰ ثانیه -->
-          <button onclick="skipTime(-10)" title="۱۰ ثانیه به عقب" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition">
-            ⏪۱۰
-          </button>
-
-          <!-- دکمه توقف / پخش -->
-          <button id="player-play-btn" onclick="togglePlayPause()" class="w-11 h-11 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center text-base shadow-lg shadow-indigo-200 transition transform hover:scale-105">
-            ▶
-          </button>
-
-          <!-- جلو بردن ۱۰ ثانیه -->
-          <button onclick="skipTime(10)" title="۱۰ ثانیه به جلو" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition">
-            ۱۰⏩
-          </button>
+          <button onclick="skipTime(-10)" title="۱۰ ثانیه به عقب" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition">⏪۱۰</button>
+          <button id="player-play-btn" onclick="togglePlayPause()" class="w-11 h-11 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center text-base shadow-lg shadow-indigo-200 transition transform hover:scale-105">▶</button>
+          <button onclick="skipTime(10)" title="۱۰ ثانیه به جلو" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition">۱۰⏩</button>
         </div>
 
-        <!-- سرعت پخش و ولوم صدا -->
         <div class="flex items-center gap-3">
-          <!-- دکمه سرعت پخش -->
-          <button id="player-speed-btn" onclick="changePlaybackSpeed()" class="text-xs font-mono font-black bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl border border-indigo-100 transition" title="تغییر سرعت پخش">
-            1.0x
-          </button>
-
-          <!-- کنترل صدا -->
+          <button id="player-speed-btn" onclick="changePlaybackSpeed()" class="text-xs font-mono font-black bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl border border-indigo-100 transition">1.0x</button>
           <div class="hidden sm:flex items-center gap-1.5">
-            <button id="player-mute-btn" onclick="toggleMute()" class="text-slate-500 hover:text-slate-800 text-sm">
-              🔊
-            </button>
+            <button id="player-mute-btn" onclick="toggleMute()" class="text-slate-500 hover:text-slate-800 text-sm">🔊</button>
             <input type="range" id="player-volume-bar" min="0" max="1" step="0.05" value="1" class="w-16 h-1.5 bg-slate-200 rounded-lg cursor-pointer">
           </div>
-
-          <!-- بستن پلیر -->
-          <button onclick="closeFloatingPlayer()" title="بستن پلیر" class="text-slate-400 hover:text-slate-600 text-sm p-1">
-            ✕
-          </button>
+          <button onclick="closeFloatingPlayer()" title="بستن پلیر" class="text-slate-400 hover:text-slate-600 text-sm p-1">✕</button>
         </div>
-
       </div>
-
     </div>
   </div>
 
@@ -162,12 +127,8 @@
       <button onclick="closeAuthModal()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
 
       <div class="flex p-1 bg-slate-100 rounded-2xl mb-5">
-        <button id="tab-login-btn" onclick="switchAuthTab('login')" class="flex-1 py-2 rounded-xl text-xs font-bold bg-white text-indigo-900 shadow-sm transition">
-          ورود به حساب
-        </button>
-        <button id="tab-register-btn" onclick="switchAuthTab('register')" class="flex-1 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 transition">
-          ثبت‌نام کاربر آزاد
-        </button>
+        <button id="tab-login-btn" onclick="switchAuthTab('login')" class="flex-1 py-2 rounded-xl text-xs font-bold bg-white text-indigo-900 shadow-sm transition">ورود به حساب</button>
+        <button id="tab-register-btn" onclick="switchAuthTab('register')" class="flex-1 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 transition">ثبت‌نام کاربر آزاد</button>
       </div>
 
       <div id="form-login" class="space-y-3">
@@ -179,9 +140,7 @@
           <label class="text-xs font-bold text-slate-700 block mb-1">رمز عبور:</label>
           <input type="password" id="login-pass-input" placeholder="رمز عبور شما" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600">
         </div>
-        <button onclick="handleLoginSubmit()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl shadow-lg shadow-indigo-100 transition mt-2">
-          تأیید و ورود
-        </button>
+        <button onclick="handleLoginSubmit()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl shadow-lg shadow-indigo-100 transition mt-2">تأیید و ورود</button>
       </div>
 
       <div id="form-register" class="space-y-3 hidden">
@@ -197,22 +156,20 @@
           <label class="text-xs font-bold text-slate-700 block mb-1">تعیین رمز عبور:</label>
           <input type="password" id="reg-pass-input" placeholder="حداقل ۴ کاراکتر" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600">
         </div>
-        <button onclick="handleRegisterSubmit()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition mt-2">
-          عضویت و ثبت‌نام
-        </button>
+        <button onclick="handleRegisterSubmit()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition mt-2">عضویت و ثبت‌نام</button>
       </div>
     </div>
   </div>
 
-  <!-- مودال واریز کارت‌به‌کارت -->
+  <!-- مودال افزایش موجودی / شارژ کیف پول -->
   <div id="payment-modal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 relative space-y-4">
       <button onclick="closePaymentModal()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
 
       <div class="text-center pb-2 border-b border-slate-100">
-        <span class="text-2xl">💳</span>
-        <h3 class="text-sm font-black text-slate-900 mt-1">پرداخت امن کارت‌به‌کارت</h3>
-        <p id="pay-item-title" class="text-xs text-indigo-600 font-bold mt-0.5">-</p>
+        <span class="text-2xl">💰</span>
+        <h3 class="text-sm font-black text-slate-900 mt-1">شارژ کیف پول کاربری</h3>
+        <p id="pay-item-title" class="text-xs text-indigo-600 font-bold mt-0.5">افزایش اعتبار حساب</p>
       </div>
 
       <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 text-xs">
@@ -233,19 +190,9 @@
         </div>
       </div>
 
-      <div class="bg-indigo-50/50 p-3 rounded-2xl border border-indigo-100 space-y-2">
-        <div class="flex items-center gap-2">
-          <input type="text" id="disc-code-input" placeholder="کد تخفیف (مثلاً اولیای مدرسه)" class="flex-1 bg-white border border-slate-200 p-2 rounded-xl text-xs font-mono uppercase outline-none focus:border-indigo-600">
-          <button onclick="applyDiscount()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition">
-            اعمال
-          </button>
-        </div>
-        <p id="disc-feedback" class="text-[11px] font-bold hidden"></p>
-      </div>
-
-      <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-100 border border-slate-200">
-        <span class="text-xs font-bold text-slate-600">مبلغ قابل واریز:</span>
-        <span class="text-sm font-black text-emerald-700 font-mono"><strong id="pay-final-amount">0</strong> تومان</span>
+      <div class="flex items-center justify-between p-3 rounded-2xl bg-indigo-50 border border-indigo-100">
+        <span class="text-xs font-bold text-slate-600">مبلغ واریزی جهت شارژ:</span>
+        <span class="text-sm font-black text-indigo-700 font-mono"><strong id="pay-final-amount">0</strong> تومان</span>
       </div>
 
       <div class="space-y-3">
@@ -254,12 +201,12 @@
           <input type="text" id="pay-card-last4" maxlength="4" placeholder="مثال: 5642" class="w-full border border-slate-200 p-2 rounded-xl text-xs outline-none font-mono text-center">
         </div>
         <div>
-          <label class="block text-[11px] font-bold text-slate-700 mb-1">کد پیگیری یا شماره ارجاع تراکنش:</label>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">کد پیگیری یا شماره ارجاع فیش:</label>
           <input type="text" id="pay-tracking" placeholder="شماره پیگیری فیش بانکی" class="w-full border border-slate-200 p-2 rounded-xl text-xs outline-none font-mono text-center">
         </div>
 
         <button onclick="submitPaymentReceipt()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-lg shadow-emerald-100">
-          ثبت فیش و ارسال جهت تایید وصول
+          ثبت فیش شارژ کیف پول
         </button>
       </div>
     </div>
@@ -269,7 +216,7 @@
     let activeUser = null;
     let siteSettings = {};
     let contentPackages = [];
-    let currentPayingItem = { type: '', id: null, rawAmount: 0, finalAmount: 0, title: '' };
+    let currentPayingItem = { amount: 0, title: '' };
 
     function toEnglishDigits(str) {
       return String(str || '')
@@ -286,11 +233,28 @@
         ]);
         siteSettings = await resSet.json();
         contentPackages = await resContent.json();
-
         renderDynamicContent();
+        await refreshUserWallet();
       } catch (e) {
         console.error('خطا در دریافت اطلاعات:', e);
       }
+    }
+
+    async function refreshUserWallet() {
+      if (!activeUser) return;
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get-wallet', user_phone: activeUser.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+          activeUser.wallet_balance = Number(data.balance || 0);
+          sessionStorage.setItem('activeParent', JSON.stringify(activeUser));
+          applyUserUI();
+        }
+      } catch (e) {}
     }
 
     function renderDynamicContent() {
@@ -316,7 +280,7 @@
                 <span class="text-sm font-black text-slate-900 font-mono">${pkg.price > 0 ? Number(pkg.price).toLocaleString('fa-IR') + ' ت' : 'رایگان'}</span>
               </div>
               ${pkg.price > 0 ? `
-                <button onclick="initiatePayment('package', '${pkg.slug}', 'خرید کل پکیج: ${pkg.title}', ${pkg.price})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm">
+                <button onclick="handlePurchaseAttempt('package', '${pkg.slug}', 'پکیج: ${pkg.title}', ${pkg.price})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm">
                   خرید کل مجموعه 📦
                 </button>
               ` : ''}
@@ -338,7 +302,7 @@
 
                   <div class="flex items-center gap-2">
                     ${t.price_single > 0 ? `
-                      <button onclick="initiatePayment('track', '${t.id}', 'خرید فایل: ${t.title}', ${t.price_single})" class="bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl transition">
+                      <button onclick="handlePurchaseAttempt('track', '${t.id}', 'صوت: ${t.title}', ${t.price_single})" class="bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl transition">
                         خرید تکی 🔓
                       </button>
                     ` : ''}
@@ -356,7 +320,7 @@
     }
 
     // ==========================================
-    // هسته پلیر صوتی پیشرفته و شناور
+    // هسته پلیر صوتی
     // ==========================================
     const audioCore = new Audio();
     const floatingBar = document.getElementById('floating-audio-bar');
@@ -383,7 +347,6 @@
 
     function loadAndPlayAudio(rawUrl, title) {
       if (!rawUrl) return alert('آدرس فایل صوتی یافت نشد.');
-
       let cleanUrl = rawUrl.trim();
       if (cleanUrl.includes('github.com') && cleanUrl.includes('/blob/')) {
         cleanUrl = cleanUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
@@ -400,9 +363,8 @@
         playBtn.innerText = '⏸';
         statusBadgeEl.innerText = 'در حال پخش';
       }).catch(err => {
-        console.error('Audio play error:', err);
         playBtn.innerText = '▶';
-        statusBadgeEl.innerText = 'خطا در بارگذاری منبع';
+        statusBadgeEl.innerText = 'خطا در بارگذاری';
         alert('امکان پخش این فایل صوتی وجود ندارد.');
       });
     }
@@ -442,80 +404,89 @@
       floatingBar.classList.add('translate-y-full');
     }
 
-    // رویدادهای هسته صوتی
     audioCore.ontimeupdate = () => {
       if (!isSeeking && audioCore.duration) {
-        const progress = (audioCore.currentTime / audioCore.duration) * 100;
-        seekBar.value = progress;
+        seekBar.value = (audioCore.currentTime / audioCore.duration) * 100;
         curTimeEl.innerText = formatTime(audioCore.currentTime);
       }
     };
-
-    audioCore.onloadedmetadata = () => {
-      durTimeEl.innerText = formatTime(audioCore.duration);
-    };
-
-    audioCore.onended = () => {
-      playBtn.innerText = '▶';
-      seekBar.value = 0;
-      curTimeEl.innerText = '00:00';
-      statusBadgeEl.innerText = 'به پایان رسید';
-    };
-
-    // اسلایدر پیشرفت
-    seekBar.oninput = () => {
-      isSeeking = true;
-      if (audioCore.duration) {
-        const targetTime = (seekBar.value / 100) * audioCore.duration;
-        curTimeEl.innerText = formatTime(targetTime);
-      }
-    };
-
+    audioCore.onloadedmetadata = () => { durTimeEl.innerText = formatTime(audioCore.duration); };
+    audioCore.onended = () => { playBtn.innerText = '▶'; seekBar.value = 0; curTimeEl.innerText = '00:00'; };
+    seekBar.oninput = () => { isSeeking = true; };
     seekBar.onchange = () => {
-      if (audioCore.duration) {
-        audioCore.currentTime = (seekBar.value / 100) * audioCore.duration;
-      }
+      if (audioCore.duration) audioCore.currentTime = (seekBar.value / 100) * audioCore.duration;
       isSeeking = false;
     };
-
-    // اسلایدر ولوم صدا
-    volumeBar.oninput = () => {
-      audioCore.volume = volumeBar.value;
-      audioCore.muted = false;
-      muteBtn.innerText = audioCore.volume == 0 ? '🔇' : (audioCore.volume > 0.5 ? '🔊' : '🔉');
-    };
+    volumeBar.oninput = () => { audioCore.volume = volumeBar.value; };
 
     // ==========================================
-    // توابع پرداخت و مودال
+    // مدیریت پرداخت و منطق کیف پول
     // ==========================================
-    function initiatePayment(type, id, title, defaultAmount = 0) {
+    async function handlePurchaseAttempt(type, id, title, price) {
       if (!activeUser) {
         alert('لطفاً ابتدا وارد حساب کاربری خود شوید.');
         openAuthModal();
         return;
       }
 
-      let amount = defaultAmount;
-      if (type === 'subscription') {
-        amount = Number(siteSettings.sub_price || 50000);
+      const balance = Number(activeUser.wallet_balance || 0);
+
+      // حالت ۱: موجودی کافی است -> خرید مستقیم
+      if (balance >= price) {
+        if (!confirm(`مبلغ ${price.toLocaleString('fa-IR')} تومان از کیف پول شما کسر خواهد شد. آیا مایل به تایید خرید «${title}» هستید؟`)) {
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/payment-receipt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'pay-with-wallet',
+              user_phone: activeUser.id,
+              amount: price,
+              item_title: title
+            })
+          });
+
+          const data = await res.json();
+          if (res.ok && data.success) {
+            alert('🎉 ' + data.message);
+            activeUser.wallet_balance = data.newBalance;
+            sessionStorage.setItem('activeParent', JSON.stringify(activeUser));
+            applyUserUI();
+          } else {
+            alert(data.error || 'خطا در انجام خرید');
+          }
+        } catch (e) {
+          alert('خطا در برقراری ارتباط با سرور.');
+        }
+        return;
       }
 
-      currentPayingItem = {
-        type,
-        id,
-        title,
-        rawAmount: amount,
-        finalAmount: amount
-      };
+      // حالت ۲: موجودی ناکافی است -> محاسبه کسری و هدایت به شارژ
+      const shortage = price - balance;
+      alert(`⚠️ موجودی کیف پول شما (${balance.toLocaleString('fa-IR')} تومان) کافی نیست.\nشما مبلغ ${shortage.toLocaleString('fa-IR')} تومان کسری دارید.\nلطفاً جهت تکمیل خرید، ابتدا کیف پول خود را شارژ فرمایید.`);
+
+      openTopupModal(shortage, `شارژ کسری موجودی برای: ${title}`);
+    }
+
+    function openTopupModal(amount, title = 'شارژ اعتبار کیف پول') {
+      if (!activeUser) {
+        openAuthModal();
+        return;
+      }
+
+      currentPayingItem = { amount, title };
 
       document.getElementById('pay-item-title').innerText = title;
       document.getElementById('site-card-number').innerText = siteSettings.card_number || 'تنظیم نشده';
       document.getElementById('site-card-holder').innerText = siteSettings.card_holder || '-';
       document.getElementById('site-card-bank').innerText = siteSettings.card_bank || '-';
       document.getElementById('pay-final-amount').innerText = Number(amount).toLocaleString('fa-IR');
-      
-      document.getElementById('disc-code-input').value = '';
-      document.getElementById('disc-feedback').classList.add('hidden');
+
+      document.getElementById('pay-card-last4').value = '';
+      document.getElementById('pay-tracking').value = '';
       document.getElementById('payment-modal').classList.remove('hidden');
     }
 
@@ -528,35 +499,6 @@
       if (!card) return;
       navigator.clipboard.writeText(card);
       alert('شماره کارت در کلیپ‌بورد کپی شد: ' + card);
-    }
-
-    async function applyDiscount() {
-      const code = toEnglishDigits(document.getElementById('disc-code-input').value).toUpperCase();
-      const fb = document.getElementById('disc-feedback');
-      fb.classList.add('hidden');
-
-      if (!code) return;
-
-      try {
-        const res = await fetch(`/api/content-manager?type=check-discount&code=${encodeURIComponent(code)}`);
-        const data = await res.json();
-
-        if (res.ok && data.valid) {
-          const discountPercent = Number(data.percent);
-          const discounted = Math.round(currentPayingItem.rawAmount * (100 - discountPercent) / 100);
-          currentPayingItem.finalAmount = discounted;
-
-          document.getElementById('pay-final-amount').innerText = Number(discounted).toLocaleString('fa-IR');
-          fb.className = 'text-[11px] font-bold text-emerald-600 block';
-          fb.innerText = `کد تخفیف ${discountPercent}٪ با موفقیت اعمال شد.`;
-        } else {
-          fb.className = 'text-[11px] font-bold text-rose-500 block';
-          fb.innerText = data.error || 'کد تخفیف معتبر نیست.';
-        }
-      } catch (e) {
-        fb.className = 'text-[11px] font-bold text-rose-500 block';
-        fb.innerText = 'خطا در بررسی کد تخفیف.';
-      }
     }
 
     async function submitPaymentReceipt() {
@@ -575,17 +517,16 @@
             action: 'submit-receipt',
             user_phone: activeUser.id,
             user_name: activeUser.name,
-            amount: currentPayingItem.finalAmount,
+            amount: currentPayingItem.amount,
             card_last4,
             tracking_code,
-            item_type: currentPayingItem.type,
-            item_id: String(currentPayingItem.id || '')
+            item_type: 'wallet_topup'
           })
         });
 
         const data = await res.json();
         if (res.ok && data.success) {
-          alert('فیش واریزی با موفقیت ثبت شد و پس از تأیید مدیر مالی، دسترسی شما فعال می‌شود.');
+          alert('فیش شارژ با موفقیت ثبت شد. پس از تایید مدیریت، موجودی کیف پول شما افزایش یافته و می‌توانید خرید خود را با ۱ کلیک تکمیل کنید.');
           closePaymentModal();
         } else {
           alert(data.error || 'خطا در ثبت فیش.');
@@ -598,12 +539,8 @@
     // ==========================================
     // توابع احراز هویت
     // ==========================================
-    function openAuthModal() {
-      document.getElementById('auth-modal').classList.remove('hidden');
-    }
-    function closeAuthModal() {
-      document.getElementById('auth-modal').classList.add('hidden');
-    }
+    function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
+    function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
 
     function switchAuthTab(tab) {
       const loginBtn = document.getElementById('tab-login-btn');
@@ -640,7 +577,12 @@
 
         if (res.ok && data.success) {
           const fullName = data.user?.fullName || user;
-          activeUser = { id: user, name: fullName, role: data.user?.role };
+          activeUser = { 
+            id: user, 
+            name: fullName, 
+            role: data.user?.role,
+            wallet_balance: Number(data.user?.wallet_balance || 0)
+          };
           sessionStorage.setItem('activeParent', JSON.stringify(activeUser));
           applyUserUI();
           closeAuthModal();
@@ -668,7 +610,7 @@
         const data = await res.json();
 
         if (res.ok && data.success) {
-          activeUser = { id: phone, name: fullName, role: 'public' };
+          activeUser = { id: phone, name: fullName, role: 'public', wallet_balance: 0 };
           sessionStorage.setItem('activeParent', JSON.stringify(activeUser));
           applyUserUI();
           closeAuthModal();
@@ -684,12 +626,23 @@
     function applyUserUI() {
       const authSec = document.getElementById('auth-section');
       if (activeUser) {
+        const bal = Number(activeUser.wallet_balance || 0).toLocaleString('fa-IR');
         authSec.innerHTML = `
           <div class="flex items-center gap-2">
-            <span class="text-xs font-bold text-slate-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+            <!-- کپسول نمایش کیف پول -->
+            <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-2xl text-xs">
+              <span class="text-amber-800 font-bold">کیف پول:</span>
+              <span class="font-black text-amber-950 font-mono">${bal} ت</span>
+              <button onclick="openTopupModal(50000, 'شارژ اختیاری کیف پول')" title="افزایش موجودی" class="mr-1 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded-lg px-1.5 py-0.5 text-[11px] font-black transition">
+                + شارژ
+              </button>
+            </div>
+
+            <!-- مشخصات کاربر -->
+            <span class="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-2xl">
               👤 ${activeUser.name}
             </span>
-            <button onclick="logoutUser()" class="text-xs text-rose-500 font-bold hover:underline">خروج</button>
+            <button onclick="logoutUser()" class="text-xs text-rose-500 font-bold hover:underline px-1">خروج</button>
           </div>
         `;
       }
