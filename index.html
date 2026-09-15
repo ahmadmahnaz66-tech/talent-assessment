@@ -55,7 +55,7 @@
           <a href="#audio-section" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black px-6 py-3.5 rounded-2xl shadow-lg shadow-indigo-600/30 transition">
             🎙️ مشاهده بسته‌ها و صوت‌ها
           </a>
-          <button onclick="handlePurchaseAttempt('subscription', null, 'اشتراک جامع ماهانه (دسترسی به تمام پادکست‌ها)', Number(siteSettings.sub_price || 50000))" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-black px-6 py-3.5 rounded-2xl shadow-lg shadow-amber-500/30 transition">
+          <button id="btn-hero-sub" onclick="handlePurchaseAttempt('subscription', 'monthly', 'اشتراک جامع ماهانه (دسترسی به تمام پادکست‌ها)', Number(siteSettings.sub_price || 50000))" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-black px-6 py-3.5 rounded-2xl shadow-lg shadow-amber-500/30 transition">
             💳 فعال‌سازی اشتراک ماهانه
           </button>
         </div>
@@ -190,7 +190,7 @@
         </div>
       </div>
 
-      <!-- کادر مبلغ واریزی قابل ویرایش توسط کاربر -->
+      <!-- کادر مبلغ واریزی قابل ویرایش -->
       <div class="p-3 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-between gap-3">
         <label for="pay-amount-input" class="text-xs font-bold text-slate-700 whitespace-nowrap">مبلغ واریزی جهت شارژ:</label>
         <div class="flex items-center gap-1.5 flex-1 max-w-[200px]">
@@ -223,6 +223,7 @@
     let currentPayingItem = { amount: 0, title: '' };
     let currentPlayingTrack = { url: '', title: '', isPurchased: false };
     let previewAlertShown = false;
+    let userPermissions = { hasActiveSubscription: false, purchasedItems: [] };
 
     function toEnglishDigits(str) {
       return String(str || '')
@@ -239,38 +240,51 @@
         ]);
         siteSettings = await resSet.json();
         contentPackages = await resContent.json();
+        await refreshUserWalletAndPermissions();
         renderDynamicContent();
-        await refreshUserWallet();
       } catch (e) {
         console.error('خطا در دریافت اطلاعات:', e);
       }
     }
 
-    async function refreshUserWallet() {
+    async function refreshUserWalletAndPermissions() {
       if (!activeUser) return;
       try {
-        const res = await fetch('/api/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'get-wallet', user_phone: activeUser.id })
-        });
+        const res = await fetch(`/api/payment-receipt?phone=${encodeURIComponent(activeUser.id)}`);
         const data = await res.json();
-        if (data.success) {
-          activeUser.wallet_balance = Number(data.balance || 0);
-          sessionStorage.setItem('activeParent', JSON.stringify(activeUser));
-          applyUserUI();
-        }
+        userPermissions.hasActiveSubscription = Boolean(data.hasActiveSubscription);
+        userPermissions.purchasedItems = data.purchasedItems || [];
+        activeUser.wallet_balance = Number(data.walletBalance || 0);
+
+        sessionStorage.setItem('activeParent', JSON.stringify(activeUser));
+        applyUserUI();
       } catch (e) {}
     }
 
     function renderDynamicContent() {
+      const subBtn = document.getElementById('btn-hero-sub');
+      if (subBtn) {
+        if (userPermissions.hasActiveSubscription) {
+          subBtn.className = 'bg-emerald-600 text-white text-xs font-black px-6 py-3.5 rounded-2xl shadow-lg transition cursor-default';
+          subBtn.innerText = '✅ اشتراک ماهانه شما فعال است';
+          subBtn.onclick = () => alert('اشتراک ماهانه شما فعال است و به تمامی دوره‌ها و پادکست‌ها دسترسی کامل دارید.');
+        } else {
+          subBtn.className = 'bg-amber-500 hover:bg-amber-600 text-white text-xs font-black px-6 py-3.5 rounded-2xl shadow-lg transition';
+          subBtn.innerText = '💳 فعال‌سازی اشتراک ماهانه';
+          subBtn.onclick = () => handlePurchaseAttempt('subscription', 'monthly', 'اشتراک جامع ماهانه (دسترسی به تمام پادکست‌ها)', Number(siteSettings.sub_price || 50000));
+        }
+      }
+
       const container = document.getElementById('packages-dynamic-container');
       if (!Array.isArray(contentPackages) || contentPackages.length === 0) {
-        container.innerHTML = '<div class="text-center py-12 text-slate-400 text-xs">در حال حاضر دوره‌ای ثبت نشده است. به زودی پادکست‌های جدید اضافه خواهند شد.</div>';
+        container.innerHTML = '<div class="text-center py-12 text-slate-400 text-xs">دوره‌ای یافت نشد.</div>';
         return;
       }
 
-      container.innerHTML = contentPackages.map(pkg => `
+      container.innerHTML = contentPackages.map(pkg => {
+        const isPkgPurchased = userPermissions.hasActiveSubscription || userPermissions.purchasedItems.includes(`package:${pkg.slug}`);
+
+        return `
         <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-5">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div>
@@ -283,9 +297,9 @@
             <div class="flex items-center gap-3">
               <div class="text-left">
                 <span class="text-[10px] text-slate-400 block font-bold">هزینه کامل پکیج</span>
-                <span class="text-sm font-black text-slate-900 font-mono">${pkg.price > 0 ? Number(pkg.price).toLocaleString('fa-IR') + ' ت' : 'رایگان'}</span>
+                <span class="text-sm font-black text-slate-900 font-mono">${isPkgPurchased ? '<span class="text-emerald-600 font-bold">خریداری شده</span>' : (pkg.price > 0 ? Number(pkg.price).toLocaleString('fa-IR') + ' ت' : 'رایگان')}</span>
               </div>
-              ${pkg.price > 0 ? `
+              ${(!isPkgPurchased && pkg.price > 0) ? `
                 <button onclick="handlePurchaseAttempt('package', '${pkg.slug}', 'پکیج: ${pkg.title}', ${pkg.price})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm">
                   خرید کل مجموعه 📦
                 </button>
@@ -295,7 +309,8 @@
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             ${(pkg.tracks && pkg.tracks.length > 0) ? pkg.tracks.map((t) => {
-              const isFree = !t.price_single || t.price_single == 0;
+              const isTrackPurchased = isPkgPurchased || userPermissions.purchasedItems.includes(`track:${t.id}`) || (!t.price_single || t.price_single == 0);
+
               return `
               <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between">
                 <div class="flex items-start justify-between gap-2 mb-3">
@@ -305,18 +320,18 @@
 
                 <div class="flex items-center justify-between pt-2 border-t border-slate-200/60 mt-2">
                   <div class="text-xs font-mono font-bold text-slate-600">
-                    ${!isFree ? Number(t.price_single).toLocaleString('fa-IR') + ' تومان' : '<span class="text-emerald-600">رایگان</span>'}
+                    ${isTrackPurchased ? '<span class="text-emerald-600 font-bold">دسترسی کامل ✅</span>' : Number(t.price_single).toLocaleString('fa-IR') + ' تومان'}
                   </div>
 
                   <div class="flex items-center gap-2">
-                    ${!isFree ? `
+                    ${!isTrackPurchased ? `
                       <button onclick="handlePurchaseAttempt('track', '${t.id}', 'صوت: ${t.title}', ${t.price_single})" class="bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl transition">
                         خرید تکی 🔓
                       </button>
                     ` : ''}
                     
-                    <button onclick="loadAndPlayAudio('${t.audio_url}', '${t.title}', ${isFree})" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1 transition shadow-sm">
-                      <span>▶ ${isFree ? 'پخش کامل' : 'پیش‌نمایش (۱ دقیقه)'}</span>
+                    <button onclick="loadAndPlayAudio('${t.audio_url}', '${t.title}', ${isTrackPurchased})" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1 transition shadow-sm">
+                      <span>▶ ${isTrackPurchased ? 'پخش کامل' : 'پیش‌نمایش (۱ دقیقه)'}</span>
                     </button>
                   </div>
                 </div>
@@ -324,11 +339,11 @@
             `;}).join('') : '<p class="text-xs text-slate-400 col-span-2 py-4">صوتی برای این دوره بارگذاری نشده است.</p>'}
           </div>
         </div>
-      `).join('');
+      `;}).join('');
     }
 
     // ==========================================
-    // هسته پلیر صوتی پیشرفته و شناور
+    // هسته پلیر صوتی
     // ==========================================
     const audioCore = new Audio();
     const floatingBar = document.getElementById('floating-audio-bar');
@@ -378,7 +393,6 @@
         playBtn.innerText = '⏸';
         statusBadgeEl.innerText = 'در حال پخش';
       }).catch(err => {
-        console.error('Audio play error:', err);
         playBtn.innerText = '▶';
         statusBadgeEl.innerText = 'خطا در بارگذاری';
         alert('امکان پخش این فایل صوتی وجود ندارد.');
@@ -429,7 +443,6 @@
       floatingBar.classList.add('translate-y-full');
     }
 
-    // کنترل پیشرفت صوت و قفل ۶۰ ثانیه برای پیش‌نمایش (بدون لوپ آلرت)
     audioCore.ontimeupdate = () => {
       if (!isSeeking && audioCore.duration) {
         if (!currentPlayingTrack.isPurchased && audioCore.currentTime >= 60) {
@@ -450,19 +463,9 @@
       }
     };
 
-    audioCore.onloadedmetadata = () => { 
-      durTimeEl.innerText = formatTime(audioCore.duration); 
-    };
-
-    audioCore.onended = () => { 
-      playBtn.innerText = '▶'; 
-      seekBar.value = 0; 
-      curTimeEl.innerText = '00:00'; 
-      statusBadgeEl.innerText = 'به پایان رسید';
-    };
-
+    audioCore.onloadedmetadata = () => { durTimeEl.innerText = formatTime(audioCore.duration); };
+    audioCore.onended = () => { playBtn.innerText = '▶'; seekBar.value = 0; curTimeEl.innerText = '00:00'; };
     seekBar.oninput = () => { isSeeking = true; };
-
     seekBar.onchange = () => {
       if (audioCore.duration) {
         let targetTime = (seekBar.value / 100) * audioCore.duration;
@@ -475,11 +478,10 @@
       }
       isSeeking = false;
     };
-
     volumeBar.oninput = () => { audioCore.volume = volumeBar.value; };
 
     // ==========================================
-    // مدیریت پرداخت و منطق کیف پول
+    // مدیریت پرداخت و کیف پول
     // ==========================================
     async function handlePurchaseAttempt(type, id, title, price) {
       if (!activeUser) {
@@ -490,7 +492,7 @@
 
       const balance = Number(activeUser.wallet_balance || 0);
 
-      // حالت ۱: موجودی کافی است -> کسر مستقیم از کیف پول
+      // حالت ۱: موجودی کافی است -> خرید مستقیم و فعال‌سازی فوری
       if (balance >= price) {
         if (!confirm(`مبلغ ${price.toLocaleString('fa-IR')} تومان از کیف پول شما کسر خواهد شد. آیا مایل به تایید خرید «${title}» هستید؟`)) {
           return;
@@ -504,6 +506,8 @@
               action: 'pay-with-wallet',
               user_phone: activeUser.id,
               amount: price,
+              item_type: type,
+              item_id: String(id || ''),
               item_title: title
             })
           });
@@ -513,7 +517,8 @@
             alert('🎉 ' + data.message);
             activeUser.wallet_balance = data.newBalance;
             sessionStorage.setItem('activeParent', JSON.stringify(activeUser));
-            applyUserUI();
+            await refreshUserWalletAndPermissions();
+            renderDynamicContent();
           } else {
             alert(data.error || 'خطا در انجام خرید');
           }
@@ -523,24 +528,18 @@
         return;
       }
 
-      // حالت ۲: موجودی ناکافی است -> هدایت هوشمند به شارژ با مبلغ کسری
+      // حالت ۲: موجودی ناکافی -> هدایت به شارژ
       const shortage = price - balance;
       alert(`⚠️ موجودی کیف پول شما (${balance.toLocaleString('fa-IR')} تومان) کافی نیست.\nشما مبلغ ${shortage.toLocaleString('fa-IR')} تومان کسری دارید.\nلطفاً جهت تکمیل خرید، ابتدا کیف پول خود را شارژ فرمایید.`);
-
       openTopupModal(shortage, `شارژ کسری موجودی برای: ${title}`);
     }
 
     function onCustomAmountChange(val) {
-      const num = Number(toEnglishDigits(val)) || 0;
-      currentPayingItem.amount = num;
+      currentPayingItem.amount = Number(toEnglishDigits(val)) || 0;
     }
 
     function openTopupModal(defaultAmount = 50000, title = 'شارژ اعتبار کیف پول') {
-      if (!activeUser) {
-        openAuthModal();
-        return;
-      }
-
+      if (!activeUser) { openAuthModal(); return; }
       currentPayingItem = { amount: Number(defaultAmount), title };
 
       document.getElementById('pay-item-title').innerText = title;
@@ -549,24 +548,20 @@
       document.getElementById('site-card-bank').innerText = siteSettings.card_bank || '-';
 
       const amountInput = document.getElementById('pay-amount-input');
-      if (amountInput) {
-        amountInput.value = defaultAmount;
-      }
+      if (amountInput) amountInput.value = defaultAmount;
 
       document.getElementById('pay-card-last4').value = '';
       document.getElementById('pay-tracking').value = '';
       document.getElementById('payment-modal').classList.remove('hidden');
     }
 
-    function closePaymentModal() {
-      document.getElementById('payment-modal').classList.add('hidden');
-    }
+    function closePaymentModal() { document.getElementById('payment-modal').classList.add('hidden'); }
 
     function copyCardNumber() {
       const card = siteSettings.card_number;
       if (!card) return;
       navigator.clipboard.writeText(card);
-      alert('شماره کارت در کلیپ‌بورد کپی شد: ' + card);
+      alert('شماره کارت کپی شد: ' + card);
     }
 
     async function submitPaymentReceipt() {
@@ -575,13 +570,8 @@
       const amountInput = document.getElementById('pay-amount-input');
       const finalAmount = amountInput ? Number(toEnglishDigits(amountInput.value)) : currentPayingItem.amount;
 
-      if (!finalAmount || finalAmount <= 0) {
-        return alert('لطفاً مبلغ معتبری جهت شارژ کیف پول وارد کنید.');
-      }
-
-      if (!card_last4 || card_last4.length < 4 || !tracking_code) {
-        return alert('لطفاً ۴ رقم آخر کارت و کد پیگیری تراکنش را وارد کنید.');
-      }
+      if (!finalAmount || finalAmount <= 0) return alert('لطفاً مبلغ معتبری وارد کنید.');
+      if (!card_last4 || card_last4.length < 4 || !tracking_code) return alert('۴ رقم کارت و کد پیگیری الزامی است.');
 
       try {
         const res = await fetch('/api/payment-receipt', {
@@ -593,25 +583,24 @@
             user_name: activeUser.name,
             amount: finalAmount,
             card_last4,
-            tracking_code,
-            item_type: 'wallet_topup'
+            tracking_code
           })
         });
 
         const data = await res.json();
         if (res.ok && data.success) {
-          alert('فیش شارژ با موفقیت ثبت شد. پس از تأیید مدیریت، موجودی کیف پول شما افزایش یافته و می‌توانید خرید خود را تکمیل کنید.');
+          alert('فیش شارژ با موفقیت ثبت شد و پس از تأیید اعمال می‌شود.');
           closePaymentModal();
         } else {
-          alert(data.error || 'خطا در ثبت فیش.');
+          alert(data.error || 'خطا در ثبت.');
         }
       } catch (e) {
-        alert('خطا در برقراری ارتباط با سرور.');
+        alert('خطا در ارتباط با سرور.');
       }
     }
 
     // ==========================================
-    // توابع احراز هویت
+    // احراز هویت
     // ==========================================
     function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
     function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
@@ -650,15 +639,15 @@
         const data = await res.json();
 
         if (res.ok && data.success) {
-          const fullName = data.user?.fullName || user;
           activeUser = { 
             id: user, 
-            name: fullName, 
+            name: data.user?.fullName || user, 
             role: data.user?.role,
             wallet_balance: Number(data.user?.wallet_balance || 0)
           };
           sessionStorage.setItem('activeParent', JSON.stringify(activeUser));
-          applyUserUI();
+          await refreshUserWalletAndPermissions();
+          renderDynamicContent();
           closeAuthModal();
         } else {
           alert(data.error || 'مشخصات نادرست است.');
@@ -686,14 +675,15 @@
         if (res.ok && data.success) {
           activeUser = { id: phone, name: fullName, role: 'public', wallet_balance: 0 };
           sessionStorage.setItem('activeParent', JSON.stringify(activeUser));
-          applyUserUI();
+          await refreshUserWalletAndPermissions();
+          renderDynamicContent();
           closeAuthModal();
           alert('ثبت‌نام با موفقیت انجام شد.');
         } else {
           alert(data.error || 'خطا در ثبت‌نام.');
         }
       } catch (e) {
-        alert('خطا در برقراری ارتباط.');
+        alert('خطا در ارتباط.');
       }
     }
 
@@ -703,7 +693,6 @@
         const bal = Number(activeUser.wallet_balance || 0).toLocaleString('fa-IR');
         authSec.innerHTML = `
           <div class="flex items-center gap-2">
-            <!-- کپسول نمایش کیف پول -->
             <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-2xl text-xs">
               <span class="text-amber-800 font-bold">کیف پول:</span>
               <span class="font-black text-amber-950 font-mono">${bal} ت</span>
@@ -711,8 +700,6 @@
                 + شارژ
               </button>
             </div>
-
-            <!-- مشخصات کاربر -->
             <span class="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-2xl">
               👤 ${activeUser.name}
             </span>
