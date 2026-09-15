@@ -57,7 +57,7 @@ export async function onRequestPost(context) {
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ۲. ثبت‌نام خودکار دانش‌آموز در صورت عدم وجود پرونده
+    // ۲. ثبت‌نام خودکار پرونده دانش‌آموز
     if (action === 'student-register') {
       const { national_id, first_name, last_name, grade, classroom, father_phone, mother_phone, password } = body;
       const cleanId = String(national_id || '').trim();
@@ -69,7 +69,7 @@ export async function onRequestPost(context) {
 
       const existing = await env.DB.prepare("SELECT id FROM students WHERE id = ?").bind(cleanId).first();
       if (existing) {
-        return new Response(JSON.stringify({ error: 'پرونده‌ای با این کد ملی قبلاً ثبت شده است. لطفاً وارد شوید.' }), { status: 409 });
+        return new Response(JSON.stringify({ error: 'پرونده‌ای با این کد ملی قبلاً ثبت شده است.' }), { status: 409 });
       }
 
       const fullName = `${first_name.trim()} ${last_name.trim()}`;
@@ -78,14 +78,28 @@ export async function onRequestPost(context) {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
       ).bind(cleanId, fullName, first_name.trim(), last_name.trim(), grade, classroom || '', father_phone || '', mother_phone || '', cleanPass || '123456').run();
 
+      const studentData = {
+        id: cleanId,
+        username: cleanId,
+        fullName: fullName,
+        name: fullName,
+        grade: grade,
+        classroom: classroom || '',
+        role: 'student',
+        wallet_balance: 0,
+        mustChangePassword: false,
+        needsNationalId: false
+      };
+
       return new Response(JSON.stringify({
         success: true,
         message: 'ثبت‌نام پرونده با موفقیت انجام شد.',
-        student: { id: cleanId, name: fullName, grade, classroom, mustChangePassword: false }
+        user: studentData,
+        student: studentData
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ۳. ورود دانش‌آموزان (با کد ملی یا شماره همراه پدر/مادر)
+    // ۳. ورود دانش‌آموزان (کد ملی، شماره همراه پدر یا شماره همراه مادر)
     if (action === 'student-login') {
       const username = body.username || body.studentId;
       const { password } = body;
@@ -100,6 +114,7 @@ export async function onRequestPost(context) {
       if (cleanUser.length === 10 && cleanUser.startsWith('9')) phoneAlt = '0' + cleanUser;
       else if (cleanUser.length === 11 && cleanUser.startsWith('09')) phoneAlt = cleanUser.slice(1);
 
+      // جستجو در پرونده دانش‌آموزان
       const student = await env.DB.prepare(
         `SELECT id, student_name, grade, classroom, password_hash, wallet_balance, must_change_password, father_phone, mother_phone 
          FROM students 
@@ -110,28 +125,62 @@ export async function onRequestPost(context) {
       ).bind(cleanUser, cleanUser, phoneAlt, cleanUser, phoneAlt, cleanUser, phoneAlt).first();
 
       if (student) {
-        // رمز پیش‌فرض سراسری: ۱۲۳۴۵۶
         const expectedPass = student.password_hash || '123456';
 
         if (cleanPass !== expectedPass) {
           return new Response(JSON.stringify({ error: 'رمز عبور نادرست است.' }), { status: 401 });
         }
 
-        // بررسی الزام تغییر رمز یا الزام تکمیل کد ملی (اگر شناسه هنوز موقت یا ۱۰ رقمی موبایل باشد)
         const isDefaultPassword = (expectedPass === '123456');
         const isTemporaryId = String(student.id).startsWith('09') || String(student.id).length !== 10;
         const mustChange = Boolean(student.must_change_password || isDefaultPassword || isTemporaryId);
 
+        const sFullName = student.student_name || 'دانش‌آموز';
+
+        // ایجاد آبجکت هماهنگ برای هر دو بخش user و student
+        const studentPayload = {
+          id: student.id,
+          username: student.id,
+          fullName: sFullName,
+          name: sFullName,
+          grade: student.grade || '',
+          classroom: student.classroom || '',
+          role: 'student',
+          wallet_balance: Number(student.wallet_balance || 0),
+          mustChangePassword: mustChange,
+          needsNationalId: isTemporaryId
+        };
+
         return new Response(JSON.stringify({
           success: true,
-          student: {
-            id: student.id,
-            name: student.student_name,
-            grade: student.grade,
-            classroom: student.classroom,
-            mustChangePassword: mustChange,
-            needsNationalId: isTemporaryId
-          }
+          user: studentPayload,
+          student: studentPayload
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
+
+      // بررسی کاربران آزاد
+      const publicUser = await env.DB.prepare(
+        "SELECT id, phone, full_name, password_hash, wallet_balance FROM public_users WHERE phone IN (?, ?)"
+      ).bind(cleanUser, phoneAlt).first();
+
+      if (publicUser) {
+        if (cleanPass !== publicUser.password_hash) {
+          return new Response(JSON.stringify({ error: 'رمز عبور نادرست است.' }), { status: 401 });
+        }
+
+        const pubPayload = {
+          id: publicUser.phone,
+          username: publicUser.phone,
+          fullName: publicUser.full_name || 'کاربر آزاد',
+          name: publicUser.full_name || 'کاربر آزاد',
+          role: 'public',
+          wallet_balance: Number(publicUser.wallet_balance || 0)
+        };
+
+        return new Response(JSON.stringify({
+          success: true,
+          user: pubPayload,
+          student: pubPayload
         }), { headers: { 'Content-Type': 'application/json' } });
       }
 
@@ -152,7 +201,6 @@ export async function onRequestPost(context) {
         return new Response(JSON.stringify({ error: 'رمز عبور جدید باید حداقل ۵ کاراکتر باشد.' }), { status: 400 });
       }
 
-      // اگر کد ملی جدید داده شده و شناسه قبلی شماره همراه بوده است
       if (cleanNewId !== cleanOldId) {
         const existCheck = await env.DB.prepare("SELECT id FROM students WHERE id = ?").bind(cleanNewId).first();
         if (existCheck) {
@@ -170,7 +218,7 @@ export async function onRequestPost(context) {
 
       return new Response(JSON.stringify({ 
         success: true, 
-        message: 'اطلاعات با موفقیت تکمیل و رمز عبور جدید ثبت شد.',
+        message: 'اطلاعات با موفقیت ذخیره شد.',
         updatedId: cleanNewId
       }), { headers: { 'Content-Type': 'application/json' } });
     }
@@ -186,17 +234,33 @@ export async function onRequestPost(context) {
         "INSERT INTO staff_users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)"
       ).bind(username.trim(), password.trim(), full_name.trim(), role).run();
 
-      return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ success: true, message: 'کاربر با موفقیت اضافه شد.' }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    // ۶. حذف پرسنل
+    // ۶. تغییر رمز پرسنل
+    if (action === 'change-staff-password') {
+      const { username, oldPassword, newPassword } = body;
+      const user = await env.DB.prepare("SELECT id, password_hash FROM staff_users WHERE username = ?").bind(String(username).trim()).first();
+      if (!user || user.password_hash !== String(oldPassword).trim()) {
+        return new Response(JSON.stringify({ error: 'رمز عبور فعلی نادرست است.' }), { status: 401 });
+      }
+
+      await env.DB.prepare("UPDATE staff_users SET password_hash = ? WHERE username = ?").bind(String(newPassword).trim(), String(username).trim()).run();
+      return new Response(JSON.stringify({ success: true, message: 'رمز عبور تغییر یافت.' }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۷. حذف پرسنل
     if (action === 'delete-staff') {
       const { requesterRole, staffId } = body;
       if (!['super_admin', 'principal'].includes(requesterRole)) {
         return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
       }
       await env.DB.prepare("DELETE FROM staff_users WHERE id = ?").bind(Number(staffId)).run();
-      return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ success: true, message: 'کاربر با موفقیت حذف شد.' }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     return new Response(JSON.stringify({ error: 'عملیات نامعتبر است.' }), { status: 400 });
