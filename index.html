@@ -222,6 +222,7 @@
     let contentPackages = [];
     let currentPayingItem = { amount: 0, title: '' };
     let currentPlayingTrack = { url: '', title: '', isPurchased: false };
+    let previewAlertShown = false;
 
     function toEnglishDigits(str) {
       return String(str || '')
@@ -359,6 +360,7 @@
         cleanUrl = cleanUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
       }
 
+      previewAlertShown = false;
       currentPlayingTrack = {
         url: cleanUrl,
         title: title || 'پادکست اختصاصی',
@@ -385,6 +387,10 @@
 
     function togglePlayPause() {
       if (!audioCore.src) return;
+      if (!currentPlayingTrack.isPurchased && audioCore.currentTime >= 60) {
+        alert('🔒 پیش‌نمایش ۱ دقیقه‌ای به پایان رسیده است. جهت گوش دادن کامل، دوره یا صوت را خریداری فرمایید.');
+        return;
+      }
       if (audioCore.paused) {
         audioCore.play();
         playBtn.innerText = '⏸';
@@ -423,16 +429,21 @@
       floatingBar.classList.add('translate-y-full');
     }
 
-    // کنترل پیشرفت صوت و قفل ۶۰ ثانیه برای پیش‌نمایش
+    // کنترل پیشرفت صوت و قفل ۶۰ ثانیه برای پیش‌نمایش (بدون لوپ آلرت)
     audioCore.ontimeupdate = () => {
       if (!isSeeking && audioCore.duration) {
         if (!currentPlayingTrack.isPurchased && audioCore.currentTime >= 60) {
           audioCore.pause();
-          audioCore.currentTime = 60;
           playBtn.innerText = '▶';
           statusBadgeEl.innerText = 'پایان پیش‌نمایش رایگان';
-          alert('🔒 پیش‌نمایش ۱ دقیقه‌ای به پایان رسید.\nبرای شنیدن ادامه این فایل صوتی، لطفاً آن را خریداری فرمایید.');
+          if (!previewAlertShown) {
+            previewAlertShown = true;
+            alert('🔒 پیش‌نمایش ۱ دقیقه‌ای به پایان رسید.\nبرای شنیدن ادامه این فایل صوتی، لطفاً آن را خریداری فرمایید.');
+          }
           return;
+        }
+        if (audioCore.currentTime < 60) {
+          previewAlertShown = false;
         }
         seekBar.value = (audioCore.currentTime / audioCore.duration) * 100;
         curTimeEl.innerText = formatTime(audioCore.currentTime);
