@@ -118,8 +118,8 @@ ${exposureSummary}
       }
     });
 
-    const modelName = 'gemini-1.5-flash';
-    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+  const modelName = 'gemini-1.5-flash';
+    const directUrl = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`;
 
     let aiRes = await fetch(directUrl, {
       method: 'POST',
@@ -127,9 +127,8 @@ ${exposureSummary}
       body: requestBody
     });
 
-    // در صورتی که اتصال مستقیم با خطای شبکه یا فیلترینگ مواجه شود، تلاش از طریق گیت‌وی
-    if (!aiRes.ok && aiRes.status !== 400 && aiRes.status !== 403) {
-      const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    if (!aiRes.ok) {
+      const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1/models/${modelName}:generateContent?key=${apiKey}`;
       const gwRes = await fetch(gatewayUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
