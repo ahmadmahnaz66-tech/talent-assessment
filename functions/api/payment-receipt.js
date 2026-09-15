@@ -3,16 +3,35 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
   const phone = url.searchParams.get('phone');
 
+  // استعلام وضعیت اشتراک، موجودی و خریدهای کاربر
   if (phone) {
-    const payment = await env.DB.prepare(
-      "SELECT status, amount, created_at FROM card_payments WHERE user_phone = ? ORDER BY id DESC LIMIT 1"
-    ).bind(phone).first();
+    const cleanPhone = String(phone).trim();
 
-    return new Response(JSON.stringify({ payment: payment || null }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    let user = await env.DB.prepare(
+      "SELECT subscription_until, wallet_balance FROM public_users WHERE phone = ?"
+    ).bind(cleanPhone).first();
+
+    if (!user) {
+      user = await env.DB.prepare(
+        "SELECT subscription_until, wallet_balance FROM students WHERE id = ?"
+      ).bind(cleanPhone).first();
+    }
+
+    const hasActiveSub = Boolean(user && user.subscription_until && new Date(user.subscription_until) > new Date());
+
+    const { results: purchases } = await env.DB.prepare(
+      "SELECT item_type, item_id FROM user_purchases WHERE user_phone = ?"
+    ).bind(cleanPhone).all();
+
+    return new Response(JSON.stringify({
+      hasActiveSubscription: hasActiveSub,
+      subscriptionUntil: user ? user.subscription_until : null,
+      walletBalance: user ? Number(user.wallet_balance || 0) : 0,
+      purchasedItems: (purchases || []).map(p => `${p.item_type}:${p.item_id}`)
+    }), { headers: { 'Content-Type': 'application/json' } });
   }
 
+  // نمایش تمام رسیدها برای پنل مدیریت
   const { results } = await env.DB.prepare(
     "SELECT * FROM card_payments ORDER BY id DESC"
   ).all();
@@ -28,13 +47,12 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { action } = body;
 
-    // پرداخت و کسر مستقیم از کیف پول
+    // ۱. خرید قطعی با کیف پول
     if (action === 'pay-with-wallet') {
-      const { user_phone, amount, item_title } = body;
+      const { user_phone, amount, item_type, item_id, item_title } = body;
       const cleanPhone = String(user_phone).trim();
       const numAmount = Number(amount);
 
-      // یافتن کاربر
       let isStudent = false;
       let user = await env.DB.prepare("SELECT wallet_balance FROM public_users WHERE phone = ?").bind(cleanPhone).first();
       if (!user) {
@@ -56,7 +74,7 @@ export async function onRequestPost(context) {
         }), { status: 400 });
       }
 
-      // کسر از موجودی
+      // کسر هزینه از کیف پول
       const newBalance = currentBalance - numAmount;
       if (isStudent) {
         await env.DB.prepare("UPDATE students SET wallet_balance = ? WHERE id = ?").bind(newBalance, cleanPhone).run();
@@ -64,21 +82,33 @@ export async function onRequestPost(context) {
         await env.DB.prepare("UPDATE public_users SET wallet_balance = ? WHERE phone = ?").bind(newBalance, cleanPhone).run();
       }
 
-      // ثبت در تراکنش‌ها
+      // ثبت اشتراک ۳۰ روزه یا ثبت دوره در جدول دسترسی‌ها
+      if (item_type === 'subscription') {
+        const query = isStudent
+          ? "UPDATE students SET subscription_until = datetime('now', '+30 days') WHERE id = ?"
+          : "UPDATE public_users SET subscription_until = datetime('now', '+30 days') WHERE phone = ?";
+        await env.DB.prepare(query).bind(cleanPhone).run();
+      } else {
+        await env.DB.prepare(
+          "INSERT INTO user_purchases (user_phone, item_type, item_id) VALUES (?, ?, ?)"
+        ).bind(cleanPhone, item_type, String(item_id || '')).run();
+      }
+
+      // ثبت در گزارش تراکنش‌های مالی
       await env.DB.prepare(
         "INSERT INTO wallet_transactions (user_phone, amount, type, description) VALUES (?, ?, 'purchase', ?)"
       ).bind(cleanPhone, -numAmount, `خرید: ${item_title}`).run();
 
       return new Response(JSON.stringify({
         success: true,
-        message: 'خرید شما با موفقیت از کیف پول انجام شد.',
+        message: item_type === 'subscription' ? 'اشتراک ماهانه ۳۰ روزه با موفقیت فعال شد.' : 'خرید شما با موفقیت تکمیل گردید.',
         newBalance
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ۱. ثبت فیش واریز جهت افزایش موجودی
+    // ۲. ثبت فیش واریز جهت افزایش موجودی
     if (action === 'submit-receipt') {
-      const { user_phone, user_name, amount, card_last4, tracking_code, item_type } = body;
+      const { user_phone, user_name, amount, card_last4, tracking_code } = body;
 
       if (!user_phone || !card_last4 || !tracking_code) {
         return new Response(JSON.stringify({ error: 'شماره کارت و کد پیگیری الزامی است.' }), { status: 400 });
@@ -88,19 +118,18 @@ export async function onRequestPost(context) {
         "INSERT INTO card_payments (user_phone, user_name, amount, card_last4, tracking_code, status) VALUES (?, ?, ?, ?, ?, 'pending')"
       ).bind(user_phone, user_name || 'کاربر', amount || 50000, card_last4, tracking_code).run();
 
-      return new Response(JSON.stringify({ success: true, message: 'رسید شارژ کیف پول با موفقیت ارسال شد و پس از بررسی تایید می‌شود.' }), {
+      return new Response(JSON.stringify({ success: true, message: 'رسید شارژ کیف پول ثبت شد و پس از تایید اعمال می‌شود.' }), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // ۲. تایید یا رد فیش توسط ادمین و شارژ خودکار کیف پول
+    // ۳. تایید فیش توسط ادمین و شارژ کیف پول
     if (action === 'update-status') {
       const { paymentId, status } = body;
-      
+
       const payment = await env.DB.prepare("SELECT * FROM card_payments WHERE id = ?").bind(paymentId).first();
       if (!payment) return new Response(JSON.stringify({ error: 'فیش یافت نشد.' }), { status: 404 });
 
-      // در صورت تایید و عدم تایید قبلی، به کیف پول افزوده شود
       if (status === 'approved' && payment.status !== 'approved') {
         const phone = payment.user_phone;
         const addAmount = Number(payment.amount || 0);
@@ -114,7 +143,7 @@ export async function onRequestPost(context) {
 
         await env.DB.prepare(
           "INSERT INTO wallet_transactions (user_phone, amount, type, description) VALUES (?, ?, 'deposit', ?)"
-        ).bind(phone, addAmount, `شارژ کیف پول - کد رهگیری: ${payment.tracking_code}`).run();
+        ).bind(phone, addAmount, `شارژ کیف پول - کد پیگیری: ${payment.tracking_code}`).run();
       }
 
       await env.DB.prepare("UPDATE card_payments SET status = ? WHERE id = ?").bind(status, paymentId).run();
