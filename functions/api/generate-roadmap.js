@@ -3,24 +3,14 @@ export async function onRequestPost(context) {
 
   try {
     const body = await request.json();
-    const { studentId } = body;
+    const { studentId, reportType } = body;
 
     if (!studentId) {
       return new Response(JSON.stringify({ error: 'کد ملی دانش‌آموز الزامی است.' }), { status: 400 });
     }
 
     const cleanStudentId = String(studentId).trim();
-
-    // اطمینان از وجود جدول
-    await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS student_roadmaps (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id TEXT NOT NULL,
-        version INTEGER NOT NULL DEFAULT 1,
-        analysis TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `).run();
+    const currentReportType = reportType || 'counselor_deep';
 
     // ۱. دریافت اطلاعات هویتی دانش‌آموز
     const student = await env.DB.prepare(
@@ -42,7 +32,7 @@ export async function onRequestPost(context) {
       ORDER BY raw_score DESC
     `).bind(cleanStudentId).all();
 
-// نادیده گرفتن مهارت‌هایی که صرفاً با امتیاز پیش‌فرض ۳۰ رد شده‌اند
+    // نادیده گرفتن مهارت‌های پیش‌فرض
     const validSkillScores = (skillScores || []).filter(s => {
       const score = Number(s.raw_score);
       return score > 0 && score !== 30;
@@ -71,7 +61,7 @@ export async function onRequestPost(context) {
       exposureSummary = 'اطلاعات مجاورت‌سازی در دسترس نیست.';
     }
 
-    // ۴. آماده‌سازی پرامپت تحلیلی
+    // ۴. آماده‌سازی پرامپت تحلیلی هوش مصنوعی
     const topSkillsSummary = validSkillScores.map(s => `- مهارت ${s.skill_title}: امتیاز کل ${s.raw_score}`).join('\n');
 
     const systemPrompt = `شما یک روانشناس ارشد بالینی کودک و متخصص برجسته استعدادیابی تحصیلی هستید. وظیفه شما تحلیل داده‌های عملکردی دانش‌آموز بر اساس مدل کدهای رغبتی هالند (RIASEC)، نظریه هوش‌های چندگانه گاردنر و مشاهدات عینی مجاورت‌سازی (Exposure) است.
@@ -128,8 +118,8 @@ ${exposureSummary}
       }
     });
 
-    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     let aiRes = await fetch(directUrl, {
       method: 'POST',
@@ -166,19 +156,19 @@ ${exposureSummary}
       };
     }
 
-    // ۵. تعیین نسخه جدید
+    // ۵. تعیین نسخه جدید در جدول roadmaps
     const latest = await env.DB.prepare(
-      "SELECT MAX(version) as max_v FROM student_roadmaps WHERE student_id = ?"
-    ).bind(cleanStudentId).first();
+      "SELECT MAX(version) as max_v FROM roadmaps WHERE student_id = ? AND report_type = ?"
+    ).bind(cleanStudentId, currentReportType).first();
     const nextVersion = (latest && latest.max_v ? Number(latest.max_v) : 0) + 1;
 
-    // ۶. ذخیره نسخه جدید در دیتابیس
+    // ۶. ذخیره نسخه جدید در جدول اصلی roadmaps
     await env.DB.prepare(`
-      INSERT INTO student_roadmaps (student_id, version, analysis, created_at)
-      VALUES (?, ?, ?, datetime('now'))
-    `).bind(cleanStudentId, nextVersion, JSON.stringify(parsedPayload)).run();
+      INSERT INTO roadmaps (student_id, version, report_type, analysis, created_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+    `).bind(cleanStudentId, nextVersion, currentReportType, JSON.stringify(parsedPayload)).run();
 
-    // ریست کردن پرچم نیاز به همگام‌سازی AI
+    // ۷. ریست کردن پرچم نیاز به همگام‌سازی AI
     await env.DB.prepare("UPDATE students SET needs_ai_sync = 0 WHERE id = ?").bind(cleanStudentId).run();
 
     return new Response(JSON.stringify({ success: true, version: nextVersion, roadmap: parsedPayload }), {
@@ -194,6 +184,7 @@ export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const studentId = url.searchParams.get('studentId');
+  const reportType = url.searchParams.get('type');
 
   if (!studentId) {
     return new Response(JSON.stringify([]), { headers: { 'Content-Type': 'application/json' } });
@@ -202,23 +193,17 @@ export async function onRequestGet(context) {
   const cleanStudentId = String(studentId).trim();
 
   try {
-    // اطمینان از وجود جدول هنگام کوئری گرفتن
-    await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS student_roadmaps (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id TEXT NOT NULL,
-        version INTEGER NOT NULL DEFAULT 1,
-        analysis TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `).run();
+    let query = "SELECT id, student_id, version, report_type, analysis, created_at FROM roadmaps WHERE student_id = ?";
+    const params = [cleanStudentId];
 
-    const { results } = await env.DB.prepare(`
-      SELECT id, student_id, version, analysis, created_at
-      FROM student_roadmaps
-      WHERE student_id = ?
-      ORDER BY version DESC
-    `).bind(cleanStudentId).all();
+    if (reportType) {
+      query += " AND report_type = ?";
+      params.push(reportType);
+    }
+
+    query += " ORDER BY version DESC";
+
+    const { results } = await env.DB.prepare(query).bind(...params).all();
 
     return new Response(JSON.stringify(results || []), {
       headers: { 'Content-Type': 'application/json' }
