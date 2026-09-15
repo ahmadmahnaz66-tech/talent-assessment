@@ -216,6 +216,21 @@
     </div>
   </div>
 
+  <!-- مودال سوابق مالی و تراکنش‌ها -->
+  <div id="transactions-modal" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 relative space-y-4">
+      <button onclick="closeTransactionsModal()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+      <div class="text-center pb-2 border-b border-slate-100">
+        <span class="text-2xl">📜</span>
+        <h3 class="text-sm font-black text-slate-900 mt-1">سوابق مالی و گردش کیف پول</h3>
+        <p class="text-[11px] text-slate-500 mt-0.5">لیست کامل واریزی‌ها و خریدهای انجام‌شده</p>
+      </div>
+      <div id="transactions-list-container" class="max-h-80 overflow-y-auto space-y-2 text-xs pr-1">
+        <div class="text-center py-8 text-slate-400">در حال دریافت تراکنش‌ها...</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let activeUser = null;
     let siteSettings = {};
@@ -343,7 +358,7 @@
     }
 
     // ==========================================
-    // هسته پلیر صوتی
+    // هسته پلیر صوتی پیشرفته و شناور
     // ==========================================
     const audioCore = new Audio();
     const floatingBar = document.getElementById('floating-audio-bar');
@@ -393,6 +408,7 @@
         playBtn.innerText = '⏸';
         statusBadgeEl.innerText = 'در حال پخش';
       }).catch(err => {
+        console.error('Audio play error:', err);
         playBtn.innerText = '▶';
         statusBadgeEl.innerText = 'خطا در بارگذاری';
         alert('امکان پخش این فایل صوتی وجود ندارد.');
@@ -443,6 +459,7 @@
       floatingBar.classList.add('translate-y-full');
     }
 
+    // کنترل پیشرفت صوت و قفل ۶۰ ثانیه برای پیش‌نمایش (بدون لوپ آلرت)
     audioCore.ontimeupdate = () => {
       if (!isSeeking && audioCore.duration) {
         if (!currentPlayingTrack.isPurchased && audioCore.currentTime >= 60) {
@@ -463,9 +480,19 @@
       }
     };
 
-    audioCore.onloadedmetadata = () => { durTimeEl.innerText = formatTime(audioCore.duration); };
-    audioCore.onended = () => { playBtn.innerText = '▶'; seekBar.value = 0; curTimeEl.innerText = '00:00'; };
+    audioCore.onloadedmetadata = () => { 
+      durTimeEl.innerText = formatTime(audioCore.duration); 
+    };
+
+    audioCore.onended = () => { 
+      playBtn.innerText = '▶'; 
+      seekBar.value = 0; 
+      curTimeEl.innerText = '00:00'; 
+      statusBadgeEl.innerText = 'به پایان رسید';
+    };
+
     seekBar.oninput = () => { isSeeking = true; };
+
     seekBar.onchange = () => {
       if (audioCore.duration) {
         let targetTime = (seekBar.value / 100) * audioCore.duration;
@@ -478,10 +505,11 @@
       }
       isSeeking = false;
     };
+
     volumeBar.oninput = () => { audioCore.volume = volumeBar.value; };
 
     // ==========================================
-    // مدیریت پرداخت و کیف پول
+    // مدیریت پرداخت و منطق کیف پول
     // ==========================================
     async function handlePurchaseAttempt(type, id, title, price) {
       if (!activeUser) {
@@ -492,7 +520,7 @@
 
       const balance = Number(activeUser.wallet_balance || 0);
 
-      // حالت ۱: موجودی کافی است -> خرید مستقیم و فعال‌سازی فوری
+      // حالت ۱: موجودی کافی است -> کسر مستقیم از کیف پول
       if (balance >= price) {
         if (!confirm(`مبلغ ${price.toLocaleString('fa-IR')} تومان از کیف پول شما کسر خواهد شد. آیا مایل به تایید خرید «${title}» هستید؟`)) {
           return;
@@ -528,18 +556,24 @@
         return;
       }
 
-      // حالت ۲: موجودی ناکافی -> هدایت به شارژ
+      // حالت ۲: موجودی ناکافی است -> هدایت هوشمند به شارژ با مبلغ کسری
       const shortage = price - balance;
       alert(`⚠️ موجودی کیف پول شما (${balance.toLocaleString('fa-IR')} تومان) کافی نیست.\nشما مبلغ ${shortage.toLocaleString('fa-IR')} تومان کسری دارید.\nلطفاً جهت تکمیل خرید، ابتدا کیف پول خود را شارژ فرمایید.`);
+
       openTopupModal(shortage, `شارژ کسری موجودی برای: ${title}`);
     }
 
     function onCustomAmountChange(val) {
-      currentPayingItem.amount = Number(toEnglishDigits(val)) || 0;
+      const num = Number(toEnglishDigits(val)) || 0;
+      currentPayingItem.amount = num;
     }
 
     function openTopupModal(defaultAmount = 50000, title = 'شارژ اعتبار کیف پول') {
-      if (!activeUser) { openAuthModal(); return; }
+      if (!activeUser) {
+        openAuthModal();
+        return;
+      }
+
       currentPayingItem = { amount: Number(defaultAmount), title };
 
       document.getElementById('pay-item-title').innerText = title;
@@ -548,20 +582,24 @@
       document.getElementById('site-card-bank').innerText = siteSettings.card_bank || '-';
 
       const amountInput = document.getElementById('pay-amount-input');
-      if (amountInput) amountInput.value = defaultAmount;
+      if (amountInput) {
+        amountInput.value = defaultAmount;
+      }
 
       document.getElementById('pay-card-last4').value = '';
       document.getElementById('pay-tracking').value = '';
       document.getElementById('payment-modal').classList.remove('hidden');
     }
 
-    function closePaymentModal() { document.getElementById('payment-modal').classList.add('hidden'); }
+    function closePaymentModal() {
+      document.getElementById('payment-modal').classList.add('hidden');
+    }
 
     function copyCardNumber() {
       const card = siteSettings.card_number;
       if (!card) return;
       navigator.clipboard.writeText(card);
-      alert('شماره کارت کپی شد: ' + card);
+      alert('شماره کارت در کلیپ‌بورد کپی شد: ' + card);
     }
 
     async function submitPaymentReceipt() {
@@ -570,8 +608,13 @@
       const amountInput = document.getElementById('pay-amount-input');
       const finalAmount = amountInput ? Number(toEnglishDigits(amountInput.value)) : currentPayingItem.amount;
 
-      if (!finalAmount || finalAmount <= 0) return alert('لطفاً مبلغ معتبری وارد کنید.');
-      if (!card_last4 || card_last4.length < 4 || !tracking_code) return alert('۴ رقم کارت و کد پیگیری الزامی است.');
+      if (!finalAmount || finalAmount <= 0) {
+        return alert('لطفاً مبلغ معتبری جهت شارژ کیف پول وارد کنید.');
+      }
+
+      if (!card_last4 || card_last4.length < 4 || !tracking_code) {
+        return alert('لطفاً ۴ رقم آخر کارت و کد پیگیری تراکنش را وارد کنید.');
+      }
 
       try {
         const res = await fetch('/api/payment-receipt', {
@@ -589,18 +632,18 @@
 
         const data = await res.json();
         if (res.ok && data.success) {
-          alert('فیش شارژ با موفقیت ثبت شد و پس از تأیید اعمال می‌شود.');
+          alert('فیش شارژ با موفقیت ثبت شد. پس از تأیید مدیریت، موجودی کیف پول شما افزایش یافته و می‌توانید خرید خود را تکمیل کنید.');
           closePaymentModal();
         } else {
-          alert(data.error || 'خطا در ثبت.');
+          alert(data.error || 'خطا در ثبت فیش.');
         }
       } catch (e) {
-        alert('خطا در ارتباط با سرور.');
+        alert('خطا در برقراری ارتباط با سرور.');
       }
     }
 
     // ==========================================
-    // احراز هویت
+    // توابع احراز هویت
     // ==========================================
     function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
     function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
@@ -683,7 +726,7 @@
           alert(data.error || 'خطا در ثبت‌نام.');
         }
       } catch (e) {
-        alert('خطا در ارتباط.');
+        alert('خطا در برقراری ارتباط.');
       }
     }
 
@@ -693,6 +736,7 @@
         const bal = Number(activeUser.wallet_balance || 0).toLocaleString('fa-IR');
         authSec.innerHTML = `
           <div class="flex items-center gap-2">
+            <!-- کپسول نمایش کیف پول -->
             <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-2xl text-xs">
               <span class="text-amber-800 font-bold">کیف پول:</span>
               <span class="font-black text-amber-950 font-mono">${bal} ت</span>
@@ -700,6 +744,14 @@
                 + شارژ
               </button>
             </div>
+
+            <!-- دکمه سوابق مالی -->
+            <button onclick="openTransactionsModal()" title="مشاهده سوابق گردش حساب" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-2xl px-2.5 py-1.5 text-xs font-bold transition flex items-center gap-1">
+              <span>📜</span>
+              <span>سوابق مالی</span>
+            </button>
+
+            <!-- مشخصات کاربر -->
             <span class="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-2xl">
               👤 ${activeUser.name}
             </span>
@@ -707,6 +759,48 @@
           </div>
         `;
       }
+    }
+
+    async function openTransactionsModal() {
+      if (!activeUser) return openAuthModal();
+      document.getElementById('transactions-modal').classList.remove('hidden');
+      const container = document.getElementById('transactions-list-container');
+      container.innerHTML = '<div class="text-center py-8 text-slate-400">در حال بارگذاری...</div>';
+
+      try {
+        const res = await fetch(`/api/payment-receipt?phone=${encodeURIComponent(activeUser.id)}&type=transactions`);
+        const data = await res.json();
+        const list = data.transactions || [];
+
+        if (list.length === 0) {
+          container.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs">هنوز تراکنشی برای حساب شما ثبت نشده است.</div>';
+          return;
+        }
+
+        container.innerHTML = list.map(t => {
+          const isDeposit = t.type === 'deposit' || t.amount > 0;
+          const amtAbs = Math.abs(t.amount).toLocaleString('fa-IR');
+          const dateStr = t.created_at ? t.created_at.slice(0, 16).replace('T', ' ') : '-';
+
+          return `
+            <div class="flex items-center justify-between p-3 rounded-2xl border ${isDeposit ? 'bg-emerald-50/60 border-emerald-100' : 'bg-rose-50/60 border-rose-100'}">
+              <div>
+                <span class="font-bold block ${isDeposit ? 'text-emerald-900' : 'text-slate-800'}">${t.description || (isDeposit ? 'افزایش اعتبار' : 'خرید')}</span>
+                <span class="text-[10px] text-slate-400 font-mono">${dateStr}</span>
+              </div>
+              <span class="font-black font-mono text-xs ${isDeposit ? 'text-emerald-700' : 'text-rose-600'}">
+                ${isDeposit ? '+' : '-'}${amtAbs} ت
+              </span>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        container.innerHTML = '<div class="text-center py-8 text-rose-500 text-xs">خطا در بارگذاری سوابق.</div>';
+      }
+    }
+
+    function closeTransactionsModal() {
+      document.getElementById('transactions-modal').classList.add('hidden');
     }
 
     function logoutUser() {
