@@ -26,7 +26,7 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { action } = body;
 
-    // استعلام زنده موجودی کیف پول
+    // استعلام مانده کیف پول
     if (action === 'get-wallet') {
       const { user_phone } = body;
       const cleanPhone = String(user_phone).trim();
@@ -57,171 +57,146 @@ export async function onRequestPost(context) {
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ۲. ثبت‌نام کاربر آزاد
-    if (action === 'public-register') {
-      const { full_name, phone, password } = body;
-      if (!full_name || !phone || !password) {
-        return new Response(JSON.stringify({ error: 'تکمیل تمامی فیلدها الزامی است.' }), { status: 400 });
+    // ۲. ثبت‌نام خودکار دانش‌آموز در صورت عدم وجود پرونده
+    if (action === 'student-register') {
+      const { national_id, first_name, last_name, grade, classroom, father_phone, mother_phone, password } = body;
+      const cleanId = String(national_id || '').trim();
+      const cleanPass = String(password || '').trim();
+
+      if (!cleanId || !first_name || !last_name || !grade) {
+        return new Response(JSON.stringify({ error: 'کد ملی، نام، نام خانوادگی و پایه الزامی است.' }), { status: 400 });
       }
 
-      const cleanPhone = String(phone).trim();
-      const cleanPass = String(password).trim();
-
-      const existing = await env.DB.prepare("SELECT id FROM public_users WHERE phone = ?").bind(cleanPhone).first();
+      const existing = await env.DB.prepare("SELECT id FROM students WHERE id = ?").bind(cleanId).first();
       if (existing) {
-        return new Response(JSON.stringify({ error: 'این شماره قبلاً ثبت‌نام شده است.' }), { status: 409 });
+        return new Response(JSON.stringify({ error: 'پرونده‌ای با این کد ملی قبلاً ثبت شده است. لطفاً وارد شوید.' }), { status: 409 });
       }
 
+      const fullName = `${first_name.trim()} ${last_name.trim()}`;
       await env.DB.prepare(
-        "INSERT INTO public_users (full_name, phone, password_hash, wallet_balance) VALUES (?, ?, ?, 0)"
-      ).bind(full_name.trim(), cleanPhone, cleanPass).run();
+        `INSERT INTO students (id, student_name, first_name, last_name, grade, classroom, father_phone, mother_phone, password_hash, must_change_password)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
+      ).bind(cleanId, fullName, first_name.trim(), last_name.trim(), grade, classroom || '', father_phone || '', mother_phone || '', cleanPass || '123456').run();
 
       return new Response(JSON.stringify({
         success: true,
-        user: { id: cleanPhone, username: cleanPhone, fullName: full_name.trim(), role: 'public', wallet_balance: 0 }
+        message: 'ثبت‌نام پرونده با موفقیت انجام شد.',
+        student: { id: cleanId, name: fullName, grade, classroom, mustChangePassword: false }
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ۳. ورود دانش‌آموزان و کاربران آزاد
+    // ۳. ورود دانش‌آموزان (با کد ملی یا شماره همراه پدر/مادر)
     if (action === 'student-login') {
       const username = body.username || body.studentId;
       const { password } = body;
       if (!username || !password) {
-        return new Response(JSON.stringify({ error: 'نام کاربری و رمز عبور الزامی است.' }), { status: 400 });
+        return new Response(JSON.stringify({ error: 'کد ملی یا شماره همراه و رمز عبور الزامی است.' }), { status: 400 });
       }
 
-      const cleanUser = String(username).trim();
+      let cleanUser = String(username).trim();
       const cleanPass = String(password).trim();
 
+      let phoneAlt = cleanUser;
+      if (cleanUser.length === 10 && cleanUser.startsWith('9')) phoneAlt = '0' + cleanUser;
+      else if (cleanUser.length === 11 && cleanUser.startsWith('09')) phoneAlt = cleanUser.slice(1);
+
       const student = await env.DB.prepare(
-        "SELECT id, student_name, grade, classroom, password_hash, wallet_balance FROM students WHERE id = ?"
-      ).bind(cleanUser).first();
+        `SELECT id, student_name, grade, classroom, password_hash, wallet_balance, must_change_password, father_phone, mother_phone 
+         FROM students 
+         WHERE id = ? 
+            OR father_phone IN (?, ?) 
+            OR parent_phone IN (?, ?) 
+            OR mother_phone IN (?, ?)`
+      ).bind(cleanUser, cleanUser, phoneAlt, cleanUser, phoneAlt, cleanUser, phoneAlt).first();
 
       if (student) {
-        const rawId = String(student.id).trim();
-        const defaultPass = rawId.length >= 4 ? rawId.slice(-4) : rawId;
-        const expectedPass = student.password_hash || defaultPass;
+        // رمز پیش‌فرض سراسری: ۱۲۳۴۵۶
+        const expectedPass = student.password_hash || '123456';
 
         if (cleanPass !== expectedPass) {
           return new Response(JSON.stringify({ error: 'رمز عبور نادرست است.' }), { status: 401 });
         }
 
+        // بررسی الزام تغییر رمز یا الزام تکمیل کد ملی (اگر شناسه هنوز موقت یا ۱۰ رقمی موبایل باشد)
+        const isDefaultPassword = (expectedPass === '123456');
+        const isTemporaryId = String(student.id).startsWith('09') || String(student.id).length !== 10;
+        const mustChange = Boolean(student.must_change_password || isDefaultPassword || isTemporaryId);
+
         return new Response(JSON.stringify({
           success: true,
-          user: { 
-            id: student.id, 
-            username: student.id, 
-            fullName: student.student_name, 
-            grade: student.grade, 
-            role: 'student',
-            wallet_balance: Number(student.wallet_balance || 0)
+          student: {
+            id: student.id,
+            name: student.student_name,
+            grade: student.grade,
+            classroom: student.classroom,
+            mustChangePassword: mustChange,
+            needsNationalId: isTemporaryId
           }
         }), { headers: { 'Content-Type': 'application/json' } });
       }
 
-      const publicUser = await env.DB.prepare(
-        "SELECT id, phone, full_name, password_hash, wallet_balance FROM public_users WHERE phone = ?"
-      ).bind(cleanUser).first();
-
-      if (publicUser) {
-        if (cleanPass !== publicUser.password_hash) {
-          return new Response(JSON.stringify({ error: 'رمز عبور نادرست است.' }), { status: 401 });
-        }
-        return new Response(JSON.stringify({
-          success: true,
-          user: { 
-            id: publicUser.phone, 
-            username: publicUser.phone, 
-            fullName: publicUser.full_name, 
-            role: 'public',
-            wallet_balance: Number(publicUser.wallet_balance || 0)
-          }
-        }), { headers: { 'Content-Type': 'application/json' } });
-      }
-
-      return new Response(JSON.stringify({ error: 'کاربری با این مشخصات یافت نشد.' }), { status: 404 });
+      return new Response(JSON.stringify({ 
+        error: 'پرونده‌ای با این مشخصات یافت نشد.',
+        canRegister: true 
+      }), { status: 404 });
     }
 
-    // ۴. افزودن پرسنل جدید
+    // ۴. تکمیل کد ملی و تغییر رمز ورود اولیه
+    if (action === 'change-student-password' || action === 'complete-student-profile') {
+      const { studentId, newPassword, national_id } = body;
+      const cleanOldId = String(studentId).trim();
+      const cleanPass = String(newPassword).trim();
+      const cleanNewId = national_id ? String(national_id).trim() : cleanOldId;
+
+      if (!cleanPass || cleanPass.length < 5) {
+        return new Response(JSON.stringify({ error: 'رمز عبور جدید باید حداقل ۵ کاراکتر باشد.' }), { status: 400 });
+      }
+
+      // اگر کد ملی جدید داده شده و شناسه قبلی شماره همراه بوده است
+      if (cleanNewId !== cleanOldId) {
+        const existCheck = await env.DB.prepare("SELECT id FROM students WHERE id = ?").bind(cleanNewId).first();
+        if (existCheck) {
+          return new Response(JSON.stringify({ error: 'این کد ملی قبلاً در سیستم ثبت شده است.' }), { status: 409 });
+        }
+
+        await env.DB.prepare(
+          "UPDATE students SET id = ?, password_hash = ?, must_change_password = 0 WHERE id = ?"
+        ).bind(cleanNewId, cleanPass, cleanOldId).run();
+      } else {
+        await env.DB.prepare(
+          "UPDATE students SET password_hash = ?, must_change_password = 0 WHERE id = ?"
+        ).bind(cleanPass, cleanOldId).run();
+      }
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'اطلاعات با موفقیت تکمیل و رمز عبور جدید ثبت شد.',
+        updatedId: cleanNewId
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۵. افزودن پرسنل
     if (action === 'add-staff') {
       const { requesterRole, full_name, username, password, role } = body;
       if (requesterRole !== 'super_admin') {
-        return new Response(JSON.stringify({ error: 'فقط مدیر ارشد اجازه تعریف مدیران را دارد.' }), { status: 403 });
-      }
-
-      if (!full_name || !username || !password || !role) {
-        return new Response(JSON.stringify({ error: 'تمام فیلدها الزامی است.' }), { status: 400 });
-      }
-
-      const existing = await env.DB.prepare("SELECT id FROM staff_users WHERE username = ?").bind(username.trim()).first();
-      if (existing) {
-        return new Response(JSON.stringify({ error: 'این نام کاربری قبلاً ثبت شده است.' }), { status: 409 });
+        return new Response(JSON.stringify({ error: 'فقط مدیر ارشد مجاز است.' }), { status: 403 });
       }
 
       await env.DB.prepare(
         "INSERT INTO staff_users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)"
       ).bind(username.trim(), password.trim(), full_name.trim(), role).run();
 
-      return new Response(JSON.stringify({ success: true, message: 'کاربر با موفقیت اضافه شد.' }), {
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ۵. تغییر رمز عبور پرسنل
-    if (action === 'change-staff-password') {
-      const { username, oldPassword, newPassword } = body;
-      if (!username || !oldPassword || !newPassword) {
-        return new Response(JSON.stringify({ error: 'تمامی فیلدها الزامی است.' }), { status: 400 });
-      }
-
-      const user = await env.DB.prepare("SELECT id, password_hash FROM staff_users WHERE username = ?").bind(String(username).trim()).first();
-      if (!user || user.password_hash !== String(oldPassword).trim()) {
-        return new Response(JSON.stringify({ error: 'رمز عبور فعلی نادرست است.' }), { status: 401 });
-      }
-
-      await env.DB.prepare("UPDATE staff_users SET password_hash = ? WHERE username = ?").bind(String(newPassword).trim(), String(username).trim()).run();
-      return new Response(JSON.stringify({ success: true, message: 'رمز عبور با موفقیت تغییر یافت.' }), { headers: { 'Content-Type': 'application/json' } });
-    }
-
-    // ۶. تعیین رمز عبور دلخواه برای دانش‌آموز
-    if (action === 'set-student-password') {
-      const { requesterRole, studentId, newPassword } = body;
-      if (!['super_admin', 'principal', 'counselor'].includes(requesterRole)) {
-        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
-      }
-      await env.DB.prepare("UPDATE students SET password_hash = ? WHERE id = ?").bind(String(newPassword).trim(), String(studentId).trim()).run();
-      return new Response(JSON.stringify({ success: true, message: 'رمز جدید دانش‌آموز ثبت شد.' }), { headers: { 'Content-Type': 'application/json' } });
-    }
-
-    // ۷. بازنشانی رمز دانش‌آموز
-    if (action === 'reset-student-password') {
-      const { requesterRole, studentId } = body;
-      if (!['super_admin', 'principal', 'counselor'].includes(requesterRole)) {
-        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
-      }
-      const rawId = String(studentId).trim();
-      const defaultPass = rawId.length >= 4 ? rawId.slice(-4) : rawId;
-      await env.DB.prepare("UPDATE students SET password_hash = ? WHERE id = ?").bind(defaultPass, rawId).run();
-      return new Response(JSON.stringify({ success: true, message: `رمز دانش‌آموز به ${defaultPass} بازنشانی شد.` }), { headers: { 'Content-Type': 'application/json' } });
-    }
-
-    // ۸. حذف پرسنل توسط مدیر ارشد
+    // ۶. حذف پرسنل
     if (action === 'delete-staff') {
       const { requesterRole, staffId } = body;
-
       if (!['super_admin', 'principal'].includes(requesterRole)) {
-        return new Response(JSON.stringify({ error: 'شما سطح دسترسی لازم برای حذف کادر را ندارید.' }), { status: 403 });
+        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
       }
-
-      if (!staffId) {
-        return new Response(JSON.stringify({ error: 'شناسه کاربر نامعتبر است.' }), { status: 400 });
-      }
-
       await env.DB.prepare("DELETE FROM staff_users WHERE id = ?").bind(Number(staffId)).run();
-
-      return new Response(JSON.stringify({ success: true, message: 'کاربر با موفقیت حذف شد.' }), {
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({ error: 'عملیات نامعتبر است.' }), { status: 400 });
