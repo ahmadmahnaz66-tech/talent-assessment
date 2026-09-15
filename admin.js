@@ -462,63 +462,29 @@ function handleBatchImport() {
 }
 
 async function sendBatchToServer(rows, fileInput) {
-  const GRADE_MAP = {
-    '1': 'اول', '2': 'دوم', '3': 'سوم', '4': 'چهارم', '5': 'پنجم', '6': 'ششم',
-    '7': 'هفتم', '8': 'هشتم', '9': 'نهم', '10': 'دهم', '11': 'یازدهم', '12': 'دوازدهم',
-    '۱': 'اول', '۲': 'دوم', '۳': 'سوم', '۴': 'چهارم', '۵': 'پنجم', '۶': 'ششم',
-    '۷': 'هفتم', '۸': 'هشتم', '۹': 'نهم', '۱۰': 'دهم', '۱۱': 'یازدهم', '۱۲': 'دوازدهم'
-  };
-  const VALID_GRADES = ['اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم', 'هفتم', 'هشتم', 'نهم', 'دهم', 'یازدهم', 'دوازدهم'];
-  const FA_DIGITS = { '1': '۱', '2': '۲', '3': '۳', '4': '۴', '5': '۵' };
-
-  const invalidRows = [];
-  const normalizedRows = rows.map((r, index) => {
-    // ۱. استانداردسازی پایه
-    let rawGrade = String(r['پایه'] || r.grade || '').trim();
-    let grade = GRADE_MAP[rawGrade] || rawGrade;
-
-    // ۲. استخراج شماره کلاس از ورودی (۲، ۴/۲، یا چهارمِ ۲)
-    let rawClass = String(r['کلاس'] || r.classroom || '').trim();
-    let classPart = rawClass;
-    if (classPart.includes('/')) {
-      classPart = classPart.split('/')[1].trim();
-    } else if (classPart.includes('ِ')) {
-      classPart = classPart.split('ِ')[1].trim();
-    } else if (classPart.includes(' ')) {
-      classPart = classPart.split(' ').pop().trim();
-    }
-
-    const digitMatch = classPart.match(/[1-5۱-۵]/);
-    let classNum = digitMatch ? (FA_DIGITS[digitMatch[0]] || digitMatch[0]) : '';
-    let classroom = (grade && classNum) ? `${grade}ِ ${classNum}` : rawClass;
-
-    if (!VALID_GRADES.includes(grade) || !classNum) {
-      invalidRows.push(`ردیف ${index + 1}: پایه (${rawGrade}) یا کلاس (${rawClass}) نامعتبر است.`);
-    }
-
+  const normalizedRows = rows.map(r => {
     let fPhone = String(r['شماره تماس پدر'] || r.father_phone || '').trim();
     let mPhone = String(r['شماره تماس مادر'] || r.mother_phone || '').trim();
+    
     if (fPhone.length === 10 && fPhone.startsWith('9')) fPhone = '0' + fPhone;
     if (mPhone.length === 10 && mPhone.startsWith('9')) mPhone = '0' + mPhone;
 
+    // اگر کد ملی خالی باشد، از شماره همراه پدر یا مادر به عنوان شناسه موقت استفاده شود
+    let rawId = String(r['کد ملی'] || r.id || '').trim();
+    if (!rawId) {
+      rawId = fPhone || mPhone || String(Date.now()).slice(-8);
+    }
+
     return {
       ...r,
-      'پایه': grade,
-      'کلاس': classroom,
-      grade: grade,
-      classroom: classroom,
+      id: rawId,
+      'کد ملی': rawId,
       'شماره تماس پدر': fPhone,
-      'شماره تماس مادر': mPhone
+      'شماره تماس مادر': mPhone,
+      password: '123456',
+      must_change_password: 1
     };
   });
-
-  if (invalidRows.length > 0) {
-    const preview = invalidRows.slice(0, 4).join('\n');
-    const extra = invalidRows.length > 4 ? `\n... و ${invalidRows.length - 4} ردیف دیگر` : '';
-    if (!confirm(`خطا در اعتبارسنجی مقادیر اکسل:\n${preview}${extra}\n\nپایه باید «اول تا دوازدهم» و کلاس باید «۱ تا ۵» باشد. آیا مایلید ردیف‌های صحیح ثبت شوند؟`)) {
-      return;
-    }
-  }
 
   try {
     const res = await fetch('/api/students', {
@@ -529,7 +495,7 @@ async function sendBatchToServer(rows, fileInput) {
 
     if (res.ok) {
       const out = await res.json();
-      alert(`${out.count} پرونده با موفقیت در دیتابیس ثبت و به‌روزرسانی شد.`);
+      alert(`${out.count} پرونده با موفقیت ثبت شد. (رمز پیش‌فرض تمام دانش‌آموزان: 123456)`);
       fileInput.value = '';
       await loadStudentsList();
     } else {
@@ -540,6 +506,7 @@ async function sendBatchToServer(rows, fileInput) {
     alert('خطا در اتصال به سرور جهت آپلود: ' + err.message);
   }
 }
+
 
 function exportStudentsExcel() {
   if (!loadedStudents || loadedStudents.length === 0) return alert('دانش‌آموزی در لیست وجود ندارد.');
