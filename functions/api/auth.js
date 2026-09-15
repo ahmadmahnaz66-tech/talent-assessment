@@ -114,7 +114,6 @@ export async function onRequestPost(context) {
       if (cleanUser.length === 10 && cleanUser.startsWith('9')) phoneAlt = '0' + cleanUser;
       else if (cleanUser.length === 11 && cleanUser.startsWith('09')) phoneAlt = cleanUser.slice(1);
 
-      // جستجو در پرونده دانش‌آموزان
       const student = await env.DB.prepare(
         `SELECT id, student_name, grade, classroom, password_hash, wallet_balance, must_change_password, father_phone, mother_phone 
          FROM students 
@@ -134,10 +133,8 @@ export async function onRequestPost(context) {
         const isDefaultPassword = (expectedPass === '123456');
         const isTemporaryId = String(student.id).startsWith('09') || String(student.id).length !== 10;
         const mustChange = Boolean(student.must_change_password || isDefaultPassword || isTemporaryId);
-
         const sFullName = student.student_name || 'دانش‌آموز';
 
-        // ایجاد آبجکت هماهنگ برای هر دو بخش user و student
         const studentPayload = {
           id: student.id,
           username: student.id,
@@ -158,7 +155,6 @@ export async function onRequestPost(context) {
         }), { headers: { 'Content-Type': 'application/json' } });
       }
 
-      // بررسی کاربران آزاد
       const publicUser = await env.DB.prepare(
         "SELECT id, phone, full_name, password_hash, wallet_balance FROM public_users WHERE phone IN (?, ?)"
       ).bind(cleanUser, phoneAlt).first();
@@ -190,7 +186,7 @@ export async function onRequestPost(context) {
       }), { status: 404 });
     }
 
-    // ۴. تکمیل کد ملی و تغییر رمز ورود اولیه
+    // ۴. تغییر رمز ورود اولیه توسط خود دانش‌آموز
     if (action === 'change-student-password' || action === 'complete-student-profile') {
       const { studentId, newPassword, national_id } = body;
       const cleanOldId = String(studentId).trim();
@@ -223,7 +219,50 @@ export async function onRequestPost(context) {
       }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ۵. افزودن پرسنل
+    // ۵. تعیین رمز عبور دلخواه دانش‌آموز توسط کادر مدرسه در پنل ادمین
+    if (action === 'set-student-password') {
+      const { requesterRole, studentId, newPassword } = body;
+      if (!['super_admin', 'principal', 'counselor', 'vice_principal'].includes(requesterRole)) {
+        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
+      }
+      if (!studentId || !newPassword) {
+        return new Response(JSON.stringify({ error: 'شناسه دانش‌آموز و رمز عبور الزامی است.' }), { status: 400 });
+      }
+
+      await env.DB.prepare(
+        "UPDATE students SET password_hash = ?, must_change_password = 0 WHERE id = ?"
+      ).bind(String(newPassword).trim(), String(studentId).trim()).run();
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'رمز عبور جدید دانش‌آموز با موفقیت ثبت شد.' 
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۶. ریست رمز پرونده دانش‌آموز به ۴ رقم آخر یا ۱۲۳۴۵۶ توسط ادمین
+    if (action === 'reset-student-password') {
+      const { requesterRole, studentId } = body;
+      if (!['super_admin', 'principal', 'counselor', 'vice_principal'].includes(requesterRole)) {
+        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
+      }
+      if (!studentId) {
+        return new Response(JSON.stringify({ error: 'شناسه دانش‌آموز الزامی است.' }), { status: 400 });
+      }
+
+      const rawId = String(studentId).trim();
+      const defaultPass = rawId.length >= 4 ? rawId.slice(-4) : '123456';
+
+      await env.DB.prepare(
+        "UPDATE students SET password_hash = ?, must_change_password = 1 WHERE id = ?"
+      ).bind(defaultPass, rawId).run();
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: `رمز عبور دانش‌آموز به (${defaultPass}) بازنشانی شد.` 
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۷. افزودن پرسنل
     if (action === 'add-staff') {
       const { requesterRole, full_name, username, password, role } = body;
       if (requesterRole !== 'super_admin') {
@@ -239,7 +278,7 @@ export async function onRequestPost(context) {
       });
     }
 
-    // ۶. تغییر رمز پرسنل
+    // ۸. تغییر رمز پرسنل
     if (action === 'change-staff-password') {
       const { username, oldPassword, newPassword } = body;
       const user = await env.DB.prepare("SELECT id, password_hash FROM staff_users WHERE username = ?").bind(String(username).trim()).first();
@@ -251,7 +290,7 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true, message: 'رمز عبور تغییر یافت.' }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    // ۷. حذف پرسنل
+    // ۹. حذف پرسنل
     if (action === 'delete-staff') {
       const { requesterRole, staffId } = body;
       if (!['super_admin', 'principal'].includes(requesterRole)) {
