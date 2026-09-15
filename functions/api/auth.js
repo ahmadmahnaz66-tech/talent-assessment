@@ -201,6 +201,50 @@ export async function onRequestPost(context) {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
+// ثبت‌نام کاربر آزاد در سایت مهارت‌خانه
+    if (action === 'public-register' || action === 'user-register') {
+      const { phone, full_name, password } = body;
+      const cleanPhone = String(phone || '').trim();
+      const cleanPass = String(password || '').trim();
+      const cleanName = String(full_name || '').trim();
+
+      if (!cleanPhone || !cleanPass) {
+        return new Response(JSON.stringify({ error: 'شماره موبایل و رمز عبور الزامی است.' }), { status: 400 });
+      }
+
+      let phoneAlt = cleanPhone;
+      if (cleanPhone.length === 10 && cleanPhone.startsWith('9')) phoneAlt = '0' + cleanPhone;
+      else if (cleanPhone.length === 11 && cleanPhone.startsWith('09')) phoneAlt = cleanPhone.slice(1);
+
+      const existing = await env.DB.prepare("SELECT id FROM public_users WHERE phone IN (?, ?)").bind(cleanPhone, phoneAlt).first();
+      if (existing) {
+        return new Response(JSON.stringify({ error: 'حسابی با این شماره موبایل قبلاً ایجاد شده است. لطفاً وارد شوید.' }), { status: 409 });
+      }
+
+      await env.DB.prepare(
+        "INSERT INTO public_users (phone, full_name, password_hash, wallet_balance) VALUES (?, ?, ?, 0)"
+      ).bind(cleanPhone, cleanName || 'کاربر آزاد', cleanPass).run();
+
+      const pubPayload = {
+        id: cleanPhone,
+        username: cleanPhone,
+        fullName: cleanName || 'کاربر آزاد',
+        name: cleanName || 'کاربر آزاد',
+        role: 'public',
+        wallet_balance: 0
+      };
+
+      const token = await createToken(pubPayload);
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'ثبت‌نام با موفقیت انجام شد.',
+        token: token,
+        user: pubPayload,
+        student: pubPayload
+      }), { headers: { 'Content-Type': 'application/json' } });
+    }
+    
     // ۳. ورود دانش‌آموزان یا کاربران آزاد همراه با توکن
     if (action === "student-login") {
       const username = body.username || body.studentId;
