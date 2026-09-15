@@ -170,13 +170,58 @@ export async function onRequestPost(context) {
     // ۵. تغییر رمز عبور پرسنل
     if (action === 'change-staff-password') {
       const { username, oldPassword, newPassword } = body;
+      if (!username || !oldPassword || !newPassword) {
+        return new Response(JSON.stringify({ error: 'تمامی فیلدها الزامی است.' }), { status: 400 });
+      }
+
       const user = await env.DB.prepare("SELECT id, password_hash FROM staff_users WHERE username = ?").bind(String(username).trim()).first();
       if (!user || user.password_hash !== String(oldPassword).trim()) {
         return new Response(JSON.stringify({ error: 'رمز عبور فعلی نادرست است.' }), { status: 401 });
       }
 
       await env.DB.prepare("UPDATE staff_users SET password_hash = ? WHERE username = ?").bind(String(newPassword).trim(), String(username).trim()).run();
-      return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ success: true, message: 'رمز عبور با موفقیت تغییر یافت.' }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۶. تعیین رمز عبور دلخواه برای دانش‌آموز
+    if (action === 'set-student-password') {
+      const { requesterRole, studentId, newPassword } = body;
+      if (!['super_admin', 'principal', 'counselor'].includes(requesterRole)) {
+        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
+      }
+      await env.DB.prepare("UPDATE students SET password_hash = ? WHERE id = ?").bind(String(newPassword).trim(), String(studentId).trim()).run();
+      return new Response(JSON.stringify({ success: true, message: 'رمز جدید دانش‌آموز ثبت شد.' }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۷. بازنشانی رمز دانش‌آموز
+    if (action === 'reset-student-password') {
+      const { requesterRole, studentId } = body;
+      if (!['super_admin', 'principal', 'counselor'].includes(requesterRole)) {
+        return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز.' }), { status: 403 });
+      }
+      const rawId = String(studentId).trim();
+      const defaultPass = rawId.length >= 4 ? rawId.slice(-4) : rawId;
+      await env.DB.prepare("UPDATE students SET password_hash = ? WHERE id = ?").bind(defaultPass, rawId).run();
+      return new Response(JSON.stringify({ success: true, message: `رمز دانش‌آموز به ${defaultPass} بازنشانی شد.` }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۸. حذف پرسنل توسط مدیر ارشد
+    if (action === 'delete-staff') {
+      const { requesterRole, staffId } = body;
+
+      if (!['super_admin', 'principal'].includes(requesterRole)) {
+        return new Response(JSON.stringify({ error: 'شما سطح دسترسی لازم برای حذف کادر را ندارید.' }), { status: 403 });
+      }
+
+      if (!staffId) {
+        return new Response(JSON.stringify({ error: 'شناسه کاربر نامعتبر است.' }), { status: 400 });
+      }
+
+      await env.DB.prepare("DELETE FROM staff_users WHERE id = ?").bind(Number(staffId)).run();
+
+      return new Response(JSON.stringify({ success: true, message: 'کاربر با موفقیت حذف شد.' }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     return new Response(JSON.stringify({ error: 'عملیات نامعتبر است.' }), { status: 400 });
