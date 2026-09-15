@@ -190,9 +190,13 @@
         </div>
       </div>
 
-      <div class="flex items-center justify-between p-3 rounded-2xl bg-indigo-50 border border-indigo-100">
-        <span class="text-xs font-bold text-slate-600">مبلغ واریزی جهت شارژ:</span>
-        <span class="text-sm font-black text-indigo-700 font-mono"><strong id="pay-final-amount">0</strong> تومان</span>
+      <!-- کادر مبلغ واریزی قابل ویرایش توسط کاربر -->
+      <div class="p-3 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-between gap-3">
+        <label for="pay-amount-input" class="text-xs font-bold text-slate-700 whitespace-nowrap">مبلغ واریزی جهت شارژ:</label>
+        <div class="flex items-center gap-1.5 flex-1 max-w-[200px]">
+          <input type="number" id="pay-amount-input" oninput="onCustomAmountChange(this.value)" placeholder="مبلغ به تومان" class="w-full bg-white border border-indigo-200 focus:border-indigo-600 rounded-xl px-2.5 py-1.5 text-xs font-black font-mono text-center outline-none">
+          <span class="text-[11px] font-bold text-slate-500">تومان</span>
+        </div>
       </div>
 
       <div class="space-y-3">
@@ -217,6 +221,7 @@
     let siteSettings = {};
     let contentPackages = [];
     let currentPayingItem = { amount: 0, title: '' };
+    let currentPlayingTrack = { url: '', title: '', isPurchased: false };
 
     function toEnglishDigits(str) {
       return String(str || '')
@@ -288,7 +293,9 @@
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            ${(pkg.tracks && pkg.tracks.length > 0) ? pkg.tracks.map((t) => `
+            ${(pkg.tracks && pkg.tracks.length > 0) ? pkg.tracks.map((t) => {
+              const isFree = !t.price_single || t.price_single == 0;
+              return `
               <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between">
                 <div class="flex items-start justify-between gap-2 mb-3">
                   <h5 class="text-xs font-bold text-slate-800 leading-snug">🎵 ${t.title}</h5>
@@ -297,30 +304,30 @@
 
                 <div class="flex items-center justify-between pt-2 border-t border-slate-200/60 mt-2">
                   <div class="text-xs font-mono font-bold text-slate-600">
-                    ${t.price_single > 0 ? Number(t.price_single).toLocaleString('fa-IR') + ' تومان' : '<span class="text-emerald-600">رایگان</span>'}
+                    ${!isFree ? Number(t.price_single).toLocaleString('fa-IR') + ' تومان' : '<span class="text-emerald-600">رایگان</span>'}
                   </div>
 
                   <div class="flex items-center gap-2">
-                    ${t.price_single > 0 ? `
+                    ${!isFree ? `
                       <button onclick="handlePurchaseAttempt('track', '${t.id}', 'صوت: ${t.title}', ${t.price_single})" class="bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl transition">
                         خرید تکی 🔓
                       </button>
                     ` : ''}
                     
-                    <button onclick="loadAndPlayAudio('${t.audio_url}', '${t.title}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1 transition shadow-sm">
-                      <span>▶ پخش آنلاین</span>
+                    <button onclick="loadAndPlayAudio('${t.audio_url}', '${t.title}', ${isFree})" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1 transition shadow-sm">
+                      <span>▶ ${isFree ? 'پخش کامل' : 'پیش‌نمایش (۱ دقیقه)'}</span>
                     </button>
                   </div>
                 </div>
               </div>
-            `).join('') : '<p class="text-xs text-slate-400 col-span-2 py-4">صوتی برای این دوره بارگذاری نشده است.</p>'}
+            `;}).join('') : '<p class="text-xs text-slate-400 col-span-2 py-4">صوتی برای این دوره بارگذاری نشده است.</p>'}
           </div>
         </div>
       `).join('');
     }
 
     // ==========================================
-    // هسته پلیر صوتی
+    // هسته پلیر صوتی پیشرفته و شناور
     // ==========================================
     const audioCore = new Audio();
     const floatingBar = document.getElementById('floating-audio-bar');
@@ -345,15 +352,21 @@
       return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
 
-    function loadAndPlayAudio(rawUrl, title) {
+    function loadAndPlayAudio(rawUrl, title, isFreeOrPurchased = false) {
       if (!rawUrl) return alert('آدرس فایل صوتی یافت نشد.');
       let cleanUrl = rawUrl.trim();
       if (cleanUrl.includes('github.com') && cleanUrl.includes('/blob/')) {
         cleanUrl = cleanUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
       }
 
+      currentPlayingTrack = {
+        url: cleanUrl,
+        title: title || 'پادکست اختصاصی',
+        isPurchased: Boolean(isFreeOrPurchased)
+      };
+
       floatingBar.classList.remove('translate-y-full');
-      trackTitleEl.innerText = title || 'پادکست اختصاصی';
+      trackTitleEl.innerText = currentPlayingTrack.title + (!currentPlayingTrack.isPurchased ? ' (پیش‌نمایش ۱ دقیقه‌ای)' : '');
       statusBadgeEl.innerText = 'در حال بارگذاری...';
       playBtn.innerText = '⏳';
 
@@ -363,6 +376,7 @@
         playBtn.innerText = '⏸';
         statusBadgeEl.innerText = 'در حال پخش';
       }).catch(err => {
+        console.error('Audio play error:', err);
         playBtn.innerText = '▶';
         statusBadgeEl.innerText = 'خطا در بارگذاری';
         alert('امکان پخش این فایل صوتی وجود ندارد.');
@@ -384,7 +398,12 @@
 
     function skipTime(seconds) {
       if (!audioCore.src) return;
-      audioCore.currentTime = Math.max(0, Math.min(audioCore.duration || 0, audioCore.currentTime + seconds));
+      let nextTime = audioCore.currentTime + seconds;
+      if (!currentPlayingTrack.isPurchased && nextTime > 60) {
+        alert('🔒 حداکثر زمان پیش‌نمایش فایل ۶۰ ثانیه است.');
+        return;
+      }
+      audioCore.currentTime = Math.max(0, Math.min(audioCore.duration || 0, nextTime));
     }
 
     function changePlaybackSpeed() {
@@ -404,19 +423,48 @@
       floatingBar.classList.add('translate-y-full');
     }
 
+    // کنترل پیشرفت صوت و قفل ۶۰ ثانیه برای پیش‌نمایش
     audioCore.ontimeupdate = () => {
       if (!isSeeking && audioCore.duration) {
+        if (!currentPlayingTrack.isPurchased && audioCore.currentTime >= 60) {
+          audioCore.pause();
+          audioCore.currentTime = 60;
+          playBtn.innerText = '▶';
+          statusBadgeEl.innerText = 'پایان پیش‌نمایش رایگان';
+          alert('🔒 پیش‌نمایش ۱ دقیقه‌ای به پایان رسید.\nبرای شنیدن ادامه این فایل صوتی، لطفاً آن را خریداری فرمایید.');
+          return;
+        }
         seekBar.value = (audioCore.currentTime / audioCore.duration) * 100;
         curTimeEl.innerText = formatTime(audioCore.currentTime);
       }
     };
-    audioCore.onloadedmetadata = () => { durTimeEl.innerText = formatTime(audioCore.duration); };
-    audioCore.onended = () => { playBtn.innerText = '▶'; seekBar.value = 0; curTimeEl.innerText = '00:00'; };
+
+    audioCore.onloadedmetadata = () => { 
+      durTimeEl.innerText = formatTime(audioCore.duration); 
+    };
+
+    audioCore.onended = () => { 
+      playBtn.innerText = '▶'; 
+      seekBar.value = 0; 
+      curTimeEl.innerText = '00:00'; 
+      statusBadgeEl.innerText = 'به پایان رسید';
+    };
+
     seekBar.oninput = () => { isSeeking = true; };
+
     seekBar.onchange = () => {
-      if (audioCore.duration) audioCore.currentTime = (seekBar.value / 100) * audioCore.duration;
+      if (audioCore.duration) {
+        let targetTime = (seekBar.value / 100) * audioCore.duration;
+        if (!currentPlayingTrack.isPurchased && targetTime > 60) {
+          alert('🔒 امکان جلو بردن فایل در نسخه پیش‌نمایش به بعد از ۱ دقیقه وجود ندارد.');
+          targetTime = 59;
+          seekBar.value = (59 / audioCore.duration) * 100;
+        }
+        audioCore.currentTime = targetTime;
+      }
       isSeeking = false;
     };
+
     volumeBar.oninput = () => { audioCore.volume = volumeBar.value; };
 
     // ==========================================
@@ -431,7 +479,7 @@
 
       const balance = Number(activeUser.wallet_balance || 0);
 
-      // حالت ۱: موجودی کافی است -> خرید مستقیم
+      // حالت ۱: موجودی کافی است -> کسر مستقیم از کیف پول
       if (balance >= price) {
         if (!confirm(`مبلغ ${price.toLocaleString('fa-IR')} تومان از کیف پول شما کسر خواهد شد. آیا مایل به تایید خرید «${title}» هستید؟`)) {
           return;
@@ -464,26 +512,35 @@
         return;
       }
 
-      // حالت ۲: موجودی ناکافی است -> محاسبه کسری و هدایت به شارژ
+      // حالت ۲: موجودی ناکافی است -> هدایت هوشمند به شارژ با مبلغ کسری
       const shortage = price - balance;
       alert(`⚠️ موجودی کیف پول شما (${balance.toLocaleString('fa-IR')} تومان) کافی نیست.\nشما مبلغ ${shortage.toLocaleString('fa-IR')} تومان کسری دارید.\nلطفاً جهت تکمیل خرید، ابتدا کیف پول خود را شارژ فرمایید.`);
 
       openTopupModal(shortage, `شارژ کسری موجودی برای: ${title}`);
     }
 
-    function openTopupModal(amount, title = 'شارژ اعتبار کیف پول') {
+    function onCustomAmountChange(val) {
+      const num = Number(toEnglishDigits(val)) || 0;
+      currentPayingItem.amount = num;
+    }
+
+    function openTopupModal(defaultAmount = 50000, title = 'شارژ اعتبار کیف پول') {
       if (!activeUser) {
         openAuthModal();
         return;
       }
 
-      currentPayingItem = { amount, title };
+      currentPayingItem = { amount: Number(defaultAmount), title };
 
       document.getElementById('pay-item-title').innerText = title;
       document.getElementById('site-card-number').innerText = siteSettings.card_number || 'تنظیم نشده';
       document.getElementById('site-card-holder').innerText = siteSettings.card_holder || '-';
       document.getElementById('site-card-bank').innerText = siteSettings.card_bank || '-';
-      document.getElementById('pay-final-amount').innerText = Number(amount).toLocaleString('fa-IR');
+
+      const amountInput = document.getElementById('pay-amount-input');
+      if (amountInput) {
+        amountInput.value = defaultAmount;
+      }
 
       document.getElementById('pay-card-last4').value = '';
       document.getElementById('pay-tracking').value = '';
@@ -504,6 +561,12 @@
     async function submitPaymentReceipt() {
       const card_last4 = toEnglishDigits(document.getElementById('pay-card-last4').value);
       const tracking_code = toEnglishDigits(document.getElementById('pay-tracking').value);
+      const amountInput = document.getElementById('pay-amount-input');
+      const finalAmount = amountInput ? Number(toEnglishDigits(amountInput.value)) : currentPayingItem.amount;
+
+      if (!finalAmount || finalAmount <= 0) {
+        return alert('لطفاً مبلغ معتبری جهت شارژ کیف پول وارد کنید.');
+      }
 
       if (!card_last4 || card_last4.length < 4 || !tracking_code) {
         return alert('لطفاً ۴ رقم آخر کارت و کد پیگیری تراکنش را وارد کنید.');
@@ -517,7 +580,7 @@
             action: 'submit-receipt',
             user_phone: activeUser.id,
             user_name: activeUser.name,
-            amount: currentPayingItem.amount,
+            amount: finalAmount,
             card_last4,
             tracking_code,
             item_type: 'wallet_topup'
@@ -526,7 +589,7 @@
 
         const data = await res.json();
         if (res.ok && data.success) {
-          alert('فیش شارژ با موفقیت ثبت شد. پس از تایید مدیریت، موجودی کیف پول شما افزایش یافته و می‌توانید خرید خود را با ۱ کلیک تکمیل کنید.');
+          alert('فیش شارژ با موفقیت ثبت شد. پس از تأیید مدیریت، موجودی کیف پول شما افزایش یافته و می‌توانید خرید خود را تکمیل کنید.');
           closePaymentModal();
         } else {
           alert(data.error || 'خطا در ثبت فیش.');
