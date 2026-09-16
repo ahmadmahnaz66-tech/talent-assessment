@@ -9,7 +9,6 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'متن سوال الزامی است.' }), { status: 400 });
     }
 
-    // دریافت لیست کلیدها؛ پشتیبانی هم‌زمان از چند کلید با کاما یا یک کلید تکی
     const keysRaw = env.GEMINI_API_KEYS || env.GEMINI_API_KEY || '';
     const apiKeys = keysRaw.split(',').map(k => k.trim()).filter(Boolean);
 
@@ -17,29 +16,30 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'کلید API تنظیم نشده است.' }), { status: 500 });
     }
 
-    const prompt = `شما یک مشاور و روان‌شناس کودک متخصص هستید. 
-والدینی در حال پر کردن فرم ارزیابی و استعدادیابی فرزند خود هستند و مفهوم این سوال برایشان مبهم است.
+    const prompt = `شما یک مشاور و روانشناس کودک باتجربه در دبستان هستید. 
+والدی در حال تکمیل پرسشنامه استعدادیابی فرزند خود است و مفهوم این پرسش را متوجه نشده است:
 حوزه مهارت: ${skillTitle || 'عمومی'}
 صورت سوال: "${questionText}"
 
-وظیفه شما:
-۱. در حداکثر ۲ جمله به زبان بسیار صمیمی، ساده و به دور از اصطلاحات سخت علمی توضیح بده این سوال دقیقاً چه رفتاری را می‌سنجد.
-۲. دو مثال ملموس و عینی از کارهای روزمره کودک (مثلاً حین بازی، تکالیف یا تعامل خانوادگی) بیاور که نشان دهد اگر کودک این ویژگی را دارد چطور رفتار می‌کند و اگر ندارد چگونه است.
-
-پاسخ کاملاً تمیز، مستقیم و بدون مقدمه‌چینی رسمی باشد.`;
+دستورالعمل تولید پاسخ:
+۱. پاسخ را کاملاً و ۱۰۰٪ به زبان فارسی سلیس و ساده بنویسید (بدون حتی یک کلمه انگلیسی).
+۲. در ۱ الی ۲ جمله روان توضیح دهید این پرسش دقیقاً چه نشانه‌ای از رشد کودک را ارزیابی می‌کند.
+۳. دو مثال عینی و مقایسه‌ای از کارهای روزمره کودک در خانه یا بازی بیاورید:
+   - مثال اول: اگر این ویژگی در کودک بالا باشد چه می‌کند؟
+   - مثال دوم: اگر این ویژگی در کودک کم باشد چه واکنشی نشان می‌دهد؟
+۴. پاسخ مستقیم باشد و تا انتها کامل بیان شود.`;
 
     const requestBody = JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 0.5,
-        maxOutputTokens: 500
+        temperature: 0.3,
+        maxOutputTokens: 1200
       }
     });
 
     let explanation = '';
     let lastError = '';
 
-    // حلقه چرخش کلیدها (Key Rotation / Failover)
     for (const key of apiKeys) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`;
       const res = await fetch(url, {
@@ -51,10 +51,9 @@ export async function onRequestPost(context) {
       if (res.ok) {
         const data = await res.json();
         explanation = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        break;
+        if (explanation) break;
       }
 
-      // در صورت پر شدن سهمیه، ذخیره خطا و رفتن به کلید بعدی
       lastError = await res.text();
     }
 
