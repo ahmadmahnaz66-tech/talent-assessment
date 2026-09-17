@@ -1,6 +1,5 @@
 // functions/api/admin-reports.js
 
-// نگاشت کدهای هالند به ابعاد هوش گاردنر
 const HOLLAND_TO_GARDNER = {
   realistic: 'bodily',
   investigative: 'logical',
@@ -21,7 +20,6 @@ export async function onRequestGet(context) {
   };
 
   try {
-    // ۱. لیست تمام مهارت‌ها
     if (type === 'all-skills') {
       const skills = await env.DB.prepare(
         "SELECT slug, title, category, display_order FROM skills ORDER BY display_order ASC"
@@ -29,7 +27,6 @@ export async function onRequestGet(context) {
       return new Response(JSON.stringify(skills.results || []), { headers: corsHeaders });
     }
 
-    // ۲. کارنامه و نمرات تفکیکی یک دانش‌آموز
     if (type === 'by-student') {
       const studentId = url.searchParams.get('studentId');
       if (!studentId) {
@@ -51,7 +48,6 @@ export async function onRequestGet(context) {
       return new Response(JSON.stringify(records.results || []), { headers: corsHeaders });
     }
 
-    // ۳. رتبه‌بندی دانش‌آموزان در یک مهارت خاص
     if (type === 'by-skill') {
       const skill = url.searchParams.get('skill');
       if (!skill) {
@@ -73,7 +69,6 @@ export async function onRequestGet(context) {
       return new Response(JSON.stringify(records.results || []), { headers: corsHeaders });
     }
 
-    // ۴. تاریخچه کارنامه‌های صادرشده هوش مصنوعی
     if (type === 'reports') {
       const nationalId = url.searchParams.get('nationalId');
       if (!nationalId) {
@@ -87,11 +82,10 @@ export async function onRequestGet(context) {
       return new Response(JSON.stringify(reports.results || []), { headers: corsHeaders });
     }
 
-    // ۵. داشبورد تحلیلی و آماری کل مدرسه / منتخبین مهارت خاص
+    // داشبورد تحلیلی و آماری (کل مدرسه یا منتخبین مهارت)
     if (type === 'analytics-dashboard') {
       const selectedSkill = url.searchParams.get('skill');
 
-      // نگاشت مهارت‌های پیش‌فرض برای پوشش کامل
       const KNOWN_SLUG_MAP = {
         coding: 'investigative',
         ai: 'investigative',
@@ -136,39 +130,56 @@ export async function onRequestGet(context) {
 
       const countForThisView = targetStudentIds !== null ? targetStudentIds.size : totalStudents;
 
-      const gardnerSums = { linguistic: 0, logical: 0, spatial: 0, musical: 0, bodily: 0, interpersonal: 0, intrapersonal: 0, naturalistic: 0 };
-      const gardnerCounts = { linguistic: 0, logical: 0, spatial: 0, musical: 0, bodily: 0, interpersonal: 0, intrapersonal: 0, naturalistic: 0 };
-      const studentHollandScores = {};
+      // ساختار ذخیره نمرات تفکیکی هر دانش‌آموز به تفکیک دسته‌ها (جهت محاسبه میانگین وزنی)
+      const studentCategoryData = {};
 
       allResponses.forEach(r => {
         const cat = skillCategories[r.skill_slug] || 'investigative';
-        const gKey = HOLLAND_TO_GARDNER[cat] || 'logical';
+        if (!['realistic', 'investigative', 'artistic', 'social', 'enterprising', 'conventional'].includes(cat)) return;
 
-        gardnerSums[gKey] += r.total_score;
-        gardnerCounts[gKey] += 1;
+        if (!studentCategoryData[r.student_id]) {
+          studentCategoryData[r.student_id] = {
+            realistic: { sum: 0, count: 0 },
+            investigative: { sum: 0, count: 0 },
+            artistic: { sum: 0, count: 0 },
+            social: { sum: 0, count: 0 },
+            enterprising: { sum: 0, count: 0 },
+            conventional: { sum: 0, count: 0 }
+          };
+        }
 
-        if (!studentHollandScores[r.student_id]) {
-          studentHollandScores[r.student_id] = { realistic: 0, investigative: 0, artistic: 0, social: 0, enterprising: 0, conventional: 0 };
-        }
-        if (studentHollandScores[r.student_id][cat] !== undefined) {
-          studentHollandScores[r.student_id][cat] += r.total_score;
-        }
+        studentCategoryData[r.student_id][cat].sum += r.total_score;
+        studentCategoryData[r.student_id][cat].count += 1;
       });
 
-      const gardnerAverages = {};
-      Object.keys(gardnerSums).forEach(k => {
-        const count = gardnerCounts[k];
-        gardnerAverages[k] = count > 0 ? Math.round((gardnerSums[k] / (count * 60)) * 100) : 0;
-      });
-
+      const gardnerSums = { linguistic: 0, logical: 0, spatial: 0, musical: 0, bodily: 0, interpersonal: 0, intrapersonal: 0, naturalistic: 0 };
+      const gardnerCounts = { linguistic: 0, logical: 0, spatial: 0, musical: 0, bodily: 0, interpersonal: 0, intrapersonal: 0, naturalistic: 0 };
       const hollandDistribution = { realistic: 0, investigative: 0, artistic: 0, social: 0, enterprising: 0, conventional: 0 };
-      Object.values(studentHollandScores).forEach(scores => {
-        let maxCat = '';
-        let maxVal = 0;
 
-        Object.entries(scores).forEach(([cat, val]) => {
-          if (val > maxVal) {
-            maxVal = val;
+      // محاسبه میانگین هر دسته برای هر دانش‌آموز و تعیین تیپ غالب واقعی او
+      Object.values(studentCategoryData).forEach(categories => {
+        let studentCategoryAverages = {};
+
+        Object.entries(categories).forEach(([cat, data]) => {
+          if (data.count > 0) {
+            const avgScore = data.sum / data.count;
+            studentCategoryAverages[cat] = avgScore;
+
+            // مشارکت در میانگین گاردنر
+            const gKey = HOLLAND_TO_GARDNER[cat];
+            if (gKey) {
+              gardnerSums[gKey] += avgScore;
+              gardnerCounts[gKey] += 1;
+            }
+          }
+        });
+
+        // پیدا کردن تیپ غالب واقعی با بیشترین میانگین (نه مجموع خام)
+        let maxCat = '';
+        let maxVal = -1;
+        Object.entries(studentCategoryAverages).forEach(([cat, avg]) => {
+          if (avg > maxVal) {
+            maxVal = avg;
             maxCat = cat;
           }
         });
@@ -176,6 +187,12 @@ export async function onRequestGet(context) {
         if (maxCat && maxVal > 0) {
           hollandDistribution[maxCat] = (hollandDistribution[maxCat] || 0) + 1;
         }
+      });
+
+      const gardnerAverages = {};
+      Object.keys(gardnerSums).forEach(k => {
+        const count = gardnerCounts[k];
+        gardnerAverages[k] = count > 0 ? Math.round((gardnerSums[k] / count / 60) * 100) : 0;
       });
 
       return new Response(JSON.stringify({
@@ -200,7 +217,6 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { action, slug, title, category } = body;
 
-    // تعریف مهارت جدید با دسته‌بندی هالند
     if (action === 'add-skill') {
       if (!slug || !title) {
         return new Response(JSON.stringify({ error: 'شناسه و عنوان مهارت الزامی است.' }), { status: 400 });
@@ -219,7 +235,6 @@ export async function onRequestPost(context) {
       });
     }
 
-    // حذف مهارت و سوالات وابسته
     if (action === 'delete-skill') {
       if (!slug) {
         return new Response(JSON.stringify({ error: 'شناسه مهارت الزامی است.' }), { status: 400 });
