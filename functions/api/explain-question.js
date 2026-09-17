@@ -2,66 +2,77 @@ export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
-    const body = await request.json();
-    const { questionText, skillTitle } = body;
+    const { questionText, skillTitle, childAge } = await request.json();
 
     if (!questionText) {
-      return new Response(JSON.stringify({ error: 'متن سوال الزامی است.' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'متن گویه الزامی است.' }), { status: 400 });
     }
 
     const keysRaw = env.GEMINI_API_KEYS || env.GEMINI_API_KEY || '';
     const apiKeys = keysRaw.split(',').map(k => k.trim()).filter(Boolean);
 
     if (apiKeys.length === 0) {
-      return new Response(JSON.stringify({ error: 'کلید API تنظیم نشده است.' }), { status: 500 });
+      return new Response(JSON.stringify({ error: 'کلید هوش مصنوعی در سرور تنظیم نشده است.' }), { status: 500 });
     }
 
-    const prompt = `شما یک مشاور و روانشناس کودک باتجربه در دبستان هستید. 
-والدی در حال تکمیل پرسشنامه استعدادیابی فرزند خود است و مفهوم این پرسش را متوجه نشده است:
-حوزه مهارت: ${skillTitle || 'عمومی'}
-صورت سوال: "${questionText}"
+    const prompt = `نقش تو یک مشاور روان‌شناس تربیتی و متخصص استعدادیابی کودک دبستان (۷ تا ۱۲ سال) است.
+یک والد در حال پاسخ به پرسشنامه استعدادیابی فرزندش است و درباره این گویه به راهنمایی نیاز دارد:
 
-دستورالعمل تولید پاسخ:
-۱. پاسخ را کاملاً و ۱۰۰٪ به زبان فارسی سلیس و ساده بنویسید (بدون حتی یک کلمه انگلیسی).
-۲. در ۱ الی ۲ جمله روان توضیح دهید این پرسش دقیقاً چه نشانه‌ای از رشد کودک را ارزیابی می‌کند.
-۳. دو مثال عینی و مقایسه‌ای از کارهای روزمره کودک در خانه یا بازی بیاورید:
-   - مثال اول: اگر این ویژگی در کودک بالا باشد چه می‌کند؟
-   - مثال دوم: اگر این ویژگی در کودک کم باشد چه واکنشی نشان می‌دهد؟
-۴. پاسخ مستقیم باشد و تا انتها کامل بیان شود.`;
+حوزه مهارت: ${skillTitle || 'عمومی'}
+گویه ارزیابی: "${questionText}"
+سن تقریبی کودک: ${childAge || '۷ تا ۱۲ سال'}
+
+لطفاً خیلی خودمانی، علمی، کوتاه و در ۳ بخش شفاف زیر به والد توضیح بده:
+۱. منظور دقیق این رفتار در خانه و بازی‌های کودک چیست؟
+۲. دو نمونه عینی از رفتار کودک که نشان‌دهنده نمره بالا (همیشه/خیلی زیاد) است.
+۳. دو نمونه عینی که نشان‌دهنده نمره پایین (به‌ندرت/هیچ‌وقت) است.
+
+پاسخ را صمیمی، آرامش‌بخش، بدون واژه‌های پیچیده و کاملاً کاربردی بنویس (حداکثر ۱۵۰ کلمه).`;
 
     const requestBody = JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 1200
-      }
+      generationConfig: { temperature: 0.4, maxOutputTokens: 600 }
     });
 
-    let explanation = '';
+    const fallbackModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-3.6-flash'];
+    const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
+
+    let aiRes = null;
     let lastError = '';
 
-    for (const key of apiKeys) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody
-      });
+    outerLoop:
+    for (const key of shuffledKeys) {
+      for (const model of fallbackModels) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        try {
+          aiRes = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': key
+            },
+            body: requestBody
+          });
 
-      if (res.ok) {
-        const data = await res.json();
-        explanation = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (explanation) break;
+          if (aiRes.ok) {
+            break outerLoop;
+          }
+
+          lastError = await aiRes.text();
+        } catch (e) {
+          lastError = e.message;
+        }
       }
-
-      lastError = await res.text();
     }
 
-    if (!explanation) {
-      return new Response(JSON.stringify({ error: `خطا در دریافت راهنمایی: ${lastError}` }), { status: 500 });
+    if (!aiRes || !aiRes.ok) {
+      return new Response(JSON.stringify({ error: `خطای سرویس هوشمند: ${lastError}` }), { status: 500 });
     }
 
-    return new Response(JSON.stringify({ success: true, explanation: explanation.trim() }), {
+    const aiData = await aiRes.json();
+    const explanation = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'متاسفانه توضیحی دریافت نشد.';
+
+    return new Response(JSON.stringify({ success: true, explanation }), {
       headers: { 'Content-Type': 'application/json' }
     });
 
