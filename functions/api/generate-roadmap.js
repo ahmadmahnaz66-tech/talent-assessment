@@ -1,6 +1,16 @@
 // functions/api/generate-roadmap.js
 import { askGemini } from './_gemini.js';
 
+// نگاشت دسته‌ها به ۸ هوش گاردنر
+const CATEGORY_TO_GARDNER = {
+  realistic: 'bodily_kinesthetic',
+  investigative: 'logical_mathematical',
+  artistic: 'spatial_visual',
+  social: 'interpersonal',
+  enterprising: 'linguistic',
+  conventional: 'intrapersonal'
+};
+
 // واکشی سوابق کارنامه‌ها
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -42,7 +52,7 @@ export async function onRequestGet(context) {
   }
 }
 
-// صدور کارنامه با معماری پردازش موازی (Parallel Generation)
+// صدور کارنامه هوشمند همراه با نمودارهای گاردنر و شاخص‌های برجسته
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -54,7 +64,7 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'شناسه یا کد ملی دانش‌آموز الزامی است.' }), { status: 400 });
     }
 
-    // ۱. استعلام پرونده دانش‌آموز
+    // ۱. استعلام مشخصات دانش‌آموز
     const student = await env.DB.prepare(
       "SELECT * FROM students WHERE id = ? OR father_phone = ? OR mother_phone = ?"
     ).bind(idToSearch, idToSearch, idToSearch).first();
@@ -63,7 +73,7 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'دانش‌آموزی با این مشخصات یافت نشد.' }), { status: 404 });
     }
 
-    // ۲. دریافت نمرات و عناوین مهارت‌ها
+    // ۲. استخراج نمرات ثبت‌شده دانش‌آموز
     const responses = await env.DB.prepare(
       "SELECT skill_slug, total_score FROM responses WHERE student_id = ?"
     ).bind(String(student.id)).all();
@@ -72,25 +82,75 @@ export async function onRequestPost(context) {
       "SELECT slug, title, category FROM skills ORDER BY display_order ASC"
     ).all();
 
+    const skillList = [];
     const skillMap = {};
     (skills.results || []).forEach(s => {
-      skillMap[s.slug] = { title: s.title, category: s.category || 'عمومی', score: 0 };
+      skillMap[s.slug] = { title: s.title, category: s.category || 'realistic', score: 0 };
     });
 
     (responses.results || []).forEach(r => {
-      if (skillMap[r.skill_slug]) skillMap[r.skill_slug].score = r.total_score;
+      if (skillMap[r.skill_slug]) {
+        skillMap[r.skill_slug].score = r.total_score;
+      }
     });
 
-    const scoresSummary = Object.values(skillMap)
+    Object.keys(skillMap).forEach(slug => {
+      skillList.push({
+        slug,
+        title: skillMap[slug].title,
+        category: skillMap[slug].category,
+        score: skillMap[slug].score
+      });
+    });
+
+    // ۳. محاسبه داده‌های نمودار هوش‌های چندگانه گاردنر (Gardner Radar Data)
+    const gardnerTotals = {
+      logical_mathematical: { sum: 0, count: 0 },
+      spatial_visual: { sum: 0, count: 0 },
+      bodily_kinesthetic: { sum: 0, count: 0 },
+      musical_rhythmic: { sum: 0, count: 0 },
+      linguistic: { sum: 0, count: 0 },
+      interpersonal: { sum: 0, count: 0 },
+      intrapersonal: { sum: 0, count: 0 },
+      naturalist: { sum: 0, count: 0 }
+    };
+
+    skillList.forEach(s => {
+      const gType = CATEGORY_TO_GARDNER[s.category] || 'logical_mathematical';
+      if (gardnerTotals[gType]) {
+        gardnerTotals[gType].sum += s.score;
+        gardnerTotals[gType].count += 1;
+      }
+    });
+
+    const gardnerData = Object.keys(gardnerTotals).map(k => {
+      const item = gardnerTotals[k];
+      // تبدیل امتیاز (حداکثر ۶۰) به درصد (۰ تا ۱۰۰)
+      const avgScore = item.count > 0 ? (item.sum / item.count) : 25;
+      const percentage = Math.min(100, Math.max(10, Math.round((avgScore / 60) * 100)));
+      return {
+        gardner_intelligence: k,
+        percentage: percentage
+      };
+    });
+
+    // ۴. محاسبه ۵ شاخص مهارتی برجسته (Requirements Bar Data)
+    const sortedSkills = [...skillList].sort((a, b) => b.score - a.score);
+    const topRequirementsData = sortedSkills.slice(0, 5).map(s => ({
+      requirement: s.title,
+      percentage: Math.min(100, Math.max(15, Math.round((s.score / 60) * 100)))
+    }));
+
+    // ۵. خلاصه نمرات جهت پرامپت موازی هوش مصنوعی
+    const scoresSummary = skillList
       .map(s => `- ${s.title} (${s.category}): امتیاز ${s.score}`)
       .join('\n');
 
     const sFullName = student.student_name || `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'دانش‌آموز';
-    const studentBio = `دانش‌آموز: ${sFullName} | پایه: ${student.grade || 'ابتدایی'}\nنمرات ارزیابی:\n${scoresSummary}`;
+    const studentBio = `دانش‌آموز: ${sFullName} | پایه: ${student.grade || 'ابتدایی'}\nنمرات آزمون:\n${scoresSummary}`;
 
-    // ۳. اجرای هم‌زمان دو پرامپت موازی جهت کاهش زمان انتظار
+    // ۶. اجرای موازی دو پرامپت برای دریافت سریع متن گزارش
     const [part1Analysis, part2ActionPlan] = await Promise.all([
-      // درخواست اول: ارزیابی روان‌شناختی و استعدادها
       askGemini(env, {
         systemPrompt: `تو مشاور ارشد روان‌سنجی و استعدادیابی کودک هستی. بخش تحلیل تشخیصی کارنامه را با تکیه بر مدل هالند (RIASEC) دقیق، علمی و بدون حاشیه بنویس.`,
         userPrompt: `${studentBio}
@@ -103,7 +163,6 @@ export async function onRequestPost(context) {
 (معرفی ۳ مهارت برتر کودک به همراه تفسیر شواهد و رفتارهای قابل مشاهده)`
       }),
 
-      // درخواست دوم: توصیه‌ها و نقشه راه عملیاتی
       askGemini(env, {
         systemPrompt: `تو مشاور و طراح مسیر رشد کودک دبستان آپادانا هستی. بخش مداخلات کاربردی و نقشه راه اجرایی را کاربردی، دقیق و انگیزشی بنویس.`,
         userPrompt: `${studentBio}
@@ -120,10 +179,18 @@ export async function onRequestPost(context) {
       })
     ]);
 
-    // ۴. ترکیب هر دو بخش در سند نهایی کارنامه
-    const fullRoadmap = `${part1Analysis.trim()}\n\n---\n\n${part2ActionPlan.trim()}`;
+    const fullRoadmapText = `${part1Analysis.trim()}\n\n---\n\n${part2ActionPlan.trim()}`;
 
-    // ۵. ذخیره کارنامه نهایی در دیتابیس
+    // ۷. بسته‌بندی کامل ساختار دیتای کارنامه طبق انتظار پنل مدیریت
+    const finalPayload = {
+      text: fullRoadmapText,
+      gardner: gardnerData,
+      topRequirements: topRequirementsData
+    };
+
+    const finalPayloadString = JSON.stringify(finalPayload);
+
+    // ۸. ذخیره نسخه جدید در پایگاه داده
     let currentVersion = 1;
     try {
       const lastVersionRow = await env.DB.prepare(
@@ -135,18 +202,18 @@ export async function onRequestPost(context) {
     try {
       await env.DB.prepare(
         "INSERT INTO roadmaps (student_id, version, analysis, report_type) VALUES (?, ?, ?, 'counselor_deep')"
-      ).bind(String(student.id), currentVersion, fullRoadmap).run();
+      ).bind(String(student.id), currentVersion, finalPayloadString).run();
     } catch (e) {
       try {
         await env.DB.prepare(
           "INSERT INTO student_roadmaps (student_id, version, analysis) VALUES (?, ?, ?)"
-        ).bind(String(student.id), currentVersion, fullRoadmap).run();
+        ).bind(String(student.id), currentVersion, finalPayloadString).run();
       } catch (err) {}
     }
 
     return new Response(JSON.stringify({
       success: true,
-      roadmap: fullRoadmap,
+      roadmap: finalPayloadString,
       version: currentVersion
     }), { headers: { 'Content-Type': 'application/json' } });
 
