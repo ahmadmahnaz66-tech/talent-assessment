@@ -1,7 +1,6 @@
 // functions/api/generate-roadmap.js
 import { askGemini } from './_gemini.js';
 
-// نگاشت دسته‌ها به ۸ هوش گاردنر
 const CATEGORY_TO_GARDNER = {
   realistic: 'bodily_kinesthetic',
   investigative: 'logical_mathematical',
@@ -11,7 +10,6 @@ const CATEGORY_TO_GARDNER = {
   conventional: 'intrapersonal'
 };
 
-// واکشی سوابق کارنامه‌ها
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -52,7 +50,6 @@ export async function onRequestGet(context) {
   }
 }
 
-// صدور کارنامه هوشمند همراه با نمودارهای گاردنر و شاخص‌های برجسته
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -64,7 +61,6 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'شناسه یا کد ملی دانش‌آموز الزامی است.' }), { status: 400 });
     }
 
-    // ۱. استعلام مشخصات دانش‌آموز
     const student = await env.DB.prepare(
       "SELECT * FROM students WHERE id = ? OR father_phone = ? OR mother_phone = ?"
     ).bind(idToSearch, idToSearch, idToSearch).first();
@@ -73,7 +69,6 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'دانش‌آموزی با این مشخصات یافت نشد.' }), { status: 404 });
     }
 
-    // ۲. استخراج نمرات ثبت‌شده دانش‌آموز
     const responses = await env.DB.prepare(
       "SELECT skill_slug, total_score FROM responses WHERE student_id = ?"
     ).bind(String(student.id)).all();
@@ -103,7 +98,6 @@ export async function onRequestPost(context) {
       });
     });
 
-    // ۳. محاسبه داده‌های نمودار هوش‌های چندگانه گاردنر (Gardner Radar Data)
     const gardnerTotals = {
       logical_mathematical: { sum: 0, count: 0 },
       spatial_visual: { sum: 0, count: 0 },
@@ -125,7 +119,6 @@ export async function onRequestPost(context) {
 
     const gardnerData = Object.keys(gardnerTotals).map(k => {
       const item = gardnerTotals[k];
-      // تبدیل امتیاز (حداکثر ۶۰) به درصد (۰ تا ۱۰۰)
       const avgScore = item.count > 0 ? (item.sum / item.count) : 25;
       const percentage = Math.min(100, Math.max(10, Math.round((avgScore / 60) * 100)));
       return {
@@ -134,14 +127,12 @@ export async function onRequestPost(context) {
       };
     });
 
-    // ۴. محاسبه ۵ شاخص مهارتی برجسته (Requirements Bar Data)
     const sortedSkills = [...skillList].sort((a, b) => b.score - a.score);
     const topRequirementsData = sortedSkills.slice(0, 5).map(s => ({
       requirement: s.title,
       percentage: Math.min(100, Math.max(15, Math.round((s.score / 60) * 100)))
     }));
 
-    // ۵. خلاصه نمرات جهت پرامپت موازی هوش مصنوعی
     const scoresSummary = skillList
       .map(s => `- ${s.title} (${s.category}): امتیاز ${s.score}`)
       .join('\n');
@@ -149,7 +140,6 @@ export async function onRequestPost(context) {
     const sFullName = student.student_name || `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'دانش‌آموز';
     const studentBio = `دانش‌آموز: ${sFullName} | پایه: ${student.grade || 'ابتدایی'}\nنمرات آزمون:\n${scoresSummary}`;
 
-    // ۶. اجرای موازی دو پرامپت برای دریافت سریع متن گزارش
     const [part1Analysis, part2ActionPlan] = await Promise.all([
       askGemini(env, {
         systemPrompt: `تو مشاور ارشد روان‌سنجی و استعدادیابی کودک هستی. بخش تحلیل تشخیصی کارنامه را با تکیه بر مدل هالند (RIASEC) دقیق، علمی و بدون حاشیه بنویس.`,
@@ -181,7 +171,6 @@ export async function onRequestPost(context) {
 
     const fullRoadmapText = `${part1Analysis.trim()}\n\n---\n\n${part2ActionPlan.trim()}`;
 
-    // ۷. بسته‌بندی کامل ساختار دیتای کارنامه طبق انتظار پنل مدیریت
     const finalPayload = {
       text: fullRoadmapText,
       gardner: gardnerData,
@@ -190,7 +179,6 @@ export async function onRequestPost(context) {
 
     const finalPayloadString = JSON.stringify(finalPayload);
 
-    // ۸. ذخیره نسخه جدید در پایگاه داده
     let currentVersion = 1;
     try {
       const lastVersionRow = await env.DB.prepare(
@@ -209,6 +197,15 @@ export async function onRequestPost(context) {
           "INSERT INTO student_roadmaps (student_id, version, analysis) VALUES (?, ?, ?)"
         ).bind(String(student.id), currentVersion, finalPayloadString).run();
       } catch (err) {}
+    }
+
+    // ریست کردن پرچم همگام‌سازی دانش‌آموز در دیتابیس
+    try {
+      await env.DB.prepare(
+        "UPDATE students SET needs_ai_sync = 0 WHERE id = ?"
+      ).bind(String(student.id)).run();
+    } catch (err) {
+      console.error('Flag reset error:', err);
     }
 
     return new Response(JSON.stringify({
