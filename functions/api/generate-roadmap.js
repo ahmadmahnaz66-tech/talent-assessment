@@ -129,7 +129,8 @@ ${scoresSummary}`;
       }
     });
 
-    const fallbackModels = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+    // مدل‌های فعال و پشتیبانی‌شده رسمی Gemini
+    const fallbackModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-pro'];
     const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
 
     let aiRes = null;
