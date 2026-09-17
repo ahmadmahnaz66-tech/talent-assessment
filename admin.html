@@ -150,7 +150,6 @@
           <div id="user-display-role" class="text-[11px] text-slate-400">-</div>
         </div>
 
-        <!-- دکمه تست هوش مصنوعی (فقط سوپر ادمین) -->
         <button id="btn-test-ai" onclick="openTestAiModal()" class="hidden text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition flex items-center gap-1">
           ⚡ تست هوش مصنوعی
         </button>
@@ -485,7 +484,7 @@
         </select>
       </div>
 
-      <!-- نمودارهای اختصاصی منتخبین مهارت انتخاب‌شده (مستقل از چارت‌های مدرسه) -->
+      <!-- نمودارهای اختصاصی منتخبین مهارت انتخاب‌شده -->
       <div id="skill-charts-container" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-indigo-100 bg-indigo-50/20">
           <div class="flex items-center justify-between mb-4 border-b border-indigo-100 pb-3">
@@ -540,9 +539,19 @@
 
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <h2 class="font-bold text-slate-800 text-sm mb-3">تعریف مهارت جدید</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
           <input type="text" id="new-skill-slug" placeholder="شناسه انگلیسی (مثال: astronomy)" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
           <input type="text" id="new-skill-title" placeholder="عنوان فارسی (مثال: نجوم و فضا)" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          
+          <select id="new-skill-category" class="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none font-bold text-slate-700">
+            <option value="investigative">کاوشگر / تحلیلی (I)</option>
+            <option value="artistic">هنری / خلاق (A)</option>
+            <option value="social">اجتماعی / ارتباطی (S)</option>
+            <option value="enterprising">متهور / رهبری (E)</option>
+            <option value="conventional">قراردادی / نظم‌گرا (C)</option>
+            <option value="realistic">واقع‌گرا / عملیاتی (R)</option>
+          </select>
+
           <button onclick="createNewSkill()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold py-2.5 transition">ثبت مهارت (دستی)</button>
           
           <button type="button" onclick="generateSkillWithAI()" id="btn-ai-skill" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold px-3 py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5">
