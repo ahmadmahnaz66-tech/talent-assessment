@@ -10,8 +10,11 @@ export async function onRequestPost(context) {
     const cleanSlug = String(slug).trim().toLowerCase();
     const cleanTitle = String(title).trim();
 
-    const apiKey = env.GEMINI_API_KEY;
-    if (!apiKey) {
+    // پشتیبانی هم‌زمان از چند کلید با کاما یا یک کلید تکی
+    const keysRaw = env.GEMINI_API_KEYS || env.GEMINI_API_KEY || '';
+    const apiKeys = keysRaw.split(',').map(k => k.trim()).filter(Boolean);
+
+    if (apiKeys.length === 0) {
       return new Response(JSON.stringify({ error: 'کلید API هوش مصنوعی در سرور تنظیم نشده است.' }), { status: 500 });
     }
 
@@ -63,17 +66,27 @@ export async function onRequestPost(context) {
       generationConfig: { temperature: 0.3, maxOutputTokens: 3000 }
     });
 
-    const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
-    const gatewayUrl = `https://gateway.ai.cloudflare.com/v1/4e081705b0a69025a3affdd5ff991364/school-ai/google-ai-studio/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+    let aiRes = null;
+    let lastError = '';
 
-    let aiRes = await fetch(directUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody });
-    if (!aiRes.ok) {
-      aiRes = await fetch(gatewayUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody });
+    // حلقه چرخش روی کلیدها
+    for (const key of apiKeys) {
+      const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`;
+      aiRes = await fetch(directUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: requestBody
+      });
+
+      if (aiRes.ok) {
+        break;
+      }
+
+      lastError = await aiRes.text();
     }
 
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      return new Response(JSON.stringify({ error: `خطای هوش مصنوعی: ${errText}` }), { status: 500 });
+    if (!aiRes || !aiRes.ok) {
+      return new Response(JSON.stringify({ error: `خطای هوش مصنوعی: ${lastError}` }), { status: 500 });
     }
 
     const aiData = await aiRes.json();
