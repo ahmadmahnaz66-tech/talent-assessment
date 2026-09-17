@@ -1,3 +1,4 @@
+// functions/api/explain-question.js
 import { askGemini } from './_gemini.js';
 
 export async function onRequestPost(context) {
@@ -10,20 +11,18 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: 'متن گویه الزامی است.' }), { status: 400 });
     }
 
-    const systemPrompt = `تو مشاور روان‌شناسی کودک دبستان آپادانا هستی. 
-هدف تو راهنمایی صمیمی، علمی و کوتاه به والدین است تا بدانند چه رفتاری را در کودک مشاهده کنند تا به این سوال پاسخ دقیق دهند.
-حداکثر در ۳ جمله روان توضیح بده.`;
+    const systemPrompt = `تو مشاور روان‌شناسی کودک و استعدادیابی هستی. وظیفه تو توضیح ساده و ملموس گویه‌ها برای والدین است. بدون احوالپرسی یا مقدمه پاسخ بده.`;
 
-    const userPrompt = `مهارت: ${skillTitle || 'استعدادیابی'}
-سن تقریبی: ${childAge || 'دبستان'}
-سوال آزمون: "${questionText}"`;
+    const userPrompt = `مهارت: ${skillTitle || 'عمومی'}
+گویه: "${questionText}"
+سن کودک: ${childAge || '۷ تا ۱۲ سال'}
 
-    const explanation = await askGemini(env, {
-      systemPrompt,
-      userPrompt,
-      temperature: 0.5,
-      maxTokens: 500
-    });
+لطفاً این گویه را کامل در ۳ بخش کوتاه توضیح بده:
+۱. منظور دقیق این رفتار
+۲. مثال عینی در خانه و جمع برای نمره بالا
+۳. مثال عینی در خانه و جمع برای نمره پایین`;
+
+    const explanation = await askGemini(env, { systemPrompt, userPrompt });
 
     return new Response(JSON.stringify({ success: true, explanation }), {
       headers: { 'Content-Type': 'application/json' }
