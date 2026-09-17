@@ -9,17 +9,6 @@ export async function onRequestGet(context) {
   };
 
   try {
-    // اطمینان از وجود جدول student_roadmaps برای جلوگیری از کرش
-    await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS student_roadmaps (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id TEXT NOT NULL,
-        version INTEGER NOT NULL DEFAULT 1,
-        analysis TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `).run();
-
     // دریافت فهرست مهارت‌ها
     if (type === 'all-skills') {
       const { results } = await env.DB.prepare(
@@ -36,21 +25,29 @@ export async function onRequestGet(context) {
       return new Response(JSON.stringify(results || []), { headers: corsHeaders });
     }
 
-    // [اصلاح‌شده] دریافت تاریخچه اسناد و تحلیل‌های صادرشده یک پرونده
+    // [اصلاح قطعی] دریافت تاریخچه اسناد و تحلیل‌های صادرشده از جدول students
     if (type === 'reports') {
       const nationalId = url.searchParams.get('nationalId') || url.searchParams.get('studentId');
       if (!nationalId) {
         return new Response(JSON.stringify({ reports: [] }), { headers: corsHeaders });
       }
 
-      const { results } = await env.DB.prepare(`
-        SELECT id, version, created_at, analysis 
-        FROM student_roadmaps 
-        WHERE student_id = ? 
-        ORDER BY created_at DESC
-      `).bind(nationalId).all();
+      const student = await env.DB.prepare(`
+        SELECT ai_roadmap, roadmap_created_at 
+        FROM students 
+        WHERE national_id = ? AND ai_roadmap IS NOT NULL
+      `).bind(nationalId).first();
 
-      return new Response(JSON.stringify({ reports: results || [] }), { headers: corsHeaders });
+      let reports = [];
+      if (student && student.ai_roadmap) {
+        reports.push({
+          version: 1,
+          created_at: student.roadmap_created_at || new Date().toISOString(),
+          analysis: student.ai_roadmap
+        });
+      }
+
+      return new Response(JSON.stringify({ reports }), { headers: corsHeaders });
     }
 
     // گزارش گروهی بر اساس مهارت
@@ -96,17 +93,9 @@ export async function onRequestGet(context) {
 
     // داشبورد تحلیلی هوش‌های گاردنر و تیپ‌های هالند
     if (type === 'analytics-dashboard') {
-      const query = `
-        SELECT sr.analysis 
-        FROM student_roadmaps sr
-        INNER JOIN (
-          SELECT student_id, MAX(created_at) as max_gen
-          FROM student_roadmaps
-          GROUP BY student_id
-        ) latest ON sr.student_id = latest.student_id AND sr.created_at = latest.max_gen
-      `;
-
-      const { results } = await env.DB.prepare(query).all();
+      const { results } = await env.DB.prepare(`
+        SELECT ai_roadmap as analysis FROM students WHERE ai_roadmap IS NOT NULL
+      `).all();
 
       const keyMapping = {
         linguistic: 'linguistic',
@@ -186,9 +175,7 @@ export async function onRequestGet(context) {
               else hollandTotals.enterprising++;
             }
 
-          } catch (e) {
-            // رد کردن داده‌های نامعتبر
-          }
+          } catch (e) {}
         }
       }
 
