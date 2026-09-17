@@ -348,7 +348,6 @@ async function saveSingleStudent() {
     return alert('لطفاً شماره کلاس را انتخاب فرمایید.');
   }
 
-  // ثبت استاندارد نام کلاس به فرمت: «چهارمِ ۲»
   const formattedClassroom = `${grade}ِ ${classNum}`;
 
   const res = await fetch('/api/students', {
@@ -469,7 +468,6 @@ async function sendBatchToServer(rows, fileInput) {
     if (fPhone.length === 10 && fPhone.startsWith('9')) fPhone = '0' + fPhone;
     if (mPhone.length === 10 && mPhone.startsWith('9')) mPhone = '0' + mPhone;
 
-    // اگر کد ملی خالی باشد، از شماره همراه پدر یا مادر به عنوان شناسه موقت استفاده شود
     let rawId = String(r['کد ملی'] || r.id || '').trim();
     if (!rawId) {
       rawId = fPhone || mPhone || String(Date.now()).slice(-8);
@@ -506,7 +504,6 @@ async function sendBatchToServer(rows, fileInput) {
     alert('خطا در اتصال به سرور جهت آپلود: ' + err.message);
   }
 }
-
 
 function exportStudentsExcel() {
   if (!loadedStudents || loadedStudents.length === 0) return alert('دانش‌آموزی در لیست وجود ندارد.');
@@ -619,21 +616,24 @@ async function loadInitialMetadata() {
 }
 
 function onStudentSelectChanged() {
-  const studentId = document.getElementById('student-select').value;
+  const studentSelect = document.getElementById('student-select');
+  const studentId = studentSelect ? studentSelect.value.trim() : '';
   const btnAI = document.getElementById('btn-generate-ai');
   const historyCard = document.getElementById('ai-history-card');
 
   if (!studentId) {
-    btnAI.classList.add('hidden');
-    historyCard.classList.add('hidden');
-    document.getElementById('student-report-results').innerHTML = '';
+    if (btnAI) btnAI.classList.add('hidden');
+    if (historyCard) historyCard.classList.add('hidden');
+    const resContainer = document.getElementById('student-report-results');
+    if (resContainer) resContainer.innerHTML = '';
     return;
   }
 
-  btnAI.classList.remove('hidden');
-  historyCard.classList.remove('hidden');
+  if (btnAI) btnAI.classList.remove('hidden');
+  if (historyCard) historyCard.classList.remove('hidden');
   fetchStudentReport(studentId);
   loadRoadmapHistory(studentId);
+  loadStudentHistory(studentId);
 }
 
 async function fetchStudentReport(studentId) {
@@ -670,12 +670,13 @@ async function fetchStudentReport(studentId) {
   }
 }
 
-async function loadRoadmapHistory(studentId) {
+async function loadRoadmapHistory(nationalId) {
   const box = document.getElementById('history-container');
+  if (!box) return;
   box.innerHTML = '<span class="text-slate-400">در حال دریافت سوابق...</span>';
 
   try {
-    const res = await fetch(`/api/generate-roadmap?studentId=${encodeURIComponent(studentId)}`);
+    const res = await fetch(`/api/generate-roadmap?nationalId=${encodeURIComponent(nationalId)}`);
     cachedHistory = await res.json();
 
     if (!cachedHistory || cachedHistory.length === 0) {
@@ -691,6 +692,42 @@ async function loadRoadmapHistory(studentId) {
     `).join('');
   } catch (e) {
     box.innerHTML = '<span class="text-red-500">خطا در دریافت سوابق.</span>';
+  }
+}
+
+async function loadStudentHistory(nationalId) {
+  const historyContainer = document.getElementById('studentHistoryContainer');
+  if (!historyContainer) return;
+
+  if (!nationalId) {
+    historyContainer.innerHTML = '<span class="text-xs text-slate-400">دانش‌آموزی انتخاب نشده است.</span>';
+    return;
+  }
+
+  historyContainer.innerHTML = '<span class="text-xs text-slate-400">در حال دریافت سوابق...</span>';
+
+  try {
+    const res = await fetch(`/api/admin-reports?type=reports&nationalId=${encodeURIComponent(nationalId)}`);
+    if (!res.ok) {
+      throw new Error('خطا در دریافت پاسخ سرور');
+    }
+    const data = await res.json();
+    const reports = data.reports || data;
+
+    if (!Array.isArray(reports) || reports.length === 0) {
+      historyContainer.innerHTML = '<span class="text-xs text-amber-600">هنوز سندی برای این پرونده صادر نشده است.</span>';
+      return;
+    }
+
+    historyContainer.innerHTML = reports.map((r, idx) => `
+      <div class="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs">
+        <span class="font-bold text-slate-700">📄 سند شماره ${reports.length - idx} (${formatIranDateTime(r.created_at)})</span>
+        <button onclick="viewHistoricalRoadmap(${idx})" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1 rounded-lg font-bold transition">مشاهده</button>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    historyContainer.innerHTML = '<span class="text-xs text-red-500">خطا در دریافت سوابق پرونده.</span>';
   }
 }
 
@@ -889,29 +926,31 @@ function renderRequirementsBarChart(reqData) {
 }
 
 async function generateNewRoadmapAnalysis() {
-  const studentId = document.getElementById('student-select').value;
+  const select = document.getElementById('student-select');
+  const nationalId = select ? select.value.trim() : '';
   const btn = document.getElementById('btn-generate-ai');
-  if (!studentId) return alert('ابتدا دانش‌آموز را انتخاب کنید.');
+  if (!nationalId) return alert('ابتدا دانش‌آموز را انتخاب کنید.');
 
   btn.disabled = true;
-  btn.innerText = 'در حال تحلیل با جمنای و ذخیره نسخه جدید...';
+  btn.innerHTML = '<span>⏳</span><span>در حال تحلیل با جمنای و ذخیره نسخه جدید...</span>';
 
   try {
     const res = await fetch('/api/generate-roadmap', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ studentId })
+      body: JSON.stringify({ nationalId })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'خطا در صدور سند');
 
-    await loadRoadmapHistory(studentId);
+    await loadRoadmapHistory(nationalId);
+    await loadStudentHistory(nationalId);
     viewHistoricalRoadmap(0);
   } catch (e) {
     alert('خطا: ' + e.message);
   } finally {
     btn.disabled = false;
-    btn.innerText = '✨ صدور کارنامه و تحلیل جدید هوش مصنوعی';
+    btn.innerHTML = '✨ صدور کارنامه و تحلیل جدید هوش مصنوعی';
   }
 }
 
@@ -1304,6 +1343,7 @@ async function deleteStaff(staffId) {
     alert('خطا در برقراری ارتباط با سرور: ' + err.message);
   }
 }
+
 function filterStudentDropdown(query) {
   const select = document.getElementById('student-select');
   if (!select) return;
@@ -1385,7 +1425,7 @@ async function checkAndSyncPendingRoadmaps() {
       await fetch('/api/generate-roadmap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId: std.id })
+        body: JSON.stringify({ nationalId: std.id })
       });
 
       completed++;
@@ -1402,6 +1442,7 @@ async function checkAndSyncPendingRoadmaps() {
     const activeStudentId = document.getElementById('student-select')?.value;
     if (activeStudentId) {
       loadRoadmapHistory(activeStudentId);
+      loadStudentHistory(activeStudentId);
     }
 
     setTimeout(() => box.classList.add('hidden'), 4000);
@@ -1521,9 +1562,6 @@ async function loadAnalyticsDashboard() {
   }
 }
 
-// ==========================================
-// عملیات اکسل: استخراج تمام مهارت‌ها و سوالات
-// ==========================================
 async function exportSkillsAndQuestionsToExcel() {
   try {
     const res = await fetch('/api/questions');
@@ -1566,9 +1604,6 @@ async function exportSkillsAndQuestionsToExcel() {
   }
 }
 
-// ==========================================
-// عملیات اکسل: بارگذاری گروهی مهارت‌ها و سوالات
-// ==========================================
 async function importSkillsAndQuestionsFromExcel(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1608,7 +1643,6 @@ async function importSkillsAndQuestionsFromExcel(event) {
           continue;
         }
 
-        // ثبت مهارت در صورت جدید بودن
         if (skillTitle) {
           try {
             await fetch('/api/admin-reports', {
@@ -1619,7 +1653,6 @@ async function importSkillsAndQuestionsFromExcel(event) {
           } catch (_) {}
         }
 
-        // درج سوال در دیتابیس
         try {
           const qRes = await fetch('/api/questions', {
             method: 'POST',
@@ -1685,8 +1718,8 @@ async function generateSkillWithAI() {
       alert(data.message);
       document.getElementById('new-skill-slug').value = '';
       document.getElementById('new-skill-title').value = '';
-      await loadInitialMetadata(); // رفرش لیست مهارت‌ها
-      loadQuestionsForAdmin(slug); // نمایش سوالات تازه ساخته‌شده در همان صفحه
+      await loadInitialMetadata();
+      loadQuestionsForAdmin(slug);
     } else {
       alert(data.error || 'خطا در تولید گویه‌ها');
     }
