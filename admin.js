@@ -97,6 +97,16 @@ function showDashboard() {
   document.getElementById('user-display-name').innerText = currentStaffUser.fullName || currentStaffUser.username;
   document.getElementById('user-display-role').innerText = ROLE_NAMES[currentStaffUser.role] || currentStaffUser.role;
 
+  // دسترسی دکمه تست AI (صرفاً برای مدیر ارشد سامانه)
+  const testAiBtn = document.getElementById('btn-test-ai');
+  if (testAiBtn) {
+    if (currentStaffUser && currentStaffUser.role === 'super_admin') {
+      testAiBtn.classList.remove('hidden');
+    } else {
+      testAiBtn.classList.add('hidden');
+    }
+  }
+
   const addStaffBox = document.getElementById('add-staff-container');
   if (addStaffBox) {
     if (currentStaffUser.role === 'super_admin') {
@@ -1728,5 +1738,74 @@ async function generateSkillWithAI() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = originalText;
+  }
+}
+
+// --- توابع اختصاصی پایش و تست هوش مصنوعی (مخصوص سوپر ادمین) ---
+
+function openTestAiModal() {
+  document.getElementById('test-ai-modal').classList.remove('hidden');
+  runAiConnectionTest();
+}
+
+function closeTestAiModal() {
+  document.getElementById('test-ai-modal').classList.add('hidden');
+}
+
+async function runAiConnectionTest() {
+  const container = document.getElementById('test-ai-results');
+  const btn = document.getElementById('btn-retest-ai');
+
+  btn.disabled = true;
+  btn.innerHTML = '⏳ در حال برقراری ارتباط...';
+  container.innerHTML = `
+    <div class="p-6 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
+      <div class="animate-spin w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+      در حال ارسال درخواست به سرورهای گوگل و بررسی تک‌تک کلیدهای فعال...
+    </div>
+  `;
+
+  try {
+    const res = await fetch('/api/test-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requesterRole: currentStaffUser?.role })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'خطا در انجام تست');
+
+    container.innerHTML = data.results.map(r => `
+      <div class="p-3.5 rounded-2xl border ${r.status === 'success' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-red-50/50 border-red-200'} flex flex-col gap-1.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full ${r.status === 'success' ? 'bg-emerald-500' : 'bg-red-500'}"></span>
+            <span class="font-bold text-xs text-slate-800">کلید شماره ${r.keyIndex} (${r.maskedKey})</span>
+          </div>
+          <span class="text-[11px] font-bold px-2 py-0.5 rounded-md ${r.status === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">
+            ${r.status === 'success' ? `فعال (${r.pingMs}ms)` : 'خطا / غیرفعال'}
+          </span>
+        </div>
+
+        ${r.status === 'success' ? `
+          <div class="flex items-center gap-4 text-[11px] text-slate-500 pt-1 border-t border-emerald-100/60">
+            <span>مدل: <b>${r.model}</b></span>
+            <span>توکن ورودی: <b>${r.promptTokens}</b></span>
+            <span>توکن خروجی: <b>${r.candidatesTokens}</b></span>
+            <span>مجموع توکن تست: <b class="text-indigo-600">${r.totalTokens}</b></span>
+          </div>
+        ` : `
+          <div class="text-[11px] text-red-600 pt-1 border-t border-red-100 font-mono text-left dir-ltr break-all">
+            ${r.errorMessage}
+          </div>
+        `}
+      </div>
+    `).join('');
+
+  } catch (err) {
+    container.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-xl text-xs font-bold text-center">${err.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔄 اجرای مجدد تست';
   }
 }
