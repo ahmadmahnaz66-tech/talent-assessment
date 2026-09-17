@@ -66,17 +66,31 @@ export async function onRequestPost(context) {
       generationConfig: { temperature: 0.3, maxOutputTokens: 3000 }
     });
 
+    // شافل کلیدها برای توزیع تصادفی هر درخواست روی یک اکانت مجزا
+    const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
+
     let aiRes = null;
     let lastError = '';
 
-    // حلقه چرخش روی کلیدها
-    for (const key of apiKeys) {
+    // حلقه چرخش هوشمند روی کلیدها
+    for (const key of shuffledKeys) {
       const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`;
+      
       aiRes = await fetch(directUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: requestBody
       });
+
+      // در صورت شلوغی لحظه‌ای سرور گوگل (503)، ۲ ثانیه مکث و تلاش مجدد
+      if (aiRes.status === 503) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        aiRes = await fetch(directUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody
+        });
+      }
 
       if (aiRes.ok) {
         break;
@@ -120,3 +134,4 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 }
+```[cite: 4]
