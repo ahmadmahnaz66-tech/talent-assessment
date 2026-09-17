@@ -129,8 +129,12 @@ ${scoresSummary}`;
       }
     });
 
-    // مدل‌های فعال و پشتیبانی‌شده رسمی Gemini
-    const fallbackModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-pro'];
+    // مدل‌های فعال و پیشنهادی رسمی گوگل
+    const fallbackModels = [
+      'gemini-3.1-pro-preview',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash'
+    ];
     const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
 
     let aiRes = null;
