@@ -87,8 +87,10 @@ export async function onRequestGet(context) {
       return new Response(JSON.stringify(reports.results || []), { headers: corsHeaders });
     }
 
-    // ۵. داشبورد تحلیلی و آماری کل مدرسه (گاردنر و هالند)
+    // ۵. داشبورد تحلیلی و آماری کل مدرسه / منتخبین مهارت خاص
     if (type === 'analytics-dashboard') {
+      const selectedSkill = url.searchParams.get('skill');
+
       const countRow = await env.DB.prepare("SELECT COUNT(*) as total FROM students").first();
       const totalStudents = countRow ? countRow.total : 0;
 
@@ -98,12 +100,26 @@ export async function onRequestGet(context) {
         skillCategories[s.slug] = s.category || 'realistic';
       });
 
+      let targetStudentIds = null;
+      if (selectedSkill) {
+        // انتخاب دانش‌آموزانی که در این مهارت نمره رشد کسب کرده‌اند (بیشتر از ۳۰)
+        const topStudentsRes = await env.DB.prepare(
+          "SELECT DISTINCT student_id FROM responses WHERE skill_slug = ? AND total_score > 30"
+        ).bind(selectedSkill).all();
+        targetStudentIds = new Set((topStudentsRes.results || []).map(r => String(r.student_id)));
+      }
+
       const responsesRes = await env.DB.prepare("SELECT student_id, skill_slug, total_score FROM responses").all();
-      const allResponses = responsesRes.results || [];
+      let allResponses = responsesRes.results || [];
+
+      if (targetStudentIds !== null) {
+        allResponses = allResponses.filter(r => targetStudentIds.has(String(r.student_id)));
+      }
+
+      const countForThisView = targetStudentIds !== null ? targetStudentIds.size : totalStudents;
 
       const gardnerSums = { linguistic: 0, logical: 0, spatial: 0, musical: 0, bodily: 0, interpersonal: 0, intrapersonal: 0, naturalistic: 0 };
       const gardnerCounts = { linguistic: 0, logical: 0, spatial: 0, musical: 0, bodily: 0, interpersonal: 0, intrapersonal: 0, naturalistic: 0 };
-
       const studentHollandScores = {};
 
       allResponses.forEach(r => {
@@ -144,7 +160,7 @@ export async function onRequestGet(context) {
 
       return new Response(JSON.stringify({
         success: true,
-        total_students: totalStudents,
+        total_students: countForThisView,
         gardner_averages: gardnerAverages,
         holland_distribution: hollandDistribution
       }), { headers: corsHeaders });
