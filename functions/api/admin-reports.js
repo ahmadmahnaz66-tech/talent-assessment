@@ -91,18 +91,36 @@ export async function onRequestGet(context) {
     if (type === 'analytics-dashboard') {
       const selectedSkill = url.searchParams.get('skill');
 
+      // نگاشت مهارت‌های پیش‌فرض برای پوشش کامل
+      const KNOWN_SLUG_MAP = {
+        coding: 'investigative',
+        ai: 'investigative',
+        robotics: 'investigative',
+        carpentry: 'realistic',
+        gardening: 'realistic',
+        theater: 'artistic',
+        comedy: 'artistic',
+        public_speaking: 'enterprising'
+      };
+
       const countRow = await env.DB.prepare("SELECT COUNT(*) as total FROM students").first();
       const totalStudents = countRow ? countRow.total : 0;
 
       const skillsRes = await env.DB.prepare("SELECT slug, category FROM skills").all();
       const skillCategories = {};
       (skillsRes.results || []).forEach(s => {
-        skillCategories[s.slug] = s.category || 'realistic';
+        const directCat = String(s.category || '').toLowerCase().trim();
+        if (['realistic', 'investigative', 'artistic', 'social', 'enterprising', 'conventional'].includes(directCat)) {
+          skillCategories[s.slug] = directCat;
+        } else if (KNOWN_SLUG_MAP[s.slug]) {
+          skillCategories[s.slug] = KNOWN_SLUG_MAP[s.slug];
+        } else {
+          skillCategories[s.slug] = 'investigative';
+        }
       });
 
       let targetStudentIds = null;
       if (selectedSkill) {
-        // انتخاب دانش‌آموزانی که در این مهارت نمره رشد کسب کرده‌اند (بیشتر از ۳۰)
         const topStudentsRes = await env.DB.prepare(
           "SELECT DISTINCT student_id FROM responses WHERE skill_slug = ? AND total_score > 30"
         ).bind(selectedSkill).all();
@@ -123,7 +141,7 @@ export async function onRequestGet(context) {
       const studentHollandScores = {};
 
       allResponses.forEach(r => {
-        const cat = skillCategories[r.skill_slug] || 'realistic';
+        const cat = skillCategories[r.skill_slug] || 'investigative';
         const gKey = HOLLAND_TO_GARDNER[cat] || 'logical';
 
         gardnerSums[gKey] += r.total_score;
@@ -145,15 +163,17 @@ export async function onRequestGet(context) {
 
       const hollandDistribution = { realistic: 0, investigative: 0, artistic: 0, social: 0, enterprising: 0, conventional: 0 };
       Object.values(studentHollandScores).forEach(scores => {
-        let maxCat = 'realistic';
-        let maxVal = -1;
+        let maxCat = '';
+        let maxVal = 0;
+
         Object.entries(scores).forEach(([cat, val]) => {
           if (val > maxVal) {
             maxVal = val;
             maxCat = cat;
           }
         });
-        if (maxVal > 0) {
+
+        if (maxCat && maxVal > 0) {
           hollandDistribution[maxCat] = (hollandDistribution[maxCat] || 0) + 1;
         }
       });
@@ -178,19 +198,23 @@ export async function onRequestPost(context) {
 
   try {
     const body = await request.json();
-    const { action, slug, title } = body;
+    const { action, slug, title, category } = body;
 
-    // تعریف مهارت جدید
+    // تعریف مهارت جدید با دسته‌بندی هالند
     if (action === 'add-skill') {
       if (!slug || !title) {
         return new Response(JSON.stringify({ error: 'شناسه و عنوان مهارت الزامی است.' }), { status: 400 });
       }
 
-      await env.DB.prepare(
-        "INSERT INTO skills (slug, title, category, display_order) VALUES (?, ?, 'عمومی', 99)"
-      ).bind(String(slug).trim().toLowerCase(), String(title).trim()).run();
+      const validCat = ['realistic', 'investigative', 'artistic', 'social', 'enterprising', 'conventional'].includes(category) 
+        ? category 
+        : 'investigative';
 
-      return new Response(JSON.stringify({ success: true, message: 'مهارت جدید با موفقیت اضافه شد.' }), {
+      await env.DB.prepare(
+        "INSERT INTO skills (slug, title, category, display_order) VALUES (?, ?, ?, 99)"
+      ).bind(String(slug).trim().toLowerCase(), String(title).trim(), validCat).run();
+
+      return new Response(JSON.stringify({ success: true, message: 'مهارت جدید با دسته‌بندی هالند ثبت شد.' }), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
