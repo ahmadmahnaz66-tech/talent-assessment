@@ -91,11 +91,22 @@ export async function onRequestPost(context) {
       .map(s => `- مهارت: ${s.title} | حوزه: ${s.category} | نمره کل مکتسبه: ${s.score}`)
       .join('\n');
 
-    const keysRaw = env.GEMINI_API_KEYS || env.GEMINI_API_KEY || '';
-    const apiKeys = keysRaw.split(',').map(k => k.trim()).filter(Boolean);
+    // استخراج تمام کلیدهای تعریف‌شده در کلادفلر (پشتیبانی از فرمت کاما و کلیدهای مجزا)
+    let apiKeys = [];
+    if (env.GEMINI_API_KEYS) {
+      apiKeys.push(...env.GEMINI_API_KEYS.split(',').map(k => k.trim()));
+    }
+    if (env.GEMINI_API_KEY) {
+      apiKeys.push(...env.GEMINI_API_KEY.split(',').map(k => k.trim()));
+    }
+    ['GEMINI_API_KEY_1', 'GEMINI_API_KEY_2', 'GEMINI_API_KEY_3', 'GEMINI_API_KEY_4'].forEach(k => {
+      if (env[k]) apiKeys.push(String(env[k]).trim());
+    });
+
+    apiKeys = [...new Set(apiKeys.filter(Boolean))];
 
     if (apiKeys.length === 0) {
-      return new Response(JSON.stringify({ error: 'کلید API هوش مصنوعی در سرور تنظیم نشده است.' }), { status: 500 });
+      return new Response(JSON.stringify({ error: 'هیچ کلید API هوش مصنوعی در سرور یافت نشد.' }), { status: 500 });
     }
 
     const systemPrompt = `تو مشاور ارشد و متخصص استعدادیابی تحصیلی و روان‌شناسی رشد دبستان آپادانا هستی. 
@@ -129,12 +140,13 @@ ${scoresSummary}`;
       }
     });
 
-    // مدل‌های فعال و پیشنهادی رسمی گوگل
-    const fallbackModels = [
-      'gemini-3.1-pro-preview',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash'
+    // استفاده از مدل‌های اعلام‌شده توسط گوگل
+    const targetModels = [
+      'gemini-3.6-flash',
+      'gemini-3.1-pro-preview'
     ];
+
+    // بر زدن تصادفی کلیدها برای توزیع بهینه بار
     const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
 
     let aiRes = null;
@@ -142,7 +154,7 @@ ${scoresSummary}`;
 
     outerLoop:
     for (const key of shuffledKeys) {
-      for (const model of fallbackModels) {
+      for (const model of targetModels) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
         try {
           aiRes = await fetch(url, {
