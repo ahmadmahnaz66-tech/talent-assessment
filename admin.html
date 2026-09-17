@@ -450,6 +450,7 @@
 
     <!-- تب ۴: غربالگری گروهی -->
     <section id="tab-content-group" class="tab-content hidden space-y-5">
+      <!-- نمودارهای ثابت کلان مدرسه -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5" id="analytics-dashboard-section">
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
           <div class="flex items-center justify-between mb-4 border-b pb-3">
@@ -476,12 +477,41 @@
         </div>
       </div>
 
+      <!-- فیلتر مهارت و رتبه‌بندی -->
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-3">
         <label class="text-xs font-bold text-slate-700">فیلتر مهارت:</label>
         <select id="skill-filter-select" onchange="fetchSkillGroupReport(this.value)" class="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none min-w-[220px]">
           <option value="">انتخاب مهارت...</option>
         </select>
       </div>
+
+      <!-- نمودارهای اختصاصی منتخبین مهارت انتخاب‌شده (مستقل از چارت‌های مدرسه) -->
+      <div id="skill-charts-container" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-indigo-100 bg-indigo-50/20">
+          <div class="flex items-center justify-between mb-4 border-b border-indigo-100 pb-3">
+            <h3 class="font-bold text-indigo-950 text-xs sm:text-sm flex items-center gap-2">
+              <span>🎯</span> گاردنر در منتخبین این مهارت
+            </h3>
+            <span class="text-[11px] px-2.5 py-1 bg-indigo-100 text-indigo-800 rounded-full font-bold" id="skill-gardner-badge">-</span>
+          </div>
+          <div class="relative h-64 w-full">
+            <canvas id="skillGardnerBarChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-emerald-100 bg-emerald-50/20">
+          <div class="flex items-center justify-between mb-4 border-b border-emerald-100 pb-3">
+            <h3 class="font-bold text-emerald-950 text-xs sm:text-sm flex items-center gap-2">
+              <span>🧭</span> تیپ غالب هالند منتخبین
+            </h3>
+            <span class="text-[11px] px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold" id="skill-holland-badge">-</span>
+          </div>
+          <div class="relative h-64 w-full flex items-center justify-center">
+            <canvas id="skillHollandRadarChart"></canvas>
+          </div>
+        </div>
+      </div>
+
       <div id="skill-group-results" class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm"></div>
     </section>
 
@@ -672,7 +702,7 @@
     </div>
   </div>
 
-  <!-- مودال اختصاصی تست سلامت هوش مصنوعی (فقط سوپر ادمین) -->
+  <!-- مودال تست هوش مصنوعی -->
   <div id="test-ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 border border-slate-100 space-y-4">
       <div class="flex items-center justify-between border-b pb-3">
@@ -686,9 +716,7 @@
         <button onclick="closeTestAiModal()" class="text-slate-400 hover:text-slate-700 text-xl font-bold">✕</button>
       </div>
 
-      <div id="test-ai-results" class="space-y-2 max-h-[380px] overflow-y-auto pt-2">
-        <!-- نتایج بررسی اینجا پر می‌شود -->
-      </div>
+      <div id="test-ai-results" class="space-y-2 max-h-[380px] overflow-y-auto pt-2"></div>
 
       <div class="flex justify-between items-center pt-2 border-t">
         <button onclick="runAiConnectionTest()" id="btn-retest-ai" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md flex items-center gap-1.5">
@@ -701,6 +729,6 @@
     </div>
   </div>
 
-  <script src="admin.js?v=4"></script>
+  <script src="admin.js?v=5"></script>
 </body>
 </html>
