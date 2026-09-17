@@ -1,5 +1,7 @@
+// functions/api/auth.js
+
 // --- توابع کمکی رمزنگاری و امضای توکن ---
-const JWT_SECRET = "TALENT_ASSESSMENT_SECRET_KEY_CHANGE_ME_2026"; // در صورت تمایل در env.JWT_SECRET تنظیم کنید
+const JWT_SECRET = "TALENT_ASSESSMENT_SECRET_KEY_CHANGE_ME_2026";
 
 function base64UrlEncode(str) {
   return btoa(unescape(encodeURIComponent(str)))
@@ -64,7 +66,7 @@ async function verifyToken(token, secret = JWT_SECRET) {
 
     const decodedPayload = JSON.parse(base64UrlDecode(payload));
     if (decodedPayload.exp && decodedPayload.exp < Math.floor(Date.now() / 1000)) {
-      return null; // توکن منقضی شده
+      return null;
     }
     return decodedPayload;
   } catch {
@@ -72,7 +74,7 @@ async function verifyToken(token, secret = JWT_SECRET) {
   }
 }
 
-// خواندن اطلاعات کاربر احراز هویت شده از هدر Authorization یا توکن موجود در Body
+// خواندن اطلاعات کاربر از هدر Authorization یا توکن موجود در بادی
 async function getAuthUser(request, body) {
   let token = null;
   const authHeader = request.headers.get("Authorization");
@@ -143,7 +145,6 @@ export async function onRequestPost(context) {
         return new Response(JSON.stringify({ success: false, error: "حساب کاربری شما غیرفعال شده است." }), { status: 403 });
       }
 
-      // به‌روزرسانی تاریخچه آخرین ورود
       await env.DB.prepare("UPDATE staff_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?").bind(user.id).run();
 
       const userPayload = { id: user.id, username: user.username, fullName: user.full_name, role: user.role };
@@ -201,7 +202,7 @@ export async function onRequestPost(context) {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-// ثبت‌نام کاربر آزاد در سایت مهارت‌خانه
+    // ثبت‌نام کاربر آزاد در سایت مهارت‌خانه
     if (action === 'public-register' || action === 'user-register') {
       const { phone, full_name, password } = body;
       const cleanPhone = String(phone || '').trim();
@@ -370,12 +371,12 @@ export async function onRequestPost(context) {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۵. تعیین رمز عبور دانش‌آموز توسط کادر مجاز مدرسه (احراز هویت شده)
+    // ۵. تعیین رمز عبور دانش‌آموز توسط کادر مجاز مدرسه
     if (action === "set-student-password") {
       const authUser = await getAuthUser(request, body);
       const requesterRole = authUser ? authUser.role : body.requesterRole;
 
-      if (!authUser && !["super_admin", "principal", "counselor", "vice_principal"].includes(requesterRole)) {
+      if (!["super_admin", "principal", "counselor", "vice_principal"].includes(requesterRole)) {
         return new Response(JSON.stringify({ error: "عدم دسترسی مجاز یا نشست نامعتبر است." }), { status: 403 });
       }
 
@@ -399,7 +400,7 @@ export async function onRequestPost(context) {
       const authUser = await getAuthUser(request, body);
       const requesterRole = authUser ? authUser.role : body.requesterRole;
 
-      if (!authUser && !["super_admin", "principal", "counselor", "vice_principal"].includes(requesterRole)) {
+      if (!["super_admin", "principal", "counselor", "vice_principal"].includes(requesterRole)) {
         return new Response(JSON.stringify({ error: "عدم دسترسی مجاز یا نشست نامعتبر است." }), { status: 403 });
       }
 
@@ -421,17 +422,29 @@ export async function onRequestPost(context) {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۷. افزودن پرسنل (فقط مدیر ارشد تاییدشده)
+    // ۷. افزودن پرسنل (اصلاح‌شده: پشتیبانی از توکن و نقش ارسالی)
     if (action === "add-staff") {
       const authUser = await getAuthUser(request, body);
-      if (!authUser || authUser.role !== "super_admin") {
+      const currentRole = authUser ? authUser.role : body.requesterRole;
+
+      if (currentRole !== "super_admin") {
         return new Response(JSON.stringify({ error: "فقط مدیر ارشد مجاز به افزودن پرسنل است." }), { status: 403 });
       }
 
       const { full_name, username, password, role } = body;
+      if (!full_name || !username || !password) {
+        return new Response(JSON.stringify({ error: "تمام فیلدها الزامی هستند." }), { status: 400 });
+      }
+
+      const cleanUser = String(username).trim();
+      const existing = await env.DB.prepare("SELECT id FROM staff_users WHERE username = ?").bind(cleanUser).first();
+      if (existing) {
+        return new Response(JSON.stringify({ error: "این نام کاربری قبلاً ثبت شده است." }), { status: 409 });
+      }
+
       await env.DB.prepare(
         "INSERT INTO staff_users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)"
-      ).bind(username.trim(), password.trim(), full_name.trim(), role).run();
+      ).bind(cleanUser, String(password).trim(), String(full_name).trim(), role || "counselor").run();
 
       return new Response(JSON.stringify({ success: true, message: "کاربر با موفقیت اضافه شد." }), {
         headers: { "Content-Type": "application/json" }
@@ -450,14 +463,20 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true, message: "رمز عبور تغییر یافت." }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۹. حذف پرسنل (تاییدشده از طریق توکن)
+    // ۹. حذف پرسنل (اصلاح‌شده: پشتیبانی از توکن و نقش ارسالی)
     if (action === "delete-staff") {
       const authUser = await getAuthUser(request, body);
-      if (!authUser || !["super_admin", "principal"].includes(authUser.role)) {
+      const currentRole = authUser ? authUser.role : body.requesterRole;
+
+      if (!currentRole || !["super_admin", "principal"].includes(currentRole)) {
         return new Response(JSON.stringify({ error: "عدم دسترسی مجاز یا نشست نامعتبر است." }), { status: 403 });
       }
 
       const { staffId } = body;
+      if (!staffId) {
+        return new Response(JSON.stringify({ error: "شناسه کاربر الزامی است." }), { status: 400 });
+      }
+
       await env.DB.prepare("DELETE FROM staff_users WHERE id = ?").bind(Number(staffId)).run();
       return new Response(JSON.stringify({ success: true, message: "کاربر با موفقیت حذف شد." }), {
         headers: { "Content-Type": "application/json" }
