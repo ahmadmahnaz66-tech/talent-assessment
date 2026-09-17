@@ -10,7 +10,6 @@ export async function onRequestPost(context) {
     const cleanSlug = String(slug).trim().toLowerCase();
     const cleanTitle = String(title).trim();
 
-    // پشتیبانی هم‌زمان از چند کلید با کاما یا یک کلید تکی
     const keysRaw = env.GEMINI_API_KEYS || env.GEMINI_API_KEY || '';
     const apiKeys = keysRaw.split(',').map(k => k.trim()).filter(Boolean);
 
@@ -66,37 +65,35 @@ export async function onRequestPost(context) {
       generationConfig: { temperature: 0.3, maxOutputTokens: 3000 }
     });
 
-    // شافل کلیدها برای توزیع تصادفی هر درخواست روی یک اکانت مجزا
+    const fallbackModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-3.6-flash'];
     const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
 
     let aiRes = null;
     let lastError = '';
 
-    // حلقه چرخش هوشمند روی کلیدها
+    outerLoop:
     for (const key of shuffledKeys) {
-      const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`;
-      
-      aiRes = await fetch(directUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody
-      });
+      for (const model of fallbackModels) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        try {
+          aiRes = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': key
+            },
+            body: requestBody
+          });
 
-      // در صورت شلوغی لحظه‌ای سرور گوگل (503)، ۲ ثانیه مکث و تلاش مجدد
-      if (aiRes.status === 503) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        aiRes = await fetch(directUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: requestBody
-        });
+          if (aiRes.ok) {
+            break outerLoop;
+          }
+
+          lastError = await aiRes.text();
+        } catch (e) {
+          lastError = e.message;
+        }
       }
-
-      if (aiRes.ok) {
-        break;
-      }
-
-      lastError = await aiRes.text();
     }
 
     if (!aiRes || !aiRes.ok) {
@@ -110,14 +107,12 @@ export async function onRequestPost(context) {
 
     const category = parsed.category || 'general';
 
-    // ذخیره مهارت همراه با دسته‌بندی موضوعی
     await env.DB.prepare(`
       INSERT INTO skills (slug, title, category) 
       VALUES (?, ?, ?) 
       ON CONFLICT(slug) DO UPDATE SET category = excluded.category
     `).bind(cleanSlug, cleanTitle, category).run();
 
-    // ذخیره ۱۵ سوال
     const statements = parsed.questions.map(q => {
       return env.DB.prepare(
         "INSERT INTO questions (skill_slug, question_text, display_order) VALUES (?, ?, ?)"
@@ -134,4 +129,3 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 }
-```[cite: 4]
