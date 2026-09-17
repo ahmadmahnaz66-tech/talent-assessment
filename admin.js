@@ -1694,8 +1694,10 @@ async function exportSkillsAndQuestionsToExcel() {
     }
 
     const skillMap = {};
+    const categoryMap = {}; // آرایه جدید برای نگهداری تیپ هالند
     (allSkills || []).forEach(s => {
       skillMap[s.slug] = s.title;
+      categoryMap[s.slug] = s.category; // ذخیره تیپ
     });
 
     if (!Array.isArray(questions) || questions.length === 0) {
@@ -1706,6 +1708,7 @@ async function exportSkillsAndQuestionsToExcel() {
       'ردیف': idx + 1,
       'شناسه مهارت (Slug)': q.skill_slug,
       'عنوان فارسی مهارت': skillMap[q.skill_slug] || q.skill_slug,
+      'تیپ هالند': categoryMap[q.skill_slug] || 'ثبت‌نشده', // ستون جدید در اکسل
       'متن گویه / سوال': q.question_text,
       'ترتیب نمایش': q.display_order || 1
     }));
