@@ -1345,12 +1345,13 @@ async function deleteQuestion(id) {
 async function createNewSkill() {
   const slug = document.getElementById('new-skill-slug').value.trim();
   const title = document.getElementById('new-skill-title').value.trim();
-  if (!slug || !title) return alert('هر دو فیلد الزامی هستند.');
+  const category = document.getElementById('new-skill-category').value;
+  if (!slug || !title) return alert('شناسه و عنوان مهارت الزامی هستند.');
 
   const res = await fetch('/api/admin-reports', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'add-skill', slug, title })
+    body: JSON.stringify({ action: 'add-skill', slug, title, category })
   });
 
   if (res.ok) {
