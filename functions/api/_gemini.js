@@ -1,11 +1,11 @@
 // functions/api/_gemini.js
 
-export async function askGemini(env, { systemPrompt = '', userPrompt, temperature = 0.6, maxTokens = 6000 }) {
+export async function askGemini(env, { systemPrompt = '', userPrompt, temperature = 0.4, maxTokens = 5000 }) {
   if (!userPrompt) {
     throw new Error('متن پرامپت ارسالی الزامی است.');
   }
 
-  // ۱. جمع‌آوری تمام کلیدهای تعریف‌شده در کلادفلر
+  // ۱. جمع‌آوری و شناسایی تمام کلیدهای تعریف‌شده در کلادفلر
   let apiKeys = [];
   if (env.GEMINI_API_KEYS) {
     apiKeys.push(...env.GEMINI_API_KEYS.split(',').map(k => k.trim()));
@@ -38,9 +38,8 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, temperatur
     }
   });
 
-  // بر زدن تصادفی کلیدها برای توزیع بهینه بار
+  // توزیع تصادفی بار میان کلیدها
   const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
-
   let lastError = '';
 
   for (const key of shuffledKeys) {
