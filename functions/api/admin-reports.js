@@ -36,6 +36,23 @@ export async function onRequestGet(context) {
       return new Response(JSON.stringify(results || []), { headers: corsHeaders });
     }
 
+    // [اصلاح‌شده] دریافت تاریخچه اسناد و تحلیل‌های صادرشده یک پرونده
+    if (type === 'reports') {
+      const nationalId = url.searchParams.get('nationalId') || url.searchParams.get('studentId');
+      if (!nationalId) {
+        return new Response(JSON.stringify({ reports: [] }), { headers: corsHeaders });
+      }
+
+      const { results } = await env.DB.prepare(`
+        SELECT id, version, created_at, analysis 
+        FROM student_roadmaps 
+        WHERE student_id = ? 
+        ORDER BY created_at DESC
+      `).bind(nationalId).all();
+
+      return new Response(JSON.stringify({ reports: results || [] }), { headers: corsHeaders });
+    }
+
     // گزارش گروهی بر اساس مهارت
     if (type === 'by-skill') {
       const skill = url.searchParams.get('skill');
@@ -151,14 +168,12 @@ export async function onRequestGet(context) {
               totalValidProfiles++;
             }
 
-            // استخراج یا برآورد تیپ رغبتی غالب هالند بر اساس داده‌ها یا متن
             if (data.holland_profile && data.holland_profile.dominant_type) {
               const domType = data.holland_profile.dominant_type.toLowerCase();
               if (hollandTotals.hasOwnProperty(domType)) {
                 hollandTotals[domType]++;
               }
             } else {
-              // نگاشت بر مبنای هوش برتر در صورت نبود کلید مستقل هالند
               const logicalScore = data.gardner?.find(g => g.gardner_intelligence === 'logical_mathematical')?.percentage || 0;
               const spatialScore = data.gardner?.find(g => g.gardner_intelligence === 'spatial_visual')?.percentage || 0;
               const socialScore = data.gardner?.find(g => g.gardner_intelligence === 'interpersonal')?.percentage || 0;
