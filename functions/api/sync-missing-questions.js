@@ -1,5 +1,5 @@
 // functions/api/sync-missing-questions.js
-import { askGemini } from './_gemini.js';
+import { askDeepSeek } from './_deepseek.js';
 
 export async function onRequestPost(context) {
   const { env } = context;
@@ -38,7 +38,7 @@ export async function onRequestPost(context) {
       });
     }
 
-    const systemPrompt = `تو یک متخصص ارشد روان‌سنجی کودک و استعدادیابی بر اساس مدل کدهای هالند (RIASEC) برای سنین ۷ تا ۱۲ سال هستی. خروجی باید منحصراً و بدون هیچ توضیحی یک شیء JSON معتبر باشد.`;
+    const systemPrompt = `تو یک متخصص ارشد روان‌سنجی کودک و استعدادیابی بر اساس مدل کدهای هالند (RIASEC) برای سنین ۷ تا ۱۲ سال هستی. خروجی باید منحصراً یک شیء JSON معتبر باشد.`;
     const userPrompt = `برای مهارت: ${targetSkill.title} (شناسه: ${targetSkill.slug}) موارد زیر را با دقت طراحی کن:
 ۱. ۱۵ سوال ارزیابی **فقط از دید والدین** (مشاهدات عینی رفتار فرزند در منزل و بازی، با لحنی مانند: "فرزندم در مواجهه با..." یا "در طول بازی تمایل دارد که..."). به هیچ وجه از زبان اول شخص کودک استفاده نکن.
 ۲. ۱۰ گویه تخصصی **مربی** (برای ارزیابی مجاورت‌سازی نقطه A به A1) با لحن سوم شخص و مشاهدات عینی رفتاری در محیط کارگاه.
@@ -53,38 +53,13 @@ export async function onRequestPost(context) {
   "coach_questions": [{"order": 1, "text": "متن گویه مربی..."}]
 }`;
 
-    const rawResponse = await askGemini(env, {
-      systemPrompt,
-      userPrompt,
-      temperature: 0.2,
-      maxTokens: 4000
-    });
+    const rawResponse = await askDeepSeek(env, { systemPrompt, userPrompt, temperature: 0.3 });
 
     let cleanJson = rawResponse.trim();
-    if (cleanJson.startsWith('```json')) {
-      cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (cleanJson.startsWith('```')) {
-      cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
-    }
+    if (cleanJson.startsWith('```json')) cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    else if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
 
-    // پاکسازی کاراکترهای کنترلی مخفی که باعث خطای Unterminated string می‌شوند
-    cleanJson = cleanJson.replace(/[\u0000-\u001F]+/g, " ");
-
-    let parsedData = null;
-    try {
-      parsedData = JSON.parse(cleanJson);
-    } catch (e) {
-      // استخراج امن بخش JSON در صورت وجود متن اضافی
-      const matchStart = cleanJson.indexOf('{');
-      const matchEnd = cleanJson.lastIndexOf('}');
-      if (matchStart !== -1 && matchEnd !== -1) {
-        const subJson = cleanJson.substring(matchStart, matchEnd + 1);
-        parsedData = JSON.parse(subJson);
-      } else {
-        throw new Error('ساختار JSON خروجی هوش مصنوعی نامعتبر بود.');
-      }
-    }
-
+    const parsedData = JSON.parse(cleanJson);
     const questions = parsedData.questions || [];
     const coachQuestions = parsedData.coach_questions || [];
 
@@ -118,7 +93,7 @@ export async function onRequestPost(context) {
       success: true,
       updatedCount: 1,
       completed: false,
-      message: `مهارت "${targetSkill.title}" با موفقیت بررسی و استانداردسازی شد.`
+      message: `مهارت "${targetSkill.title}" با موفقیت توسط دیپ‌سیک بررسی و استانداردسازی شد.`
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
