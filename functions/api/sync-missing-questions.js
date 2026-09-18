@@ -1,5 +1,5 @@
 // functions/api/sync-missing-questions.js
-import { askDeepSeek } from './_deepseek.js';
+import { askOpenRouter } from './_openrouter.js';
 
 export async function onRequestPost(context) {
   const { env } = context;
@@ -38,12 +38,12 @@ export async function onRequestPost(context) {
       });
     }
 
-    const systemPrompt = `تو یک متخصص ارشد روان‌سنجی کودک و استعدادیابی بر اساس مدل کدهای هالند (RIASEC) برای سنین ۷ تا ۱۲ سال هستی. خروجی باید منحصراً یک شیء JSON معتبر باشد.`;
-    const userPrompt = `برای مهارت: ${targetSkill.title} (شناسه: ${targetSkill.slug}) موارد زیر را با دقت طراحی کن:
-۱. ۱۵ سوال ارزیابی **فقط از دید والدین** (مشاهدات عینی رفتار فرزند در منزل و بازی، با لحنی مانند: "فرزندم در مواجهه با..." یا "در طول بازی تمایل دارد که..."). به هیچ وجه از زبان اول شخص کودک استفاده نکن.
-۲. ۱۰ گویه تخصصی **مربی** (برای ارزیابی مجاورت‌سازی نقطه A به A1) با لحن سوم شخص و مشاهدات عینی رفتاری در محیط کارگاه.
+    const systemPrompt = `تو یک متخصص ارشد روان‌سنجی کودک بر اساس مدل کدهای هالند (RIASEC) برای سنین ۷ تا ۱۲ سال هستی. پاسخ باید فقط و فقط یک شیء JSON معتبر باشد و هیچ توضیح اضافه یا متنی بیرون از JSON ننویس.`;
+    const userPrompt = `برای مهارت: ${targetSkill.title} (شناسه: ${targetSkill.slug}) موارد زیر را طراحی کن:
+۱. ۱۵ سوال ارزیابی **فقط از دید والدین** (با تگ [student]).
+۲. ۱۰ گویه تخصصی **مربی** برای ارزیابی مجاورت‌سازی (با تگ [coach]).
 
-ساختار JSON دقیقاً شامل:
+ساختار دقیق JSON:
 {
   "category": "${targetSkill.category || 'realistic'}",
   "badge_title": "عنوان جذاب نشان افتخار",
@@ -53,7 +53,7 @@ export async function onRequestPost(context) {
   "coach_questions": [{"order": 1, "text": "متن گویه مربی..."}]
 }`;
 
-    const rawResponse = await askDeepSeek(env, { systemPrompt, userPrompt, temperature: 0.3 });
+    const rawResponse = await askOpenRouter(env, { systemPrompt, userPrompt, temperature: 0.3 });
 
     let cleanJson = rawResponse.trim();
     if (cleanJson.startsWith('```json')) cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
@@ -93,7 +93,7 @@ export async function onRequestPost(context) {
       success: true,
       updatedCount: 1,
       completed: false,
-      message: `مهارت "${targetSkill.title}" با موفقیت توسط دیپ‌سیک بررسی و استانداردسازی شد.`
+      message: `مهارت "${targetSkill.title}" با موفقیت توسط اوپن‌روتر استانداردسازی شد.`
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
