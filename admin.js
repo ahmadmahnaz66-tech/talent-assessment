@@ -17,8 +17,7 @@ const ROLE_NAMES = {
   super_admin: 'مدیر ارشد سامانه',
   counselor: 'مشاور تخصصی',
   principal: 'مدیر مدرسه',
-  vice_principal: 'معاون مدرسه',
-  expose_coach: 'مربی مجاورت‌سازی' // <--- این خط رو اضافه کن
+  vice_principal: 'معاون مدرسه'
 };
 
 const GARDNER_LABELS_FA = {
@@ -102,25 +101,28 @@ function showDashboard() {
   document.getElementById('user-display-name').innerText = currentStaffUser.fullName || currentStaffUser.username;
   document.getElementById('user-display-role').innerText = ROLE_NAMES[currentStaffUser.role] || currentStaffUser.role;
 
-  if (currentStaffUser.role === 'expose_coach') {
-    const studentsBtn = document.getElementById('tab-btn-students');
-    const individualBtn = document.getElementById('tab-btn-individual');
-    const groupBtn = document.getElementById('tab-btn-group');
-    const manageBtn = document.getElementById('tab-btn-manage');
-    const staffBtn = document.getElementById('tab-btn-staff');
-
-    if (studentsBtn) studentsBtn.style.display = 'none';
-    if (individualBtn) individualBtn.style.display = 'none';
-    if (groupBtn) groupBtn.style.display = 'none';
-    if (manageBtn) manageBtn.style.display = 'none';
-    if (staffBtn) staffBtn.style.display = 'none';
-
-    switchTab('exposure');
-    loadInitialMetadata();
-    loadStudentsList();
-    return;
+  const testAiBtn = document.getElementById('btn-test-ai');
+  if (testAiBtn) {
+    if (currentStaffUser && currentStaffUser.role === 'super_admin') {
+      testAiBtn.classList.remove('hidden');
+    } else {
+      testAiBtn.classList.add('hidden');
+    }
   }
+
+  const addStaffBox = document.getElementById('add-staff-container');
+  if (addStaffBox) {
+    if (currentStaffUser.role === 'super_admin') {
+      addStaffBox.classList.remove('hidden');
+    } else {
+      addStaffBox.classList.add('hidden');
+    }
+  }
+
+  loadInitialMetadata();
+  loadStudentsList();
 }
+
 async function handleStaffLogin() {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value.trim();
@@ -205,10 +207,6 @@ async function submitChangePassword() {
 }
 
 function switchTab(tabId) {
-  if (currentStaffUser && currentStaffUser.role === 'expose_coach' && tabId !== 'exposure') {
-    alert('شما فقط به تب مجاورت‌سازی دسترسی دارید.');
-    return;
-  }
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition';
