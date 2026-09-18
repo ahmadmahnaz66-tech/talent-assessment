@@ -290,7 +290,7 @@
     let currentSkillIndex = 0;
     let currentQuestions = [];
     let currentAnswers = [];
-    let initialSkillAnswersJson = ''; // فلگ جلوگیری از ذخیره تکراری
+    let hasUserChangedAnswers = false; // فلگ صریح تغییرات کاربر
     let selectedInterestSlugs = new Set();
     const questionGuideCache = {};
 
@@ -524,8 +524,8 @@
         return 2;
       });
 
-      // قفل کردن نسخه اولیه برای جلوگیری از ارسال درخواست‌های تکراری
-      initialSkillAnswersJson = JSON.stringify(currentAnswers);
+      // ریست کردن فلگ تغییرات برای این مهارت تازه بارگذاری شده
+      hasUserChangedAnswers = false;
 
       qBox.innerHTML = currentQuestions.map((q, idx) => `
         <div class="pt-4 space-y-2.5">
@@ -609,6 +609,8 @@
 
     async function onAnswerChanged(qIdx, val) {
       currentAnswers[qIdx] = val;
+      hasUserChangedAnswers = true; // علامت‌گذاری اینکه کاربر واقعاً گزینه را تغییر داده است
+      
       const skill = skillsList[currentSkillIndex];
       savedResponsesMap[skill.slug] = currentAnswers;
       await saveCurrentSkillAnswers();
@@ -620,14 +622,12 @@
     }
 
     async function saveCurrentSkillAnswers() {
-      const skill = skillsList[currentSkillIndex];
-      if (!skill || !currentStudent) return;
-
-      // جلوگیری از ارسال درخواست تکراری اگر تغییری رخ نداده باشد
-      if (JSON.stringify(currentAnswers) === initialSkillAnswersJson) {
-        return;
+      if (!hasUserChangedAnswers) {
+        return; // اگر تغییری نداده، هیچ درخواستی نفرست تا سیستم آرام بگیرد
       }
 
+      const skill = skillsList[currentSkillIndex];
+      if (!skill || !currentStudent) return;
       const totalScore = currentAnswers.reduce((a, b) => a + b, 0);
 
       await fetch('/api/save-response', {
@@ -641,8 +641,7 @@
         })
       });
 
-      // آپدیت نسخه اولیه پس از ذخیره موفق
-      initialSkillAnswersJson = JSON.stringify(currentAnswers);
+      hasUserChangedAnswers = false; // بعد از ذخیره موفق، فلگ را ریست کن
     }
 
     async function nextSkill() {
