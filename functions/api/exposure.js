@@ -28,17 +28,28 @@ export async function onRequestPost(context) {
   try {
     const { request, env } = context;
     const body = await request.json();
-    const { student_id, skill_slug, learning_speed, resilience, engagement, mentor_note, trial_verdict } = body;
+    const { 
+      student_id, 
+      skill_slug, 
+      learning_speed, 
+      resilience, 
+      engagement, 
+      mentor_note, 
+      trial_verdict, 
+      specialized_answers 
+    } = body;
 
     if (!student_id || !skill_slug || !trial_verdict) {
       return new Response(JSON.stringify({ error: 'اطلاعات ارزیابی ناقص است.' }), { status: 400 });
     }
 
     const sId = String(student_id).trim();
+    // تبدیل شیء پاسخ‌های تخصصی به رشته JSON جهت ذخیره در ستون TEXT دیتابیس
+    const answersJson = specialized_answers ? JSON.stringify(specialized_answers) : '{}';
 
     await env.DB.prepare(`
-      INSERT INTO exposure_trials (student_id, skill_slug, learning_speed, resilience, engagement, mentor_note, trial_verdict)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO exposure_trials (student_id, skill_slug, learning_speed, resilience, engagement, mentor_note, trial_verdict, specialized_answers)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       sId,
       skill_slug,
@@ -46,7 +57,8 @@ export async function onRequestPost(context) {
       resilience,
       engagement,
       mentor_note || '',
-      trial_verdict
+      trial_verdict,
+      answersJson
     ).run();
 
     await env.DB.prepare("UPDATE students SET needs_ai_sync = 1 WHERE id = ?").bind(sId).run();
@@ -63,7 +75,17 @@ export async function onRequestPut(context) {
   try {
     const { request, env } = context;
     const body = await request.json();
-    const { id, student_id, skill_slug, learning_speed, resilience, engagement, mentor_note, trial_verdict } = body;
+    const { 
+      id, 
+      student_id, 
+      skill_slug, 
+      learning_speed, 
+      resilience, 
+      engagement, 
+      mentor_note, 
+      trial_verdict, 
+      specialized_answers 
+    } = body;
 
     if (!id || !skill_slug || !trial_verdict) {
       return new Response(JSON.stringify({ error: 'اطلاعات جهت ویرایش ناقص است.' }), { status: 400 });
@@ -75,9 +97,11 @@ export async function onRequestPut(context) {
       if (rec) targetStudentId = rec.student_id;
     }
 
+    const answersJson = specialized_answers ? JSON.stringify(specialized_answers) : '{}';
+
     await env.DB.prepare(`
       UPDATE exposure_trials 
-      SET skill_slug = ?, learning_speed = ?, resilience = ?, engagement = ?, mentor_note = ?, trial_verdict = ?
+      SET skill_slug = ?, learning_speed = ?, resilience = ?, engagement = ?, mentor_note = ?, trial_verdict = ?, specialized_answers = ?
       WHERE id = ?
     `).bind(
       skill_slug,
@@ -86,6 +110,7 @@ export async function onRequestPut(context) {
       engagement,
       mentor_note || '',
       trial_verdict,
+      answersJson,
       id
     ).run();
 
