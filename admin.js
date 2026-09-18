@@ -1922,3 +1922,48 @@ async function runAiConnectionTest() {
     btn.innerHTML = '🔄 اجرای مجدد تست';
   }
 }
+
+// بارگذاری ۱۰ گویه تخصصی مربی در بخش مجاورت‌سازی
+async function loadCoachSpecializedQuestionsForExposure(skillSlug) {
+  const container = document.getElementById('exposure-specialized-questions-container');
+  if (!container) return;
+
+  if (!skillSlug) {
+    container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">لطفاً ابتدا مهارت مورد آزمایش را انتخاب کنید تا گویه‌های تخصصی بارگذاری شوند.</p>';
+    return;
+  }
+
+  container.innerHTML = '<p class="text-xs text-indigo-600 text-center py-4 animate-pulse">در حال دریافت گویه‌های تخصصی مربی...</p>';
+
+  try {
+    const res = await fetch(`/api/questions?skill=${encodeURIComponent(skillSlug)}`);
+    const questions = await res.json();
+
+    if (!Array.isArray(questions) || questions.length === 0) {
+      container.innerHTML = '<p class="text-xs text-amber-600 text-center py-4">گویه تخصصی ثبت‌شده‌ای برای این مهارت یافت نشد.</p>';
+      return;
+    }
+
+    // انتخاب حداقل ۱۰ سوال تخصصی برای ارزیابی مربی
+    const specializedQuestions = questions.slice(0, 10);
+
+    container.innerHTML = specializedQuestions.map((q, idx) => `
+      <div class="bg-white p-3 rounded-xl border border-indigo-100 space-y-2 shadow-2xs">
+        <p class="text-xs font-bold text-slate-800 leading-relaxed">
+          <span class="text-indigo-600 ml-1">${idx + 1}.</span> ${q.question_text}
+        </p>
+        <div class="grid grid-cols-5 gap-1.5 text-center text-xs">
+          ${[0, 1, 2, 3, 4].map(val => `
+            <label class="cursor-pointer border border-slate-200 rounded-lg p-1.5 hover:bg-indigo-50 transition flex flex-col items-center select-none">
+              <input type="radio" name="coach_q_${q.id || idx}" value="${val}" ${val === 2 ? 'checked' : ''} class="text-indigo-600 mb-0.5">
+              <span class="text-[9px] text-slate-500">${['هرگز', 'به‌ندرت', 'گاهی', 'معمولاً', 'همیشه'][val]}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">خطا در بارگذاری گویه‌های تخصصی.</p>';
+  }
+}
