@@ -2010,3 +2010,37 @@ async function syncMissingQuestionsWithAI() {
     btn.innerHTML = originalHtml;
   }
 }
+
+async function syncMissingQuestionsWithAI() {
+  if (!confirm('آیا می‌خواهید سیستم تمام مهارت‌هایی را که گویه کمتر از استاندارد دارند بررسی کرده و به‌صورت خودکار با هوش مصنوعی کامل کند؟')) {
+    return;
+  }
+
+  const btn = event.target.closest('button');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span>⏳</span><span>در حال بررسی و تکمیل گویه‌ها... (لطفاً صبر کنید)</span>';
+
+  try {
+    const res = await fetch('/api/sync-missing-questions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert(data.message);
+      await loadInitialMetadata();
+      if (currentAdminSkillSlug) {
+        loadQuestionsForAdmin(currentAdminSkillSlug);
+      }
+    } else {
+      alert(data.error || 'خطا در اجرای عملیات.');
+    }
+  } catch (err) {
+    alert('خطا در ارتباط با سرور: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
