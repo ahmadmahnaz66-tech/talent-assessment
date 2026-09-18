@@ -53,38 +53,13 @@ export async function onRequestPost(context) {
   "coach_questions": [{"order": 1, "text": "متن گویه مربی..."}]
 }`;
 
-    // بازنویسی مستقیم برای اجبار به استفاده از مدل gemini-1.5-flash برای این بخش
-    let apiKeys = [];
-    if (env.GEMINI_API_KEYS) apiKeys.push(...env.GEMINI_API_KEYS.split(',').map(k => k.trim()));
-    if (env.GEMINI_API_KEY) apiKeys.push(...env.GEMINI_API_KEY.split(',').map(k => k.trim()));
-    ['GEMINI_API_KEY_1', 'GEMINI_API_KEY_2', 'GEMINI_API_KEY_3', 'GEMINI_API_KEY_4'].forEach(k => {
-      if (env[k]) apiKeys.push(String(env[k]).trim());
+    // استفاده از تابع استاندارد askGemini که خودش به صورت خودکار بین مدل‌های پایدار می‌چرخد
+    const rawResponse = await askGemini(env, {
+      systemPrompt,
+      userPrompt,
+      temperature: 0.3,
+      maxTokens: 4000
     });
-    apiKeys = [...new Set(apiKeys.filter(Boolean))];
-
-    if (apiKeys.length === 0) throw new Error('هیچ کلید معتبری یافت نشد.');
-
-    const activeKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`;
-    
-    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
-    const geminiRes = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': activeKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 4000 }
-      })
-    });
-
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      throw new Error(`خطا از سوی جمنای (Flash): ${errText}`);
-    }
-
-    const data = await geminiRes.json();
-    const rawResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawResponse) throw new Error('پاسخی از مدل دریافت نشد.');
 
     let cleanJson = rawResponse.trim();
     if (cleanJson.startsWith('```json')) cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
@@ -124,7 +99,7 @@ export async function onRequestPost(context) {
       success: true,
       updatedCount: 1,
       completed: false,
-      message: `مهارت "${targetSkill.title}" با مدل Flash بررسی و استانداردسازی شد.`
+      message: `مهارت "${targetSkill.title}" با موفقیت بررسی و استانداردسازی شد.`
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
