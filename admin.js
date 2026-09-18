@@ -6,15 +6,10 @@ let cachedHistory = [];
 let cachedExposureTrials = [];
 let editingTrialId = null;
 
-// اینستنس‌های نمودارهای کارنامه فردی
 let gardnerChartInstance = null;
 let reqChartInstance = null;
-
-// اینستنس‌های نمودارهای ثابت کلان مدرسه
 let hollandChartInstance = null;
 let schoolGardnerChartInstance = null;
-
-// اینستنس‌های نمودارهای اختصاصی منتخبین مهارت
 let skillGardnerChartInstance = null;
 let skillHollandChartInstance = null;
 
@@ -1077,11 +1072,10 @@ async function saveExposureTrial() {
     return alert('لطفاً پرونده دانش‌آموز و مهارت را انتخاب کنید.');
   }
 
-  // جمع‌آوری پاسخ‌های مربوط به ۱۰ گویه تخصصی مربی
   const specializedAnswers = {};
   const questionElements = document.querySelectorAll('#exposure-specialized-questions-container input[type="radio"]:checked');
   questionElements.forEach(input => {
-    const name = input.name; // مثل coach_q_id
+    const name = input.name;
     specializedAnswers[name] = input.value;
   });
 
@@ -1095,7 +1089,7 @@ async function saveExposureTrial() {
     engagement: engagement,
     mentor_note: notes,
     trial_verdict: verdict,
-    specialized_answers: specializedAnswers // ارسال امتیازات ۱۰ سوال تخصصی به دیتابیس
+    specialized_answers: specializedAnswers
   };
 
   try {
@@ -1139,7 +1133,6 @@ async function deleteExposureTrial(trialId) {
   }
 }
 
-// دریافت جدول رتبه‌بندی مهارت و رسم نمودارهای تفکیکی همان مهارت
 async function fetchSkillGroupReport(skillSlug) {
   const container = document.getElementById('skill-group-results');
   const chartsContainer = document.getElementById('skill-charts-container');
@@ -1188,7 +1181,6 @@ async function fetchSkillGroupReport(skillSlug) {
     container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">خطا در دریافت گزارش.</p>';
   }
 
-  // رسم نمودارهای اختصاصی منتخبین مهارت
   if (chartsContainer) {
     chartsContainer.classList.remove('hidden');
     renderSkillSpecificCharts(skillSlug);
@@ -1206,7 +1198,6 @@ async function renderSkillSpecificCharts(skillSlug) {
     if (gBadge) gBadge.textContent = `${data.total_students} پرونده منتخب این مهارت`;
     if (hBadge) hBadge.textContent = `${data.total_students} پرونده منتخب این مهارت`;
 
-    // رسم نمودار گاردنر منتخبین مهارت
     const canvasG = document.getElementById('skillGardnerBarChart');
     if (canvasG) {
       const ctxG = canvasG.getContext('2d');
@@ -1243,7 +1234,6 @@ async function renderSkillSpecificCharts(skillSlug) {
       });
     }
 
-    // رسم نمودار راداری هالند منتخبین مهارت
     const canvasH = document.getElementById('skillHollandRadarChart');
     if (canvasH) {
       const ctxH = canvasH.getContext('2d');
@@ -1283,6 +1273,7 @@ async function renderSkillSpecificCharts(skillSlug) {
   }
 }
 
+// تابع اصلاح‌شده جهت تفکیک دقیق گویه‌های والدین و گویه‌های مربی در پنل مدیریت
 async function loadQuestionsForAdmin(slug) {
   currentAdminSkillSlug = slug;
   const listContainer = document.getElementById('admin-questions-list');
@@ -1302,27 +1293,40 @@ async function loadQuestionsForAdmin(slug) {
       return;
     }
 
-    // رندر سوالات دانش‌آموزی
-    listContainer.innerHTML = questions.map((q, idx) => `
-      <div class="flex items-center justify-between gap-2 p-2.5 bg-white border border-slate-200 rounded-xl text-xs shadow-2xs">
-        <span class="text-slate-400 font-bold">${idx + 1}.</span>
-        <input type="text" id="q-text-${q.id}" value="${q.question_text}" class="flex-1 bg-transparent border-b border-transparent focus:border-indigo-500 outline-none text-slate-700 py-0.5">
-        <div class="flex gap-1">
-          <button onclick="updateQuestion(${q.id}, ${idx + 1})" class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg hover:bg-indigo-100 font-bold transition">ذخیره</button>
-          <button onclick="deleteQuestion(${q.id})" class="bg-red-50 text-red-600 px-2 py-1 rounded-lg hover:bg-red-100 font-bold transition">حذف</button>
-        </div>
-      </div>
-    `).join('');
+    // تفکیک بر اساس تگ‌های ذخیره‌شده [student] و [coach]
+    const studentQuestions = questions.filter(q => q.question_text.startsWith('[student]'));
+    const coachQuestions = questions.filter(q => q.question_text.startsWith('[coach]'));
 
-    // نمایش چک‌لیست مربی (۱۰ گویه اول رشته)
-    const coachQuestions = questions.slice(0, 10);
-    if (coachContainer) {
-      coachContainer.innerHTML = coachQuestions.map((q, idx) => `
-        <div class="p-2.5 bg-white border border-indigo-100 rounded-xl text-xs space-y-1 shadow-2xs">
-          <div class="font-bold text-slate-800"><span class="text-indigo-600">گویه ${idx + 1}:</span> ${q.question_text}</div>
-          <div class="text-[10px] text-slate-400">مقیاس لیکرت (۰ تا ۴) - ارزیابی مربی</div>
+    // اگر تگ‌گذاری قدیمی است، به صورت پیش‌فرض تقسیم می‌کنیم
+    const finalStudents = studentQuestions.length > 0 ? studentQuestions : questions.slice(0, 15);
+    const finalCoach = coachQuestions.length > 0 ? coachQuestions : questions.slice(15, 25);
+
+    // رندر گویه‌های ارزیابی والدین
+    listContainer.innerHTML = finalStudents.map((q, idx) => {
+      const cleanText = q.question_text.replace('[student]', '').trim();
+      return `
+        <div class="flex items-center justify-between gap-2 p-2.5 bg-white border border-slate-200 rounded-xl text-xs shadow-2xs">
+          <span class="text-slate-400 font-bold">${idx + 1}.</span>
+          <input type="text" id="q-text-${q.id}" value="${cleanText}" class="flex-1 bg-transparent border-b border-transparent focus:border-indigo-500 outline-none text-slate-700 py-0.5">
+          <div class="flex gap-1">
+            <button onclick="updateQuestion(${q.id}, ${idx + 1})" class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg hover:bg-indigo-100 font-bold transition">ذخیره</button>
+            <button onclick="deleteQuestion(${q.id})" class="bg-red-50 text-red-600 px-2 py-1 rounded-lg hover:bg-red-100 font-bold transition">حذف</button>
+          </div>
         </div>
-      `).join('');
+      `;
+    }).join('');
+
+    // رندر چک‌لیست ارزیابی تخصصی مربی
+    if (coachContainer) {
+      coachContainer.innerHTML = finalCoach.map((q, idx) => {
+        const cleanText = q.question_text.replace('[coach]', '').trim();
+        return `
+          <div class="p-2.5 bg-white border border-indigo-100 rounded-xl text-xs space-y-1 shadow-2xs">
+            <div class="font-bold text-slate-800"><span class="text-indigo-600">گویه ${idx + 1}:</span> ${cleanText}</div>
+            <div class="text-[10px] text-slate-400">مقیاس لیکرت (۰ تا ۴) - ارزیابی مربی</div>
+          </div>
+        `;
+      }).join('');
     }
 
   } catch (e) {
@@ -1337,7 +1341,7 @@ async function addQuestionToSkill() {
   const res = await fetch('/api/questions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'add', skillSlug: currentAdminSkillSlug, questionText: text, displayOrder: 99 })
+    body: JSON.stringify({ action: 'add', skillSlug: currentAdminSkillSlug, questionText: '[student] ' + text, displayOrder: 99 })
   });
 
   if (res.ok) {
@@ -1353,7 +1357,7 @@ async function updateQuestion(id, order) {
   const res = await fetch('/api/questions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'edit', id, questionText: newText, displayOrder: order })
+    body: JSON.stringify({ action: 'edit', id, questionText: '[student] ' + newText, displayOrder: order })
   });
   if (res.ok) alert('تغییرات ذخیره شد.');
 }
@@ -1598,7 +1602,6 @@ async function checkAndSyncPendingRoadmaps() {
   }
 }
 
-// لود نمودارهای ثابت و کلان کل مدرسه
 async function loadAnalyticsDashboard() {
   try {
     const res = await fetch('/api/admin-reports?type=analytics-dashboard');
@@ -1720,10 +1723,10 @@ async function exportSkillsAndQuestionsToExcel() {
     }
 
     const skillMap = {};
-    const categoryMap = {}; // آرایه جدید برای نگهداری تیپ هالند
+    const categoryMap = {};
     (allSkills || []).forEach(s => {
       skillMap[s.slug] = s.title;
-      categoryMap[s.slug] = s.category; // ذخیره تیپ
+      categoryMap[s.slug] = s.category;
     });
 
     if (!Array.isArray(questions) || questions.length === 0) {
@@ -1734,7 +1737,7 @@ async function exportSkillsAndQuestionsToExcel() {
       'ردیف': idx + 1,
       'شناسه مهارت (Slug)': q.skill_slug,
       'عنوان فارسی مهارت': skillMap[q.skill_slug] || q.skill_slug,
-      'تیپ هالند': categoryMap[q.skill_slug] || 'ثبت‌نشده', // ستون جدید در اکسل
+      'تیپ هالند': categoryMap[q.skill_slug] || 'ثبت‌نشده',
       'متن گویه / سوال': q.question_text,
       'ترتیب نمایش': q.display_order || 1
     }));
@@ -1854,7 +1857,7 @@ async function generateSkillWithAI() {
 
   const originalText = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<span>⏳</span><span>در حال طراحی ۱۵ گویه با جمنای و ذخیره...</span>';
+  btn.innerHTML = '<span>⏳</span><span>در حال طراحی گویه‌های والدین و مربی با جمنای...</span>';
 
   try {
     const res = await fetch('/api/ai-skill-generator', {
@@ -1881,7 +1884,6 @@ async function generateSkillWithAI() {
   }
 }
 
-// پایش ارتباط و کلیدهای هوش مصنوعی
 function openTestAiModal() {
   document.getElementById('test-ai-modal').classList.remove('hidden');
   runAiConnectionTest();
@@ -1949,7 +1951,6 @@ async function runAiConnectionTest() {
   }
 }
 
-// بارگذاری ۱۰ گویه تخصصی مربی در بخش مجاورت‌سازی
 async function loadCoachSpecializedQuestionsForExposure(skillSlug) {
   const container = document.getElementById('exposure-specialized-questions-container');
   if (!container) return;
@@ -1970,99 +1971,34 @@ async function loadCoachSpecializedQuestionsForExposure(skillSlug) {
       return;
     }
 
-    // انتخاب حداقل ۱۰ سوال تخصصی برای ارزیابی مربی
-    const specializedQuestions = questions.slice(0, 10);
+    const coachQuestions = questions.filter(q => q.question_text.startsWith('[coach]'));
+    const specializedQuestions = coachQuestions.length > 0 ? coachQuestions : questions.slice(0, 10);
 
-    container.innerHTML = specializedQuestions.map((q, idx) => `
-      <div class="bg-white p-3 rounded-xl border border-indigo-100 space-y-2 shadow-2xs">
-        <p class="text-xs font-bold text-slate-800 leading-relaxed">
-          <span class="text-indigo-600 ml-1">${idx + 1}.</span> ${q.question_text}
-        </p>
-        <div class="grid grid-cols-5 gap-1.5 text-center text-xs">
-          ${[0, 1, 2, 3, 4].map(val => `
-            <label class="cursor-pointer border border-slate-200 rounded-lg p-1.5 hover:bg-indigo-50 transition flex flex-col items-center select-none">
-              <input type="radio" name="coach_q_${q.id || idx}" value="${val}" ${val === 2 ? 'checked' : ''} class="text-indigo-600 mb-0.5">
-              <span class="text-[9px] text-slate-500">${['هرگز', 'به‌ندرت', 'گاهی', 'معمولاً', 'همیشه'][val]}</span>
-            </label>
-          `).join('')}
+    container.innerHTML = specializedQuestions.map((q, idx) => {
+      const cleanText = q.question_text.replace('[coach]', '').trim();
+      return `
+        <div class="bg-white p-3 rounded-xl border border-indigo-100 space-y-2 shadow-2xs">
+          <p class="text-xs font-bold text-slate-800 leading-relaxed">
+            <span class="text-indigo-600 ml-1">${idx + 1}.</span> ${cleanText}
+          </p>
+          <div class="grid grid-cols-5 gap-1.5 text-center text-xs">
+            ${[0, 1, 2, 3, 4].map(val => `
+              <label class="cursor-pointer border border-slate-200 rounded-lg p-1.5 hover:bg-indigo-50 transition flex flex-col items-center select-none">
+                <input type="radio" name="coach_q_${q.id || idx}" value="${val}" ${val === 2 ? 'checked' : ''} class="text-indigo-600 mb-0.5">
+                <span class="text-[9px] text-slate-500">${['هرگز', 'به‌ندرت', 'گاهی', 'معمولاً', 'همیشه'][val]}</span>
+              </label>
+            `).join('')}
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
   } catch (err) {
     container.innerHTML = '<p class="text-xs text-red-500 text-center py-4">خطا در بارگذاری گویه‌های تخصصی.</p>';
   }
 }
 
-async function syncMissingQuestionsWithAI() {
-  if (!confirm('آیا می‌خواهید سیستم تمام مهارت‌هایی را که گویه کمتر از استاندارد دارند بررسی کرده و به‌صورت خودکار با هوش مصنوعی کامل کند؟')) {
-    return;
-  }
-
-  const btn = event.target.closest('button');
-  const originalHtml = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<span>⏳</span><span>در حال بررسی و تکمیل گویه‌ها... (لطفاً صبر کنید)</span>';
-
-  try {
-    const res = await fetch('/api/sync-missing-questions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    const data = await res.json();
-    if (res.ok && data.success) {
-      alert(data.message);
-      await loadInitialMetadata();
-      if (currentAdminSkillSlug) {
-        loadQuestionsForAdmin(currentAdminSkillSlug);
-      }
-    } else {
-      alert(data.error || 'خطا در اجرای عملیات.');
-    }
-  } catch (err) {
-    alert('خطا در ارتباط با سرور: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = originalHtml;
-  }
-}
-
-async function syncMissingQuestionsWithAI() {
-  if (!confirm('آیا می‌خواهید سیستم تمام مهارت‌هایی را که گویه کمتر از استاندارد دارند بررسی کرده و به‌صورت خودکار با هوش مصنوعی کامل کند؟')) {
-    return;
-  }
-
-  const btn = event.target.closest('button');
-  const originalHtml = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<span>⏳</span><span>در حال بررسی و تکمیل گویه‌ها... (لطفاً صبر کنید)</span>';
-
-  try {
-    const res = await fetch('/api/sync-missing-questions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    const data = await res.json();
-    if (res.ok && data.success) {
-      alert(data.message);
-      await loadInitialMetadata();
-      if (currentAdminSkillSlug) {
-        loadQuestionsForAdmin(currentAdminSkillSlug);
-      }
-    } else {
-      alert(data.error || 'خطا در اجرای عملیات.');
-    }
-  } catch (err) {
-    alert('خطا در ارتباط با سرور: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = originalHtml;
-  }
-}
-
-
+// تابع استاندارد بررسی و تکمیل دسته‌ای گویه‌های ناقص با چرخشی پایدار جهت جلوگیری از اتمام توکن
 async function syncMissingQuestionsWithAI() {
   if (!confirm('آیا می‌خواهید سیستم مهارت‌ها را به صورت دسته‌ای و کنترل‌شده بررسی کرده و گویه‌های والدین و مربی را استانداردسازی کند؟')) {
     return;
@@ -2084,6 +2020,12 @@ async function syncMissingQuestionsWithAI() {
         headers: { 'Content-Type': 'application/json' }
       });
 
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const errorHtml = await res.text();
+        throw new Error(`خطای سرور: ${errorHtml.substring(0, 150)}`);
+      }
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'خطا در سرور');
 
@@ -2092,8 +2034,8 @@ async function syncMissingQuestionsWithAI() {
         alert(`عملیات بررسی و استانداردسازی با موفقیت پایان یافت. مجموعاً ${totalUpdated} مهارت بروزرسانی شدند.`);
       } else {
         totalUpdated += data.updatedCount;
-        // مکث کوتاه ۲ ثانیه‌ای بین درخواست‌ها برای محافظت از سهمیه توکن و Rate Limit
-        await new Promise(r => setTimeout(r, 2000));
+        // مکث ایمن ۳ ثانیه‌ای بین درخواست‌ها برای محافظت از محدودیت نرخ (Rate Limit)
+        await new Promise(r => setTimeout(r, 3000));
       }
     }
 
