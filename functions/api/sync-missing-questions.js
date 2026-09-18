@@ -5,7 +5,6 @@ export async function onRequestPost(context) {
   const { env } = context;
 
   try {
-    // ۱. دریافت تمام مهارت‌ها
     const { results: skills } = await env.DB.prepare("SELECT slug, title, category FROM skills").all();
 
     if (!skills || skills.length === 0) {
@@ -16,17 +15,15 @@ export async function onRequestPost(context) {
 
     let targetSkill = null;
 
-    // ۲. پیدا کردن مهارتی که گویه‌های آن ناقص است یا تگ‌های [student] و [coach] را ندارد
     for (const skill of skills) {
       const { results: qList } = await env.DB.prepare("SELECT question_text FROM questions WHERE skill_slug = ?").bind(skill.slug).all();
       
       const hasStudentTag = qList.some(q => q.question_text.startsWith('[student]'));
       const hasCoachTag = qList.some(q => q.question_text.startsWith('[coach]'));
       
-      // اگر گویه‌ها کمتر از ۱۰ عدد باشند یا تفکیک نشده باشند، به عنوان گزینه نیازمند بررسی انتخاب می‌شود
       if (qList.length < 15 || !hasStudentTag || !hasCoachTag) {
         targetSkill = skill;
-        break; // فقط یک مهارت در هر مرحله برای مدیریت توکن
+        break;
       }
     }
 
@@ -41,7 +38,6 @@ export async function onRequestPost(context) {
       });
     }
 
-    // ۳. بازنویسی و اصلاح هوشمند این مهارت با هوش مصنوعی
     const systemPrompt = `تو یک متخصص ارشد روان‌سنجی کودک و استعدادیابی بر اساس مدل کدهای هالند (RIASEC) برای سنین ۷ تا ۱۲ سال هستی. خروجی باید منحصراً یک شیء JSON معتبر باشد بدون تگ مارک‌داون.`;
     const userPrompt = `برای مهارت: ${targetSkill.title} (شناسه: ${targetSkill.slug}) موارد زیر را با دقت طراحی کن:
 ۱. ۱۵ سوال ارزیابی **فقط از دید والدین** (مشاهدات عینی رفتار فرزند در منزل و بازی، با لحنی مانند: "فرزندم در مواجهه با..." یا "در طول بازی تمایل دارد که..."). به هیچ وجه از زبان اول شخص کودک استفاده نکن.
@@ -57,8 +53,39 @@ export async function onRequestPost(context) {
   "coach_questions": [{"order": 1, "text": "متن گویه مربی..."}]
 }`;
 
-    const rawResponse = await askGemini(env, { systemPrompt, userPrompt, temperature: 0.3, maxTokens: 4000 });
+    // بازنویسی مستقیم برای اجبار به استفاده از مدل gemini-1.5-flash برای این بخش
+    let apiKeys = [];
+    if (env.GEMINI_API_KEYS) apiKeys.push(...env.GEMINI_API_KEYS.split(',').map(k => k.trim()));
+    if (env.GEMINI_API_KEY) apiKeys.push(...env.GEMINI_API_KEY.split(',').map(k => k.trim()));
+    ['GEMINI_API_KEY_1', 'GEMINI_API_KEY_2', 'GEMINI_API_KEY_3', 'GEMINI_API_KEY_4'].forEach(k => {
+      if (env[k]) apiKeys.push(String(env[k]).trim());
+    });
+    apiKeys = [...new Set(apiKeys.filter(Boolean))];
+
+    if (apiKeys.length === 0) throw new Error('هیچ کلید معتبری یافت نشد.');
+
+    const activeKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`;
     
+    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+    const geminiRes = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': activeKey },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 4000 }
+      })
+    });
+
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      throw new Error(`خطا از سوی جمنای (Flash): ${errText}`);
+    }
+
+    const data = await geminiRes.json();
+    const rawResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawResponse) throw new Error('پاسخی از مدل دریافت نشد.');
+
     let cleanJson = rawResponse.trim();
     if (cleanJson.startsWith('```json')) cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
     else if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
@@ -68,10 +95,8 @@ export async function onRequestPost(context) {
     const coachQuestions = parsedData.coach_questions || [];
 
     if (questions.length > 0) {
-      // پاکسازی گویه‌های قبلی
       await env.DB.prepare("DELETE FROM questions WHERE skill_slug = ?").bind(targetSkill.slug).run();
 
-      // درج گویه‌های والدین
       let insStudent = 0;
       for (const q of questions) {
         const qText = q.text || '';
@@ -83,7 +108,6 @@ export async function onRequestPost(context) {
         }
       }
 
-      // درج گویه‌های مربی
       let insCoach = 0;
       for (const q of coachQuestions) {
         const qText = q.text || '';
@@ -100,7 +124,7 @@ export async function onRequestPost(context) {
       success: true,
       updatedCount: 1,
       completed: false,
-      message: `مهارت "${targetSkill.title}" با موفقیت بررسی و ساختار گویه‌های والدین و مربی در آن استانداردسازی شد.`
+      message: `مهارت "${targetSkill.title}" با مدل Flash بررسی و استانداردسازی شد.`
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
