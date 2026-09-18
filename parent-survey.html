@@ -327,32 +327,10 @@
       'public-speaking': 'social'
     };
 
-    const SKILL_METADATA = {
-      ai: { badge: 'نشان معمار آینده و هوش مصنوعی', icon: '🤖', challenge: 'امشب از او بخواهید یک معما یا سوال جالب طراحی کند و پاسخ‌های دو دستیار هوشمند یا موتور جستجو را با هم مقایسه و داوری کند.' },
-      coding: { badge: 'نشان مهندس الگوریتم و کدنویسی', icon: '💻', challenge: 'از او بخواهید مراحل آماده‌سازی صبحانه یا مسیر چیدن میز را مثل دستورات مرحله‌به‌مرحله کامپیوتر به شما دیکته کند!' },
-      chess: { badge: 'نشان استراتژیست ارشد و تصمیم‌گیری', icon: '♟️', challenge: 'یک بازی فکری خانوادگی ترتیب دهید و پیش از هر حرکت، از او بخواهید ۲ حرکت بعدی شما را حدس بزند.' },
-      robotics: { badge: 'نشان مخترع و طراح مکاترونیک', icon: '⚙️', challenge: 'با قطعات دورریز، کارتن یا گیره لباس یک بازوی متحرک ساده بسازید تا نحوه انتقال نیرو را به شما نشان دهد.' },
-      carpentry: { badge: 'نشان استادکار خلاق و سازنده دستی', icon: '🔨', challenge: 'با تکه‌های چوب، کارتن یا خمیر، سازه‌ای سه‌بعدی بسازید و استحکام و ایستایی آن را با هم تست کنید.' },
-      drawing: { badge: 'نشان هنرمند و طراح دیداری', icon: '🎨', challenge: 'از او بخواهید رویداد خنده‌دار امروز خانه را در قالب یک کمیک یا نقاشی پر از جزئیات رسم کند.' },
-      calligraphy: { badge: 'نشان خوش‌نویس و دارنده قلم زرین', icon: '✒️', challenge: 'از او بخواهید جمله‌ای کوتاه و پرانرژی را با خطی بسیار تمیز و متقارن برای نصب روی یخچال بنویسد.' },
-      theater: { badge: 'نشان بازیگر پرشور و زبان بدن', icon: '🎭', challenge: 'امشب پانتومیم خانوادگی بازی کنید و نقش‌آفرینی و تغییر لحن کاراکترها را به او بسپارید.' },
-      music: { badge: 'نشان ریتم‌شناس و ادراک آوایی', icon: '🎵', challenge: 'یک قطعه موسیقی پخش کنید و با ضربات قاشق روی لیوان، از او بخواهید ریتم پنهان اثر را کشف و همراهی کند.' },
-      comedy: { badge: 'نشان طنزپرداز و شوخ‌طبعی هوشمندانه', icon: '😄', challenge: 'یک مسابقه خانوادگی لبخند برگزار کنید و به او ۵ دقیقه وقت بدهید تا با زاویه‌دیدی جدید شما را بخنداند.' },
-      public_speaking: { badge: 'نشان سخنور توانا و سفیر کلام', icon: '🎙️', challenge: '۳ دقیقه به عنوان مجری در مورد فیلم یا موضوع دلخواهش برای جمع خانواده صحبت و نظرخواهی کند.' },
-      gardening: { badge: 'نشان طبیعت‌پژوه و کاشف زیست', icon: '🌱', challenge: 'بررسی سلامت گلدان‌ها را به او بسپارید تا رطوبت خاک و جوانه‌های جدید را گزارش دهد.' },
-      climbing: { badge: 'نشان چابک‌سوار و فاتح دیواره‌ها', icon: '🧗', challenge: 'مسیر عبور مارپیچ با موانع ساده در خانه بسازید تا تعادل و قدرت دست‌ها را به نمایش بگذارد.' },
-      swimming: { badge: 'نشان شناگر تیزپا و آرامش آبی', icon: '🏊', challenge: 'تکنیک حبس نفس و هماهنگی تنفس شکمی را در فضایی شاد با او تمرین کنید.' },
-      football: { badge: 'نشان کاپیتان بازیساز و رهبر تیم', icon: '⚽', challenge: 'چالش دریبل ریتمیک میان چند مانع خانگی با پای راست و چپ بدون برخورد به موانع.' },
-      basketball: { badge: 'نشان نشانه‌گیر دقیق و هماهنگی پرتاب', icon: '🏀', challenge: 'مسابقه پرتاب توپ‌های کوچک اسفنجی به داخل سبد با تغییر متوالی فواصل پرتاب.' },
-      volleyball: { badge: 'نشان مدافع هوایی و چابکی پروازی', icon: '🏐', challenge: 'یک بادکنک را با پنجه و ساعد برای حداقل ۳۰ ثانیه بدون برخورد به زمین در هوا نگه دارد.' },
-      badminton: { badge: 'نشان راکت‌باز تیزچشم و برق‌آسا', icon: '🏸', challenge: 'تمرین تمرکز دیداری با ضربات ملایم و کنترل‌شده به یک شیء معلق سبک.' },
-      tennis: { badge: 'نشان تنیسور جهشی و محاسب مسیر', icon: '🎾', challenge: 'حدس نقطه جهش توپی که از دیوار برمی‌گردد و مهار آن در سریع‌ترین زمان ممکن.' }
-    };
-
     function toEnglishDigits(str) {
       return String(str || '')
         .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
-        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .replace(/[٠-٩]/g, d => '٠١ي٣٤٥٦٧٨٩'.indexOf(d))
         .trim();
     }
 
@@ -674,9 +652,10 @@
       renderSmartCompletionCard();
     }
 
-    // تولید کارنامه هوشمند ۳ قله استعداد و پیام انگیزشی
-    function renderSmartCompletionCard() {
+    // تولید کارنامه هوشمند ۳ قله استعداد و پیام انگیزشی (پویا بر اساس پایه تحصیلی دانش‌آموز)
+    async function renderSmartCompletionCard() {
       const studentName = currentStudent.fullName || currentStudent.username;
+      const studentGrade = currentStudent.grade || '5'; // پایه دانش‌آموز جهت تفکیک چالش‌ها
       document.getElementById('result-student-name').innerText = studentName;
 
       // محاسبه امتیاز کل هر مهارت
@@ -700,32 +679,42 @@
         { label: 'قله سوم (برنزی)', bg: 'bg-amber-700/20 border-amber-600/50 text-amber-200', icon: '🥉' }
       ];
 
+      // استعلام پویا از دیتابیس برای دریافت نشان و مأموریت متناسب با پایه تحصیلی
+      const top3Metadata = [];
+      for (const s of top3) {
+        try {
+          const res = await fetch(`/api/admin-reports?type=skill-metadata&slug=${encodeURIComponent(s.slug)}&grade=${encodeURIComponent(studentGrade)}`);
+          const meta = await res.json();
+          top3Metadata.push({ ...s, meta: meta || { badge: s.title, icon: '🎯', challenge_text: 'یک فعالیت عملی مرتبط با این مهارت در خانه انجام دهید.' } });
+        } catch (e) {
+          top3Metadata.push({ ...s, meta: { badge: s.title, icon: '🎯', challenge_text: 'یک فعالیت عملی مرتبط با این مهارت در خانه انجام دهید.' } });
+        }
+      }
+
       const topContainer = document.getElementById('top-skills-container');
-      topContainer.innerHTML = top3.map((s, idx) => {
-        const meta = SKILL_METADATA[s.slug] || { badge: s.title, icon: '🎯' };
+      topContainer.innerHTML = top3Metadata.map((item, idx) => {
         const style = medalStyles[idx];
         return `
           <div class="rounded-2xl p-3.5 border ${style.bg} flex flex-col justify-between space-y-2">
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold">${style.icon} ${style.label}</span>
-              <span class="text-lg">${meta.icon}</span>
+              <span class="text-lg">${item.meta.icon}</span>
             </div>
             <div>
-              <h5 class="text-xs sm:text-sm font-black text-white">${s.title}</h5>
-              <p class="text-[10px] opacity-80 mt-0.5">${meta.badge}</p>
+              <h5 class="text-xs sm:text-sm font-black text-white">${item.title}</h5>
+              <p class="text-[10px] opacity-80 mt-0.5">${item.meta.badge}</p>
             </div>
           </div>
         `;
       }).join('');
 
-      const topSkill = top3[0];
-      const topMeta = SKILL_METADATA[topSkill?.slug] || { challenge: 'یک فعالیت عملی دونفره مرتبط با علایقش در خانه تجربه کنید.' };
+      const topItem = top3Metadata[0];
 
       document.getElementById('ai-quick-summary').innerHTML = `
-        <strong>${studentName} عزیز؛</strong> بر مبنای مشاهدات دقیق خانواده‌ات، مغز جستجوگر تو در محور <strong>«${topSkill.title}»</strong> بالاترین میزان تمرکز، اشتیاق و پویایی را نشان می‌دهد. این نقطه متمایز نشان‌دهنده یک بستر شناختی فوق‌العاده برای حل مسائل و درخشش در کارگاه‌های آینده است.
+        <strong>${studentName} عزیز؛</strong> بر مبنای مشاهدات دقیق خانواده‌ات، مغز جستجوگر تو در محور <strong>«${topItem.title}»</strong> بالاترین میزان تمرکز، اشتیاق و پویایی را نشان می‌دهد. این نقطه متمایز نشان‌دهنده یک بستر شناختی فوق‌العاده برای حل مسائل و درخشش در کارگاه‌های آینده است.
       `;
 
-      document.getElementById('family-challenge-text').innerText = topMeta.challenge;
+      document.getElementById('family-challenge-text').innerText = topItem.meta.challenge_text;
 
       document.getElementById('survey-box').classList.add('hidden');
       document.getElementById('completed-box').classList.remove('hidden');
