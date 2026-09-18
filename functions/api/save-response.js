@@ -41,27 +41,40 @@ export async function onRequestPost(context) {
     const sId = String(student_id).trim();
     const answersJson = JSON.stringify(answers || []);
 
+    // بررسی رکورد قبلی در دیتابیس برای مقایسه محتوایی
     const existing = await env.DB.prepare(
-      "SELECT id FROM responses WHERE student_id = ? AND skill_slug = ?"
+      "SELECT id, answers FROM responses WHERE student_id = ? AND skill_slug = ?"
     ).bind(sId, skill_slug).first();
 
+    let isReallyChanged = true;
+
     if (existing) {
-      await env.DB.prepare(`
-        UPDATE responses 
-        SET answers = ?, total_score = ?, created_at = datetime('now')
-        WHERE id = ?
-      `).bind(answersJson, total_score, existing.id).run();
-    } else {
-      await env.DB.prepare(`
-        INSERT INTO responses (student_id, skill_slug, answers, total_score, created_at)
-        VALUES (?, ?, ?, ?, datetime('now'))
-      `).bind(sId, skill_slug, answersJson, total_score).run();
+      // اگر پاسخ‌های جدید دقیقا همان پاسخ‌های قبلی ذخیره‌شده بود، هیچ تغییری رخ نداده است
+      if (existing.answers === answersJson) {
+        isReallyChanged = false;
+      }
     }
 
-    // موقتاً یا کلاً خط مربوط به روشن کردن فلگ را کامنت می‌کنیم تا سیستم گیر ندهد
-    // await env.DB.prepare("UPDATE students SET needs_ai_sync = 1 WHERE id = ?").bind(sId).run();
+    // اگر تغییر واقعی داشتیم، دیتابیس را آپدیت کن و فلگ هوش مصنوعی را روشن کن
+    if (isReallyChanged) {
+      if (existing) {
+        await env.DB.prepare(`
+          UPDATE responses 
+          SET answers = ?, total_score = ?, created_at = datetime('now')
+          WHERE id = ?
+        `).bind(answersJson, total_score, existing.id).run();
+      } else {
+        await env.DB.prepare(`
+          INSERT INTO responses (student_id, skill_slug, answers, total_score, created_at)
+          VALUES (?, ?, ?, ?, datetime('now'))
+        `).bind(sId, skill_slug, answersJson, total_score).run();
+      }
 
-    return new Response(JSON.stringify({ success: true }), {
+      // روشن شدن فلگ همگام‌سازی هوش مصنوعی چون داده‌ها واقعاً تغییر کرده‌اند
+      await env.DB.prepare("UPDATE students SET needs_ai_sync = 1 WHERE id = ?").bind(sId).run();
+    }
+
+    return new Response(JSON.stringify({ success: true, updated: isReallyChanged }), {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (err) {
