@@ -14,59 +14,93 @@ export async function onRequestPost(context) {
       });
     }
 
-    let updatedCount = 0;
+    let targetSkill = null;
 
+    // ۲. پیدا کردن مهارتی که گویه‌های آن ناقص است یا تگ‌های [student] و [coach] را ندارد
     for (const skill of skills) {
-      const slug = skill.slug;
-      const title = skill.title;
+      const { results: qList } = await env.DB.prepare("SELECT question_text FROM questions WHERE skill_slug = ?").bind(skill.slug).all();
+      
+      const hasStudentTag = qList.some(q => q.question_text.startsWith('[student]'));
+      const hasCoachTag = qList.some(q => q.question_text.startsWith('[coach]'));
+      
+      // اگر گویه‌ها کمتر از ۱۰ عدد باشند یا تفکیک نشده باشند، به عنوان گزینه نیازمند بررسی انتخاب می‌شود
+      if (qList.length < 15 || !hasStudentTag || !hasCoachTag) {
+        targetSkill = skill;
+        break; // فقط یک مهارت در هر مرحله برای مدیریت توکن
+      }
+    }
 
-      // ۲. شمارش تعداد گویه‌های موجود برای هر مهارت
-      const countRes = await env.DB.prepare("SELECT COUNT(*) as cnt FROM questions WHERE skill_slug = ?").bind(slug).first();
-      const currentCount = countRes ? countRes.cnt : 0;
+    if (!targetSkill) {
+      return new Response(JSON.stringify({
+        success: true,
+        updatedCount: 0,
+        completed: true,
+        message: 'تمام مهارت‌ها بررسی شده و استانداردهای گویه‌های والدین و مربی در آن‌ها کاملاً برقرار است.'
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
-      // اگر گویه‌ها کمتر از ۱۰ عدد باشند، یعنی ناقص است یا دستی وارد شده
-      if (currentCount < 10) {
-        try {
-          const systemPrompt = `تو یک متخصص ارشد روان‌سنجی کودک و استعدادیابی بر اساس مدل کدهای هالند (RIASEC) برای سنین ۷ تا ۱۲ سال هستی. خروجی باید منحصراً یک شیء JSON معتبر باشد بدون تگ مارک‌داون.`;
-          const userPrompt = `برای مهارت: ${title} (شناسه: ${slug}) یک بسته ۱۵ سوالی (گویه عینی رفتار) با مقیاس لیکرت ۵ گزینه‌ای طراحی کن. ساختار JSON دقیقاً شامل: {"category": "...", "badge_title": "...", "badge_emoji": "...", "micro_challenge": "...", "questions": [{"order": 1, "text": "..."}, ...]}`;
+    // ۳. بازنویسی و اصلاح هوشمند این مهارت با هوش مصنوعی
+    const systemPrompt = `تو یک متخصص ارشد روان‌سنجی کودک و استعدادیابی بر اساس مدل کدهای هالند (RIASEC) برای سنین ۷ تا ۱۲ سال هستی. خروجی باید منحصراً یک شیء JSON معتبر باشد بدون تگ مارک‌داون.`;
+    const userPrompt = `برای مهارت: ${targetSkill.title} (شناسه: ${targetSkill.slug}) موارد زیر را با دقت طراحی کن:
+۱. ۱۵ سوال ارزیابی **فقط از دید والدین** (مشاهدات عینی رفتار فرزند در منزل و بازی، با لحنی مانند: "فرزندم در مواجهه با..." یا "در طول بازی تمایل دارد که..."). به هیچ وجه از زبان اول شخص کودک استفاده نکن.
+۲. ۱۰ گویه تخصصی **مربی** (برای ارزیابی مجاورت‌سازی نقطه A به A1) با لحن سوم شخص و مشاهدات عینی رفتاری در محیط کارگاه.
 
-          const rawResponse = await askGemini(env, { systemPrompt, userPrompt, temperature: 0.3, maxTokens: 4000 });
-          
-          let cleanJson = rawResponse.trim();
-          if (cleanJson.startsWith('```json')) cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-          else if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
+ساختار JSON دقیقاً شامل:
+{
+  "category": "${targetSkill.category || 'realistic'}",
+  "badge_title": "عنوان جذاب نشان افتخار",
+  "badge_emoji": "⭐",
+  "micro_challenge": "ماموریت ۲۴ ساعته خانوادگی",
+  "questions": [{"order": 1, "text": "متن گویه والدین..."}],
+  "coach_questions": [{"order": 1, "text": "متن گویه مربی..."}]
+}`;
 
-          const parsedData = JSON.parse(cleanJson);
-          const questions = parsedData.questions || [];
+    const rawResponse = await askGemini(env, { systemPrompt, userPrompt, temperature: 0.3, maxTokens: 4000 });
+    
+    let cleanJson = rawResponse.trim();
+    if (cleanJson.startsWith('```json')) cleanJson = cleanJson.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    else if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```\s*/, '').replace(/\s*```$/, '');
 
-          if (questions.length > 0) {
-            // پاکسازی گویه‌های قبلی ناقص
-            await env.DB.prepare("DELETE FROM questions WHERE skill_slug = ?").bind(slug).run();
+    const parsedData = JSON.parse(cleanJson);
+    const questions = parsedData.questions || [];
+    const coachQuestions = parsedData.coach_questions || [];
 
-            let inserted = 0;
-            for (const q of questions) {
-              const qText = q.text || q.question_text || '';
-              if (qText.trim()) {
-                await env.DB.prepare(
-                  "INSERT INTO questions (skill_slug, question_text, display_order) VALUES (?, ?, ?)"
-                ).bind(slug, qText.trim(), q.order || (inserted + 1)).run();
-                inserted++;
-              }
-            }
-            updatedCount++;
-          }
-          // تأخیر کوتاه برای جلوگیری از فشار روی API
-          await new Promise(r => setTimeout(r, 2000));
-        } catch (err) {
-          console.error(`خطا در به‌روزرسانی مهارت ${slug}:`, err.message);
+    if (questions.length > 0) {
+      // پاکسازی گویه‌های قبلی
+      await env.DB.prepare("DELETE FROM questions WHERE skill_slug = ?").bind(targetSkill.slug).run();
+
+      // درج گویه‌های والدین
+      let insStudent = 0;
+      for (const q of questions) {
+        const qText = q.text || '';
+        if (qText.trim()) {
+          await env.DB.prepare(
+            "INSERT INTO questions (skill_slug, question_text, display_order) VALUES (?, ?, ?)"
+          ).bind(targetSkill.slug, '[student] ' + qText.trim(), q.order || (insStudent + 1)).run();
+          insStudent++;
+        }
+      }
+
+      // درج گویه‌های مربی
+      let insCoach = 0;
+      for (const q of coachQuestions) {
+        const qText = q.text || '';
+        if (qText.trim()) {
+          await env.DB.prepare(
+            "INSERT INTO questions (skill_slug, question_text, display_order) VALUES (?, ?, ?)"
+          ).bind(targetSkill.slug, '[coach] ' + qText.trim(), 100 + (q.order || (insCoach + 1))).run();
+          insCoach++;
         }
       }
     }
 
     return new Response(JSON.stringify({
       success: true,
-      updatedCount,
-      message: `عملیات تکمیل هوشمند پایان یافت. تعداد ${updatedCount} مهارت ناقص به‌روزرسانی شدند.`
+      updatedCount: 1,
+      completed: false,
+      message: `مهارت "${targetSkill.title}" با موفقیت بررسی و ساختار گویه‌های والدین و مربی در آن استانداردسازی شد.`
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
