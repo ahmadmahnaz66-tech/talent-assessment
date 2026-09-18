@@ -1077,6 +1077,14 @@ async function saveExposureTrial() {
     return alert('لطفاً پرونده دانش‌آموز و مهارت را انتخاب کنید.');
   }
 
+  // جمع‌آوری پاسخ‌های مربوط به ۱۰ گویه تخصصی مربی
+  const specializedAnswers = {};
+  const questionElements = document.querySelectorAll('#exposure-specialized-questions-container input[type="radio"]:checked');
+  questionElements.forEach(input => {
+    const name = input.name; // مثل coach_q_id
+    specializedAnswers[name] = input.value;
+  });
+
   const isEditing = Boolean(editingTrialId);
   const payload = {
     id: editingTrialId,
@@ -1086,7 +1094,8 @@ async function saveExposureTrial() {
     resilience: resilience,
     engagement: engagement,
     mentor_note: notes,
-    trial_verdict: verdict
+    trial_verdict: verdict,
+    specialized_answers: specializedAnswers // ارسال امتیازات ۱۰ سوال تخصصی به دیتابیس
   };
 
   try {
@@ -1098,7 +1107,7 @@ async function saveExposureTrial() {
 
     const data = await res.json();
     if (res.ok && data.success) {
-      alert(isEditing ? 'تغییرات با موفقیت ذخیره شد.' : 'نتیجه آزمایش مجاورت‌سازی ثبت شد.');
+      alert(isEditing ? 'تغییرات با موفقیت ذخیره شد.' : 'نتیجه آزمایش مجاورت‌سازی به همراه ارزیابی تخصصی ثبت شد.');
       cancelEditExposureTrial();
       loadExposureHistory(studentId);
     } else {
