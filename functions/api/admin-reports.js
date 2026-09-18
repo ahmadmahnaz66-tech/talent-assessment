@@ -9,6 +9,14 @@ const HOLLAND_TO_GARDNER = {
   conventional: 'intrapersonal'
 };
 
+// تابع کمکی تشخیص رده سنی بر اساس پایه دانش‌آموز
+function getGradeGroup(grade) {
+  const g = parseInt(grade, 10);
+  if (g <= 2) return '1_2';
+  if (g <= 4) return '3_4';
+  return '5_6';
+}
+
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -20,6 +28,23 @@ export async function onRequestGet(context) {
   };
 
   try {
+    // دریافت اطلاعات چالش و نشان بر اساس مهارت و رده سنی دانش‌آموز
+    if (type === 'skill-metadata') {
+      const slug = url.searchParams.get('slug');
+      const grade = url.searchParams.get('grade') || '5';
+      const gradeGroup = getGradeGroup(grade);
+
+      const meta = await env.DB.prepare(
+        "SELECT badge, icon, challenge_text FROM skill_challenges WHERE skill_slug = ? AND grade_group = ?"
+      ).bind(slug, gradeGroup).first();
+
+      return new Response(JSON.stringify(meta || {
+        badge: 'نشان مهارت برتر',
+        icon: '🎯',
+        challenge_text: 'یک فعالیت عملی مرتبط با این مهارت در خانه انجام دهید.'
+      }), { headers: corsHeaders });
+    }
+
     if (type === 'all-skills') {
       const skills = await env.DB.prepare(
         "SELECT slug, title, category, display_order FROM skills ORDER BY display_order ASC"
