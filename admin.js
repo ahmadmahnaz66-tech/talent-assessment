@@ -2061,3 +2061,50 @@ async function syncMissingQuestionsWithAI() {
     btn.innerHTML = originalHtml;
   }
 }
+
+
+async function syncMissingQuestionsWithAI() {
+  if (!confirm('آیا می‌خواهید سیستم مهارت‌ها را به صورت دسته‌ای و کنترل‌شده بررسی کرده و گویه‌های والدین و مربی را استانداردسازی کند؟')) {
+    return;
+  }
+
+  const btn = event.target.closest('button');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+
+  let hasMore = true;
+  let totalUpdated = 0;
+
+  try {
+    while (hasMore) {
+      btn.innerHTML = `<span>⏳</span><span>در حال پردازش دسته‌ای مهارت‌ها (${totalUpdated} اصلاح شده)...</span>`;
+      
+      const res = await fetch('/api/sync-missing-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'خطا در سرور');
+
+      if (data.completed || data.updatedCount === 0) {
+        hasMore = false;
+        alert(`عملیات بررسی و استانداردسازی با موفقیت پایان یافت. مجموعاً ${totalUpdated} مهارت بروزرسانی شدند.`);
+      } else {
+        totalUpdated += data.updatedCount;
+        // مکث کوتاه ۲ ثانیه‌ای بین درخواست‌ها برای محافظت از سهمیه توکن و Rate Limit
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+
+    await loadInitialMetadata();
+    if (currentAdminSkillSlug) {
+      loadQuestionsForAdmin(currentAdminSkillSlug);
+    }
+  } catch (err) {
+    alert('خطا در حین فرآیند: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
