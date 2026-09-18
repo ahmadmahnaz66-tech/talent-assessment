@@ -498,9 +498,22 @@
       const qBox = document.getElementById('questions-list');
       qBox.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">در حال بارگذاری سؤالات...</p>';
 
-      const res = await fetch(`/api/questions?skill=${encodeURIComponent(skill.slug)}`);
-      currentQuestions = await res.json();
+   const res = await fetch(`/api/questions?skill=${encodeURIComponent(skill.slug)}`);
+      let allQuestions = await res.json();
 
+      // ۱. فیلتر کردن و فقط نگه داشتن سوالاتی که برچسب [student] دارند (یا مختص والدین هستند)
+      // ۲. پاک کردن پیشوندهای [student] و [coach] از متن سوال برای نمایش تمیز به کاربر
+      currentQuestions = allQuestions
+        .filter(q => q.question_text.includes('[student]')) // حذف سوالات مربی از صفحه والدین
+        .map(q => {
+          return {
+            ...q,
+            question_text: q.question_text
+              .replace('[student]', '')
+              .replace('[coach]', '')
+              .trim()
+          };
+        });
       const previousAnswers = savedResponsesMap[skill.slug];
       currentAnswers = currentQuestions.map((_, idx) => {
         if (Array.isArray(previousAnswers) && previousAnswers[idx] !== undefined) {
