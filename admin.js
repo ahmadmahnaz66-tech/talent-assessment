@@ -18,7 +18,6 @@ const ROLE_NAMES = {
   counselor: 'مشاور تخصصی',
   principal: 'مدیر مدرسه',
   vice_principal: 'معاون مدرسه'
-  expose_coach: 'مربی مجاورت‌سازی'
 };
 
 const GARDNER_LABELS_FA = {
@@ -101,18 +100,6 @@ function showDashboard() {
 
   document.getElementById('user-display-name').innerText = currentStaffUser.fullName || currentStaffUser.username;
   document.getElementById('user-display-role').innerText = ROLE_NAMES[currentStaffUser.role] || currentStaffUser.role;
-  if (currentStaffUser.role === 'expose_coach') {
-    document.getElementById('tab-btn-students').style.display = 'none';
-    document.getElementById('tab-btn-individual').style.display = 'none';
-    document.getElementById('tab-btn-group').style.display = 'none';
-    document.getElementById('tab-btn-manage').style.display = 'none';
-    document.getElementById('tab-btn-staff').style.display = 'none';
-
-    switchTab('exposure');
-    loadInitialMetadata();
-    loadStudentsList();
-    return;
-  }
 
   const testAiBtn = document.getElementById('btn-test-ai');
   if (testAiBtn) {
@@ -220,10 +207,6 @@ async function submitChangePassword() {
 }
 
 function switchTab(tabId) {
-  if (currentStaffUser && currentStaffUser.role === 'expose_coach' && tabId !== 'exposure') {
-    alert('شما فقط به تب مجاورت‌سازی دسترسی دارید.');
-    return;
-  }
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition';
