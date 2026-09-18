@@ -290,6 +290,7 @@
     let currentSkillIndex = 0;
     let currentQuestions = [];
     let currentAnswers = [];
+    let initialSkillAnswersJson = ''; // فلگ جلوگیری از ذخیره تکراری
     let selectedInterestSlugs = new Set();
     const questionGuideCache = {};
 
@@ -498,13 +499,13 @@
       const qBox = document.getElementById('questions-list');
       qBox.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">در حال بارگذاری سؤالات...</p>';
 
-   const res = await fetch(`/api/questions?skill=${encodeURIComponent(skill.slug)}`);
+      const res = await fetch(`/api/questions?skill=${encodeURIComponent(skill.slug)}`);
       let allQuestions = await res.json();
 
-      // ۱. فیلتر کردن و فقط نگه داشتن سوالاتی که برچسب [student] دارند (یا مختص والدین هستند)
-      // ۲. پاک کردن پیشوندهای [student] و [coach] از متن سوال برای نمایش تمیز به کاربر
+      // ۱. فیلتر کردن سوالات مربی و فقط نگه داشتن سوالات والد [student]
+      // ۲. پاک کردن پیشوندهای [student] و [coach] از متن سوال
       currentQuestions = allQuestions
-        .filter(q => q.question_text.includes('[student]')) // حذف سوالات مربی از صفحه والدین
+        .filter(q => q.question_text.includes('[student]'))
         .map(q => {
           return {
             ...q,
@@ -514,6 +515,7 @@
               .trim()
           };
         });
+
       const previousAnswers = savedResponsesMap[skill.slug];
       currentAnswers = currentQuestions.map((_, idx) => {
         if (Array.isArray(previousAnswers) && previousAnswers[idx] !== undefined) {
@@ -521,6 +523,9 @@
         }
         return 2;
       });
+
+      // قفل کردن نسخه اولیه برای جلوگیری از ارسال درخواست‌های تکراری
+      initialSkillAnswersJson = JSON.stringify(currentAnswers);
 
       qBox.innerHTML = currentQuestions.map((q, idx) => `
         <div class="pt-4 space-y-2.5">
@@ -617,6 +622,12 @@
     async function saveCurrentSkillAnswers() {
       const skill = skillsList[currentSkillIndex];
       if (!skill || !currentStudent) return;
+
+      // جلوگیری از ارسال درخواست تکراری اگر تغییری رخ نداده باشد
+      if (JSON.stringify(currentAnswers) === initialSkillAnswersJson) {
+        return;
+      }
+
       const totalScore = currentAnswers.reduce((a, b) => a + b, 0);
 
       await fetch('/api/save-response', {
@@ -629,6 +640,9 @@
           total_score: totalScore
         })
       });
+
+      // آپدیت نسخه اولیه پس از ذخیره موفق
+      initialSkillAnswersJson = JSON.stringify(currentAnswers);
     }
 
     async function nextSkill() {
