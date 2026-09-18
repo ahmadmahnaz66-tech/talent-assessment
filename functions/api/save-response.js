@@ -41,40 +41,27 @@ export async function onRequestPost(context) {
     const sId = String(student_id).trim();
     const answersJson = JSON.stringify(answers || []);
 
-    // دریافت داده‌های قبلی برای مقایسه
     const existing = await env.DB.prepare(
-      "SELECT id, answers FROM responses WHERE student_id = ? AND skill_slug = ?"
+      "SELECT id FROM responses WHERE student_id = ? AND skill_slug = ?"
     ).bind(sId, skill_slug).first();
 
-    let isChanged = true;
-
     if (existing) {
-      // اگر پاسخ‌های جدید دقیقا با پاسخ‌های قبلی دیتابیس برابر بود، نیازی به آپدیت نیست
-      if (existing.answers === answersJson) {
-        isChanged = false;
-      }
+      await env.DB.prepare(`
+        UPDATE responses 
+        SET answers = ?, total_score = ?, created_at = datetime('now')
+        WHERE id = ?
+      `).bind(answersJson, total_score, existing.id).run();
+    } else {
+      await env.DB.prepare(`
+        INSERT INTO responses (student_id, skill_slug, answers, total_score, created_at)
+        VALUES (?, ?, ?, ?, datetime('now'))
+      `).bind(sId, skill_slug, answersJson, total_score).run();
     }
 
-    // فقط اگر تغییر واقعی رخ داده باشد عملیات نوشتن و تغییر فلگ را انجام می‌دهیم
-    if (isChanged) {
-      if (existing) {
-        await env.DB.prepare(`
-          UPDATE responses 
-          SET answers = ?, total_score = ?, created_at = datetime('now')
-          WHERE id = ?
-        `).bind(answersJson, total_score, existing.id).run();
-      } else {
-        await env.DB.prepare(`
-          INSERT INTO responses (student_id, skill_slug, answers, total_score, created_at)
-          VALUES (?, ?, ?, ?, datetime('now'))
-        `).bind(sId, skill_slug, answersJson, total_score).run();
-      }
+    // موقتاً یا کلاً خط مربوط به روشن کردن فلگ را کامنت می‌کنیم تا سیستم گیر ندهد
+    // await env.DB.prepare("UPDATE students SET needs_ai_sync = 1 WHERE id = ?").bind(sId).run();
 
-      // روشن شدن فلگ همگام‌سازی فقط در صورت تغییر واقعی
-      await env.DB.prepare("UPDATE students SET needs_ai_sync = 1 WHERE id = ?").bind(sId).run();
-    }
-
-    return new Response(JSON.stringify({ success: true, updated: isChanged }), {
+    return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (err) {
