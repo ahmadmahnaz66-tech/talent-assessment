@@ -1788,47 +1788,80 @@ async function importSkillsAndQuestionsFromExcel(event) {
       for (const row of rows) {
         const skillSlug = (row['شناسه مهارت (Slug)'] || row['skill_slug'] || row['slug'] || '').toString().trim();
         const skillTitle = (row['عنوان فارسی مهارت'] || row['skill_title'] || row['title'] || '').toString().trim();
-        const questionText = (row['متن گویه / سوال'] || row['question_text'] || row['text'] || '').toString().trim();
-        const displayOrder = Number(row['ترتیب نمایش'] || row['display_order'] || 1);
+        const category = (row['تیپ هالند'] || row['category'] || 'investigative').toString().trim();
+        
+        const studentQuestionsRaw = (row['سوالات والدین ([student])'] || row['question_text'] || '').toString().trim();
+        const coachQuestionsRaw = (row['گویه‌های مربی ([coach])'] || '').toString().trim();
 
-        if (!skillSlug || !questionText) {
+        if (!skillSlug) {
           errorCount++;
           continue;
         }
 
+        // ثبت یا آپدیت اطلاعات مهارت
         if (skillTitle) {
           try {
             await fetch('/api/admin-reports', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'add-skill', slug: skillSlug, title: skillTitle })
+              body: JSON.stringify({ action: 'add-skill', slug: skillSlug, title: skillTitle, category })
             });
           } catch (_) {}
         }
 
+        // پاکسازی سوالات قبلی این مهارت برای جایگزینی دقیق نسخه جدید اکسل
         try {
-          const qRes = await fetch('/api/questions', {
+          await fetch('/api/questions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'add',
-              skillSlug,
-              questionText,
-              displayOrder
-            })
+            body: JSON.stringify({ action: 'delete-all-for-skill', skillSlug })
           });
-          const qData = await qRes.json();
-          if (qRes.ok && qData.success) {
-            successCount++;
-          } else {
-            errorCount++;
+        } catch (_) {}
+
+        // پردازش و درج سوالات والدین ([student])
+        if (studentQuestionsRaw) {
+          const sList = studentQuestionsRaw.split('\n').filter(Boolean);
+          for (let i = 0; i < sList.length; i++) {
+            let qText = sList[i].replace(/^\[student\]\s*/, '').trim();
+            if (qText) {
+              await fetch('/api/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'add',
+                  skillSlug,
+                  questionText: '[student] ' + qText,
+                  displayOrder: i + 1
+                })
+              });
+            }
           }
-        } catch (_) {
-          errorCount++;
         }
+
+        // پردازش و درج گویه‌های مربی ([coach])
+        if (coachQuestionsRaw) {
+          const cList = coachQuestionsRaw.split('\n').filter(Boolean);
+          for (let i = 0; i < cList.length; i++) {
+            let qText = cList[i].replace(/^\[coach\]\s*/, '').trim();
+            if (qText) {
+              await fetch('/api/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'add',
+                  skillSlug,
+                  questionText: '[coach] ' + qText,
+                  displayOrder: 100 + (i + 1)
+                })
+              });
+            }
+          }
+        }
+
+        successCount++;
       }
 
-      alert(`عملیات بارگذاری به پایان رسید.\nتعداد موفق: ${successCount}\nتعداد خطا/ردیف‌های ناقص: ${errorCount}`);
+      alert(`عملیات بارگذاری اکسل با موفقیت به پایان رسید.\nمجموع مهارت‌های پردازش‌شده: ${successCount}`);
       event.target.value = '';
 
       await loadInitialMetadata();
