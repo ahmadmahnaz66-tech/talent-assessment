@@ -26,6 +26,17 @@
       </p>
     </div>
 
+    <!-- مقدمه علمی و روان‌سنجی در صفحه ورود -->
+    <div class="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 text-xs text-slate-700 space-y-3">
+      <h3 class="font-black text-indigo-950 text-sm flex items-center gap-1.5">
+        <span>🎓</span>
+        <span>مبانی علمی و استاندارد روان‌سنجی آپادانا</span>
+      </h3>
+      <p class="leading-relaxed text-justify text-slate-600">
+        این سامانه بر پایه معتبرترین مدل‌های علمی دنیا از جمله <strong>نظریه هوش‌های چندگانه هوارد گاردنر</strong> و <strong>مدل رغبت‌سنجی هالند (RIASEC)</strong> طراحی شده است. ابزار سنجش دارای شاخص‌های استاندارد <strong>روایی (Validity)</strong> و <strong>پایایی (Reliability)</strong> بوده و با تکیه بر تجارب جهانی (مرجع: <a href="https://www.gse.harvard.edu" target="_blank" class="text-indigo-600 font-bold underline">دانشگاه هاروارد</a>)، توازن میان تئوری و عمل را برقرار می‌کند. نتایج این ارزیابی مستقیماً به دوره‌های مصوب مدرسه (هوش هیجانی، سواد مالی، رباتیک، تئاتر، نقاشی، فوتبال، تنیس، زبان انگلیسی، باغبانی، هوش مصنوعی و برنامه‌نویسی) متصل می‌شود.
+      </p>
+    </div>
+
     <div class="space-y-3.5">
       <div>
         <label class="block text-xs font-bold text-slate-700 mb-1">کد ملی دانش‌آموز:</label>
@@ -121,7 +132,9 @@
           <h2 id="current-skill-title" class="text-base font-black text-indigo-950"></h2>
           <span id="save-indicator" class="text-[11px] text-emerald-600 font-bold hidden">✓ ذخیره شد</span>
         </div>
-        <p class="text-xs text-slate-400">با توجه به رفتارهای عینی فرزندتان در منزل، به هر گزینه نمره‌ای از ۰ (هرگز) تا ۴ (همیشه) اختصاص دهید.</p>
+        <!-- نمایش هوش گاردنر متناظر با مهارت جاری -->
+        <div id="skill-gardner-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-100"></div>
+        <p class="text-xs text-slate-400 mt-1">با توجه به رفتارهای عینی فرزندتان در منزل، به هر گزینه نمره‌ای از ۰ (هرگز) تا ۴ (همیشه) اختصاص دهید.</p>
       </div>
 
       <div id="questions-list" class="space-y-5 divide-y divide-slate-100"></div>
@@ -279,6 +292,29 @@
     let currentAnswers = [];
     let selectedInterestSlugs = new Set();
     const questionGuideCache = {};
+
+    // نگاشت دقیق مهارت‌ها به هوش‌های چندگانه گاردنر
+    const SKILL_GARDNER_MAP = {
+      ai: 'هوش منطقی-ریاضی (Logical-Mathematical)',
+      coding: 'هوش منطقی-ریاضی (Logical-Mathematical)',
+      chess: 'هوش منطقی-ریاضی (Logical-Mathematical)',
+      robotics: 'هوش منطقی-ریاضی (Logical-Mathematical)',
+      carpentry: 'هوش بدنی-جنبشی (Bodily-Kinesthetic)',
+      gardening: 'هوش طبیعت‌گرا (Naturalistic)',
+      drawing: 'هوش دیداری-فضایی (Spatial)',
+      calligraphy: 'هوش دیداری-فضایی (Spatial)',
+      theater: 'هوش دیداری-فضایی و بدنی-جنبشی',
+      music: 'هوش موسیقیایی (Musical)',
+      comedy: 'هوش بین‌فردی و زبانی-کلامی',
+      public_speaking: 'هوش زبانی-کلامی (Linguistic)',
+      climbing: 'هوش بدنی-جنبشی (Bodily-Kinesthetic)',
+      swimming: 'هوش بدنی-جنبشی (Bodily-Kinesthetic)',
+      football: 'هوش بدنی-جنبشی (Bodily-Kinesthetic)',
+      basketball: 'هوش بدنی-جنبشی (Bodily-Kinesthetic)',
+      volleyball: 'هوش بدنی-جنبشی (Bodily-Kinesthetic)',
+      badminton: 'هوش بدنی-جنبشی (Bodily-Kinesthetic)',
+      tennis: 'هوش بدنی-جنبشی (Bodily-Kinesthetic)'
+    };
 
     // هم‌خانواده‌های پیش‌فرض در صورت خالی بودن category دیتابیس
     const FALLBACK_CATEGORIES = {
@@ -449,6 +485,11 @@
     async function loadCurrentSkillQuestions() {
       const skill = skillsList[currentSkillIndex];
       document.getElementById('current-skill-title').innerText = `${currentSkillIndex + 1}. مهارت ${skill.title}`;
+      
+      // نمایش تطابق هوش گاردنر برای این مهارت
+      const gardnerType = SKILL_GARDNER_MAP[skill.slug] || 'هوش شناختی چندگانه';
+      document.getElementById('skill-gardner-badge').innerHTML = `🧠 سازگار با: <strong>${gardnerType}</strong>`;
+
       document.getElementById('skill-jump-select').value = currentSkillIndex;
 
       document.getElementById('btn-prev').classList.toggle('hidden', currentSkillIndex === 0);
@@ -482,7 +523,7 @@
           <div class="grid grid-cols-5 gap-1.5 text-center text-xs">
             ${[0, 1, 2, 3, 4].map(val => `
               <label class="cursor-pointer border border-slate-200 rounded-xl p-2 hover:bg-indigo-50 transition flex flex-col items-center">
-                <input type="radio" name="q_${idx}" value="${val}" ${currentAnswers[idx] === val ? 'checked' : ''} onchange="onAnswerChanged(${idx}, ${val})" class="text-indigo-600 mb-1">
+                <input type="radio" name="q_${idx}" value="${val}" ${currentAnswers[idx] === val ? 'checked' : ''} onchange="onAnswerChanged(${idx},${val})" class="text-indigo-600 mb-1">
                 <span class="text-[10px] text-slate-500">${['هرگز', 'به‌ندرت', 'گاهی', 'معمولاً', 'همیشه'][val]}</span>
               </label>
             `).join('')}
