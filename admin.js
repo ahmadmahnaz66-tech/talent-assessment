@@ -1286,28 +1286,45 @@ async function renderSkillSpecificCharts(skillSlug) {
 async function loadQuestionsForAdmin(slug) {
   currentAdminSkillSlug = slug;
   const listContainer = document.getElementById('admin-questions-list');
+  const coachContainer = document.getElementById('admin-coach-questions-list');
+  
   if (!listContainer) return;
   listContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">در حال دریافت سوالات...</p>';
+  if (coachContainer) coachContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">در حال دریافت...</p>';
 
   try {
     const res = await fetch(`/api/questions?skill=${encodeURIComponent(slug)}`);
     const questions = await res.json();
 
-    if (!questions || questions.length === 0) {
-      listContainer.innerHTML = '<p class="text-xs text-amber-600 text-center py-4">سوالی برای این مهارت ثبت نشده است.</p>';
+    if (!Array.isArray(questions) || questions.length === 0) {
+      listContainer.innerHTML = '<p class="text-xs text-amber-600 text-center py-4">سوالی ثبت نشده است.</p>';
+      if (coachContainer) coachContainer.innerHTML = '<p class="text-xs text-amber-600 text-center py-4">گویه مربی ثبت نشده است.</p>';
       return;
     }
 
+    // رندر سوالات دانش‌آموزی
     listContainer.innerHTML = questions.map((q, idx) => `
-      <div class="flex items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs">
+      <div class="flex items-center justify-between gap-2 p-2.5 bg-white border border-slate-200 rounded-xl text-xs shadow-2xs">
         <span class="text-slate-400 font-bold">${idx + 1}.</span>
-        <input type="text" id="q-text-${q.id}" value="${q.question_text}" class="flex-1 bg-transparent border-b border-transparent focus:border-indigo-500 outline-none text-slate-700 py-1">
-        <div class="flex gap-1.5">
-          <button onclick="updateQuestion(${q.id}, ${idx + 1})" class="bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg hover:bg-indigo-100 font-bold transition">ذخیره</button>
-          <button onclick="deleteQuestion(${q.id})" class="bg-red-50 text-red-600 px-2.5 py-1 rounded-lg hover:bg-red-100 font-bold transition">حذف</button>
+        <input type="text" id="q-text-${q.id}" value="${q.question_text}" class="flex-1 bg-transparent border-b border-transparent focus:border-indigo-500 outline-none text-slate-700 py-0.5">
+        <div class="flex gap-1">
+          <button onclick="updateQuestion(${q.id}, ${idx + 1})" class="bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg hover:bg-indigo-100 font-bold transition">ذخیره</button>
+          <button onclick="deleteQuestion(${q.id})" class="bg-red-50 text-red-600 px-2 py-1 rounded-lg hover:bg-red-100 font-bold transition">حذف</button>
         </div>
       </div>
     `).join('');
+
+    // نمایش چک‌لیست مربی (۱۰ گویه اول رشته)
+    const coachQuestions = questions.slice(0, 10);
+    if (coachContainer) {
+      coachContainer.innerHTML = coachQuestions.map((q, idx) => `
+        <div class="p-2.5 bg-white border border-indigo-100 rounded-xl text-xs space-y-1 shadow-2xs">
+          <div class="font-bold text-slate-800"><span class="text-indigo-600">گویه ${idx + 1}:</span> ${q.question_text}</div>
+          <div class="text-[10px] text-slate-400">مقیاس لیکرت (۰ تا ۴) - ارزیابی مربی</div>
+        </div>
+      `).join('');
+    }
+
   } catch (e) {
     listContainer.innerHTML = '<p class="text-xs text-red-500 text-center py-4">خطا در بارگذاری سوالات.</p>';
   }
