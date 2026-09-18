@@ -28,9 +28,9 @@ export async function onRequestPost(context) {
 - enterprising (رهبری، مذاکره، کارآفرینی)
 - conventional (نظم، دقت، محاسبات دفتری)
 
-۲. یک بسته ۱۵ سوالی (گویه عینی رفتار در منزل و بازی) با مقیاس لیکرت ۵ گزینه‌ای (۰ تا ۴) طراحی کن.
-۳. کنترل خطای هاله‌ای (بدون کلمات مبالغه‌آمیز مانند نابغه یا باهوش).
-۴. پوشش ۵ بعد: اشتیاق خودجوش (۳ گویه)، یادگیری شهودی (۳ گویه)، غرقگی و تاب‌آوری (۳ گویه)، خلاقیت ترکیبی (۳ گویه)، حساسیت ادراکی (۳ گویه).
+۲. یک بسته ۱۵ سوالی ارزیابی **از دید والدین** (مشاهدات عینی رفتار فرزند در منزل و بازی، با لحنی مانند: "فرزندم در مواجهه با..." یا "در طول بازی تمایل دارد که...") طراحی کن. به هیچ وجه از زبان اول شخص کودک (مثل "دوست دارم") استفاده نکن.
+۳. یک بسته ۱۰ گویه تخصصی **مربی** (برای ارزیابی مجاورت‌سازی نقطه A به A1) با لحن سوم شخص و مشاهدات عینی رفتاری در محیط کارگاه طراحی کن.
+۴. کنترل خطای هاله‌ای (بدون کلمات مبالغه‌آمیز مانند نابغه یا باهوش).
 
 خروجی باید دقیقاً این ساختار JSON باشد:
 {
@@ -39,30 +39,18 @@ export async function onRequestPost(context) {
   "badge_emoji": "یک ایموجی مرتبط",
   "micro_challenge": "ماموریت ۲۴ ساعته خانوادگی و آزمون رفتاری والدین در منزل",
   "questions": [
-    {"order": 1, "text": "متن گویه اول..."},
-    {"order": 2, "text": "متن گویه دوم..."},
-    {"order": 3, "text": "متن گویه سوم..."},
-    {"order": 4, "text": "متن گویه چهارم..."},
-    {"order": 5, "text": "متن گویه پنجم..."},
-    {"order": 6, "text": "متن گویه ششم..."},
-    {"order": 7, "text": "متن گویه هفتم..."},
-    {"order": 8, "text": "متن گویه هشتم..."},
-    {"order": 9, "text": "متن گویه نهم..."},
-    {"order": 10, "text": "متن گویه دهم..."},
-    {"order": 11, "text": "متن گویه یازدهم..."},
-    {"order": 12, "text": "متن گویه دوازدهم..."},
-    {"order": 13, "text": "متن گویه سیزدهم..."},
-    {"order": 14, "text": "متن گویه چهاردهم..."},
-    {"order": 15, "text": "متن گویه پانزدهم..."}
+    {"order": 1, "text": "متن گویه اول از دید والدین..."}
+  ],
+  "coach_questions": [
+    {"order": 1, "text": "متن گویه اول مربی (رفتاری و از دید ناظر)..."}
   ]
 }`;
 
-    // فراخوانی از ماژول مرکزی با سقف توکن بالا جهت جلوگیری از قطع شدن پاسخ
     const rawResponse = await askGemini(env, {
       systemPrompt,
       userPrompt,
       temperature: 0.3,
-      maxTokens: 5000
+      maxTokens: 6000
     });
 
     let cleanJson = rawResponse.trim();
@@ -76,7 +64,6 @@ export async function onRequestPost(context) {
     try {
       parsedData = JSON.parse(cleanJson);
     } catch (e) {
-      // پشتیبانی در صورت وجود خطای کاراکترهای رشته‌ای
       const matchStart = cleanJson.indexOf('{');
       const matchEnd = cleanJson.lastIndexOf('}');
       if (matchStart !== -1 && matchEnd !== -1) {
@@ -91,12 +78,13 @@ export async function onRequestPost(context) {
     const badgeEmoji = parsedData.badge_emoji || '⭐';
     const microChallenge = parsedData.micro_challenge || '';
     const questions = parsedData.questions || [];
+    const coachQuestions = parsedData.coach_questions || [];
 
     if (!Array.isArray(questions) || questions.length === 0) {
       throw new Error('گویه‌های ارزیابی توسط هوش مصنوعی استخراج نشد.');
     }
 
-    // ۱. ثبت یا به‌روزرسانی مهارت با متادیتاهای هالند در دیتابیس
+    // ۱. ثبت یا به‌روزرسانی مهارت در دیتابیس
     const existing = await env.DB.prepare("SELECT slug FROM skills WHERE slug = ?").bind(cleanSlug).first();
     if (existing) {
       try {
@@ -120,25 +108,36 @@ export async function onRequestPost(context) {
       }
     }
 
-    // ۲. پاکسازی گویه‌های قبلی همین مهارت در صورت وجود (جلوگیری از تکرار)
+    // ۲. پاکسازی گویه‌های قبلی همین مهارت در صورت وجود
     await env.DB.prepare("DELETE FROM questions WHERE skill_slug = ?").bind(cleanSlug).run();
 
-    // ۳. درج دقیق ۱۵ گویه در جدول questions
-    let inserted = 0;
+    // ۳. درج ۱۵ گویه ارزیابی (از دید والدین) با پیشوند [student]
+    let insertedStudent = 0;
     for (const q of questions) {
-      const qText = q.text || q.question_text || (typeof q === 'string' ? q : '');
-      if (qText && qText.trim()) {
-        const orderNum = q.order || (inserted + 1);
+      const qText = q.text || q.question_text || '';
+      if (qText.trim()) {
         await env.DB.prepare(
           "INSERT INTO questions (skill_slug, question_text, display_order) VALUES (?, ?, ?)"
-        ).bind(cleanSlug, qText.trim(), orderNum).run();
-        inserted++;
+        ).bind(cleanSlug, '[student] ' + qText.trim(), q.order || (insertedStudent + 1)).run();
+        insertedStudent++;
+      }
+    }
+
+    // ۴. درج ۱۰ گویه تخصصی مربی با پیشوند [coach]
+    let insertedCoach = 0;
+    for (const q of coachQuestions) {
+      const qText = q.text || q.question_text || '';
+      if (qText.trim()) {
+        await env.DB.prepare(
+          "INSERT INTO questions (skill_slug, question_text, display_order) VALUES (?, ?, ?)"
+        ).bind(cleanSlug, '[coach] ' + qText.trim(), 100 + (q.order || (insertedCoach + 1))).run();
+        insertedCoach++;
       }
     }
 
     return new Response(JSON.stringify({
       success: true,
-      message: `مهارت "${cleanTitle}" در تیپ [${category}] با ${inserted} گویه و نشان "${badgeTitle} ${badgeEmoji}" با موفقیت ذخیره شد.`
+      message: `مهارت "${cleanTitle}" با ${insertedStudent} گویه والدین و ${insertedCoach} گویه مربی با موفقیت ذخیره شد.`
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
