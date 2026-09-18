@@ -23,10 +23,12 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, temperatur
     throw new Error('هیچ کلید معتبری برای هوش مصنوعی در سرور یافت نشد.');
   }
 
-  // ۲. مدل‌های فعال و پشتیبانی‌شده
+  // ۲. مدل‌های پایدار و مقاوم در برابر خطای سهمیه (اولویت با مدل‌های Flash پایدار)
   const models = [
-    'gemini-3.6-flash',
-    'gemini-3.1-pro-preview'
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-2.5-flash',
+    'gemini-3.6-flash'
   ];
 
   const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
@@ -61,12 +63,18 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, temperatur
           if (text) return text;
         }
 
-        lastError = await res.text();
+        const errText = await res.text();
+        lastError = errText;
+        
+        // اگر خطای 429 داد، به سرعت مدل یا کلید بعدی را تست کند
+        if (res.status === 429) {
+          continue;
+        }
       } catch (err) {
         lastError = err.message;
       }
     }
   }
 
-  throw new Error(`خطا در دریافت پاسخ هوش مصنوعی: ${lastError}`);
+  throw new Error(`خطا در دریافت پاسخ هوش مصنوعی (تمامی مدل‌ها/کلیدها محدود شدند): ${lastError}`);
 }
