@@ -351,7 +351,7 @@
       </div>
     </section>
 
-<!-- تب ۳: مجاورت‌سازی ۲ هفته‌ای -->
+    <!-- تب ۳: مجاورت‌سازی ۲ هفته‌ای -->
     <section id="tab-content-exposure" class="tab-content hidden space-y-5">
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex items-center justify-between border-b pb-3">
@@ -440,7 +440,29 @@
           </button>
         </div>
       </div>
-      <!-- جدول سوابق... -->
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 font-bold text-xs text-slate-700">سوابق آزمایش‌های مجاورت‌سازی این دانش‌آموز</div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-50 text-slate-500 border-b">
+              <tr>
+                <th class="p-3">تاریخ</th>
+                <th class="p-3">مهارت آزمایشی</th>
+                <th class="p-3">سرعت یادگیری</th>
+                <th class="p-3">تاب‌آوری</th>
+                <th class="p-3">اشتیاق</th>
+                <th class="p-3">نتیجه قطعی</th>
+                <th class="p-3">یادداشت مربی</th>
+                <th class="p-3 text-left">عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="exposure-history-body" class="divide-y divide-slate-100">
+              <tr><td colspan="8" class="p-4 text-center text-slate-400">ابتدا دانش‌آموز را انتخاب نمایید.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- تب ۴: غربالگری گروهی -->
@@ -553,6 +575,14 @@
           <button type="button" onclick="generateSkillWithAI()" id="btn-ai-skill" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold px-3 py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5">
             <span>✨</span>
             <span>تولید ۱۵ گویه با AI</span>
+          </button>
+        </div>
+
+        <!-- دکمه تکمیل هوشمند گویه‌های ناقص (اضافه شده در این نسخه) -->
+        <div class="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+          <button type="button" onclick="syncMissingQuestionsWithAI()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5">
+            <span>⚡</span>
+            <span>تکمیل هوشمند گویه‌های ناقص با AI</span>
           </button>
         </div>
       </div>
