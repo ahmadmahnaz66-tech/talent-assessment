@@ -24,15 +24,36 @@
           <p class="text-[10px] text-slate-500 font-medium">پرسش، پاسخ و یادگیری گام‌به‌گام با روش سقراطی</p>
         </div>
       </div>
-      <a href="/" class="flex items-center gap-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl transition">
-        <span>← بازگشت به خانه</span>
-      </a>
+
+      <div class="flex items-center gap-3">
+        <!-- انتخابگر موتور هوش مصنوعی برای سرعت بالا یا حالت اصلی -->
+        <div class="hidden sm:flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-xl">
+          <span class="text-[10px] font-bold text-slate-500">هوش مصنوعی:</span>
+          <select id="ai-provider-select" class="bg-transparent text-slate-700 text-xs font-bold outline-none cursor-pointer">
+            <option value="openrouter">⚡️ OpenRouter (سریع)</option>
+            <option value="gemini">🌐 گوگل جمینای</option>
+          </select>
+        </div>
+
+        <a href="/" class="flex items-center gap-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl transition">
+          <span>← بازگشت</span>
+        </a>
+      </div>
     </div>
   </header>
 
   <!-- بخش اصلی چت و تعامل -->
   <main class="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 flex flex-col h-[calc(100vh-4rem)]">
     
+    <!-- انتخابگر موبایل برای هوش مصنوعی -->
+    <div class="flex sm:hidden items-center justify-between bg-white border border-slate-200 px-3 py-2 rounded-2xl mb-3 shadow-sm">
+      <span class="text-xs font-bold text-slate-500">انتخاب موتور هوش مصنوعی:</span>
+      <select id="ai-provider-select-mobile" class="bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-2 py-1 outline-none">
+        <option value="openrouter">⚡️ OpenRouter (سریع)</option>
+        <option value="gemini">🌐 گوگل جمینای</option>
+      </select>
+    </div>
+
     <!-- کانتینر پیام‌ها -->
     <div id="chat-container" class="flex-1 overflow-y-auto space-y-4 pr-1 pb-4">
       <!-- پیام خوش‌آمدگویی اولیه -->
@@ -62,7 +83,7 @@
         </label>
 
         <!-- اینپوت متن سوال -->
-        <input type="text" id="user-question-input" placeholder="سوال خود را بنویسید (مثلاً: این مسئله ریاضی چطور حل میشه؟)..." class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm outline-none focus:border-emerald-600 transition">
+        <input type="text" id="user-question-input" placeholder="سوال خود را بنویسید (مثلاً: این مسئله ریاضی چطور حل میشه؟)..." class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm outline-none focus:border-emerald-600 transition" onkeypress="if(event.key === 'Enter') sendUserMessage()">
 
         <!-- دکمه ارسال -->
         <button onclick="sendUserMessage()" id="send-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm px-6 py-3 rounded-2xl transition shadow-md shadow-emerald-600/20 shrink-0 flex items-center gap-1.5">
@@ -99,7 +120,7 @@
       document.getElementById('preview-container').classList.add('hidden');
     }
 
-async function sendUserMessage() {
+    async function sendUserMessage() {
       const inputEl = document.getElementById('user-question-input');
       const chatContainer = document.getElementById('chat-container');
       const text = inputEl.value.trim();
@@ -108,6 +129,11 @@ async function sendUserMessage() {
         alert('لطفاً عکسی آپلود کنید یا سوال خود را بنویسید.');
         return;
       }
+
+      // هماهنگ‌سازی مقدار سلیکتور دسکتاپ و موبایل
+      const desktopSelect = document.getElementById('ai-provider-select');
+      const mobileSelect = document.getElementById('ai-provider-select-mobile');
+      const selectedProvider = desktopSelect ? desktopSelect.value : (mobileSelect ? mobileSelect.value : 'openrouter');
 
       // نمایش پیام کاربر در صفحه
       let userHtml = `
@@ -128,16 +154,18 @@ async function sendUserMessage() {
       chatContainer.insertAdjacentHTML('beforeend', userHtml);
       chatContainer.scrollTop = chatContainer.scrollHeight;
 
-      // جمع‌آوری تاریخچه مکالمات قبلی صفحه برای ارسال به هوش مصنوعی
+      // جمع‌آوری تاریخچه مکالمات قبلی برای ارسال به هوش مصنوعی
       const messageElements = chatContainer.querySelectorAll('.flex.items-start');
       const history = [];
       messageElements.forEach(el => {
         const isUser = el.classList.contains('justify-end');
-        const textContent = el.querySelector('.rounded-2xl').innerText.trim();
-        history.push({
-          role: isUser ? 'user' : 'model',
-          parts: [{ text: textContent }]
-        });
+        const contentDiv = el.querySelector('.rounded-2xl');
+        if (contentDiv) {
+          history.push({
+            role: isUser ? 'user' : 'model',
+            parts: [{ text: contentDiv.innerText.trim() }]
+          });
+        }
       });
 
       const currentImage = base64Image;
@@ -163,7 +191,8 @@ async function sendUserMessage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            history: history, // ارسال تاریخچه کامل گفتگو
+            provider: selectedProvider, // ارسال انتخاب کاربر (openrouter یا gemini)
+            history: history,
             imageBase64: currentImage,
             imageMimeType: currentMime,
             userQuestion: text
