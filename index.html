@@ -27,11 +27,18 @@
         </div>
       </div>
 
-      <div id="auth-section">
-        <button onclick="openAuthModal()" class="flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2.5 rounded-2xl text-xs font-bold transition border border-indigo-100 shadow-sm">
-          <span>ورود / ثبت‌نام اولیا</span>
-          <span class="text-sm">🔑</span>
-        </button>
+      <div class="flex items-center gap-3">
+        <!-- دکمه دسترسی آزاد به مرکز کمک‌آموزشی و ابزار مهارتی -->
+        <a href="admin.html" class="flex items-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-2.5 rounded-2xl text-xs font-bold transition border border-emerald-200 shadow-sm">
+          <span>⚙️ مرکز کمک‌آموزشی و ابزارها</span>
+        </a>
+
+        <div id="auth-section">
+          <button onclick="openAuthModal()" class="flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2.5 rounded-2xl text-xs font-bold transition border border-indigo-100 shadow-sm">
+            <span>ورود / ثبت‌نام اولیا</span>
+            <span class="text-sm">🔑</span>
+          </button>
+        </div>
       </div>
     </div>
   </header>
@@ -60,6 +67,22 @@
           </button>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- بخش دسترسی سریع و بنر ویژه کمک‌آموزشی -->
+  <section class="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+    <div class="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-6 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="text-center sm:text-right">
+        <h3 class="text-base font-black flex items-center justify-center sm:justify-start gap-2">
+          <span>🚀</span>
+          <span>پلتفرم تخصصی ارزیابی مهارت‌ها و مجاورت‌سازی (مهارت‌خانه)</span>
+        </h3>
+        <p class="text-xs text-emerald-100 mt-1">دسترسی آزاد و سریع به ابزارهای تحلیل هوش‌های چندگانه، رغبت‌سنجی و پنل مربیان</p>
+      </div>
+      <a href="admin.html" class="bg-white text-emerald-900 hover:bg-emerald-50 font-black text-xs px-6 py-3 rounded-2xl shadow transition whitespace-nowrap">
+        ورود به پنل کمک‌آموزشی ➔
+      </a>
     </div>
   </section>
 
@@ -315,7 +338,7 @@
                 <span class="text-sm font-black text-slate-900 font-mono">${isPkgPurchased ? '<span class="text-emerald-600 font-bold">خریداری شده</span>' : (pkg.price > 0 ? Number(pkg.price).toLocaleString('fa-IR') + ' ت' : 'رایگان')}</span>
               </div>
               ${(!isPkgPurchased && pkg.price > 0) ? `
-                <button onclick="handlePurchaseAttempt('package', '${pkg.slug}', 'پکیج: ${pkg.title}', ${pkg.price})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm">
+                <button onclick="handlePurchaseAttempt('package', '${pkg.slug}', 'پکیج: ${pkg.title}',${pkg.price})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm">
                   خرید کل مجموعه 📦
                 </button>
               ` : ''}
@@ -345,7 +368,7 @@
                       </button>
                     ` : ''}
                     
-                    <button onclick="loadAndPlayAudio('${t.audio_url}', '${t.title}', ${isTrackPurchased})" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1 transition shadow-sm">
+                    <button onclick="loadAndPlayAudio('${t.audio_url}', '${t.title}',${isTrackPurchased})" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1 transition shadow-sm">
                       <span>▶ ${isTrackPurchased ? 'پخش کامل' : 'پیش‌نمایش (۱ دقیقه)'}</span>
                     </button>
                   </div>
@@ -459,7 +482,6 @@
       floatingBar.classList.add('translate-y-full');
     }
 
-    // کنترل پیشرفت صوت و قفل ۶۰ ثانیه برای پیش‌نمایش (بدون لوپ آلرت)
     audioCore.ontimeupdate = () => {
       if (!isSeeking && audioCore.duration) {
         if (!currentPlayingTrack.isPurchased && audioCore.currentTime >= 60) {
@@ -520,7 +542,6 @@
 
       const balance = Number(activeUser.wallet_balance || 0);
 
-      // حالت ۱: موجودی کافی است -> کسر مستقیم از کیف پول
       if (balance >= price) {
         if (!confirm(`مبلغ ${price.toLocaleString('fa-IR')} تومان از کیف پول شما کسر خواهد شد. آیا مایل به تایید خرید «${title}» هستید؟`)) {
           return;
@@ -556,7 +577,6 @@
         return;
       }
 
-      // حالت ۲: موجودی ناکافی است -> هدایت هوشمند به شارژ با مبلغ کسری
       const shortage = price - balance;
       alert(`⚠️ موجودی کیف پول شما (${balance.toLocaleString('fa-IR')} تومان) کافی نیست.\nشما مبلغ ${shortage.toLocaleString('fa-IR')} تومان کسری دارید.\nلطفاً جهت تکمیل خرید، ابتدا کیف پول خود را شارژ فرمایید.`);
 
