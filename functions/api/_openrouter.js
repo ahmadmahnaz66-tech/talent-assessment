@@ -1,22 +1,20 @@
 // functions/api/_openrouter.js
 
 export async function askOpenRouter(env, { systemPrompt = '', history = [], userQuestion, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.5, maxTokens = 2000 }) {
-  // خواندن کلید OpenRouter از متغیرهای محیطی کلادفلر
   const apiKey = env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error('کلید API برای OpenRouter در تنظیمات سرور (Environment Variables) تعریف نشده است.');
   }
 
-  // انتخاب مدل سریع و ارزان (مثلا Gemini Flash یا DeepSeek از طریق OpenRouter)
-const model = env.OPENROUTER_MODEL || 'google/gemini-2.5-flash';
-  // ساخت ساختار پیام‌ها برای فرمت استاندارد OpenAI/OpenRouter
+  // انتخاب مدل پایدار که از تصویر و متن پشتیبانی کامل دارد
+  const model = env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free';
+
   let messages = [];
 
   if (systemPrompt) {
     messages.push({ role: 'system', content: systemPrompt });
   }
 
-  // اضافه کردن تاریخچه چت
   if (Array.isArray(history) && history.length > 0) {
     const cleanHistory = history.slice(0, -1);
     cleanHistory.forEach(h => {
@@ -27,7 +25,6 @@ const model = env.OPENROUTER_MODEL || 'google/gemini-2.5-flash';
     });
   }
 
-  // ساخت پیام جدید کاربر (پشتیبانی از متن و تصویر با فرمت Data URI)
   let userContent = [];
   if (userQuestion) {
     userContent.push({ type: 'text', text: userQuestion });
@@ -50,9 +47,10 @@ const model = env.OPENROUTER_MODEL || 'google/gemini-2.5-flash';
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://www.maharatkhanema.ir', // اختیاری برای شناسایی سایت در OpenRouter
+      'HTTP-Referer': 'https://maharatkhanema.ir', 
       'X-Title': 'Maharatkhaneh Tutor',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'User-Agent': 'Cloudflare-Worker-Maharatkhaneh'
     },
     body: JSON.stringify({
       model: model,
