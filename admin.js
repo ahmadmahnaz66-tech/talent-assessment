@@ -143,8 +143,13 @@ function switchTab(tabId) {
     return;
   }
 
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  // ۱. مخفی کردن امن تمام تب‌ها
+  const contents = document.querySelectorAll('.tab-content');
+  contents.forEach(el => el.classList.add('hidden'));
+
+  // ۲. بازنشانی استایل تمام دکمه‌ها
+  const buttons = document.querySelectorAll('.tab-btn');
+  buttons.forEach(btn => {
     btn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition';
   });
 
@@ -152,11 +157,19 @@ function switchTab(tabId) {
     loadAnalyticsDashboard();
   }
 
+  // ۳. پیدا کردن و نمایش تب هدف به همراه بررسی وجود آن
   const activeContent = document.getElementById(`tab-content-${tabId}`);
   const activeBtn = document.getElementById(`tab-btn-${tabId}`);
 
-  if (activeContent) activeContent.classList.remove('hidden');
-  if (activeBtn) activeBtn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white transition';
+  if (activeContent) {
+    activeContent.classList.remove('hidden');
+  } else {
+    console.warn(`Tab content for id 'tab-content-${tabId}' was not found.`);
+  }
+
+  if (activeBtn) {
+    activeBtn.className = 'tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white transition';
+  }
 
   if (tabId === 'manage' && typeof loadQuestionsForAdmin === 'function') {
     const manageSelect = document.getElementById('manage-skill-select');
