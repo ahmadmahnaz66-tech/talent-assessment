@@ -1,10 +1,6 @@
 // functions/api/_gemini.js
 
-export async function askGemini(env, { systemPrompt = '', userPrompt, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.4, maxTokens = 5000 }) {
-  if (!userPrompt && !imageBase64) {
-    throw new Error('ارسال متن یا تصویر برای هوش مصنوعی الزامی است.');
-  }
-
+export async function askGeminiWithHistory(env, { systemPrompt = '', history = [], userQuestion, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.4, maxTokens = 5000 }) {
   let apiKeys = [];
   if (env.GEMINI_API_KEYS) {
     apiKeys.push(...env.GEMINI_API_KEYS.split(',').map(k => k.trim()));
@@ -22,7 +18,6 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, imageBase6
     throw new Error('هیچ کلید معتبری برای هوش مصنوعی در سرور یافت نشد.');
   }
 
-  // هماهنگ‌سازی با مدل تست‌شده و فعال در پنل ادمین
   const models = [
     'gemini-3.6-flash',
     'gemini-1.5-flash',
@@ -30,16 +25,35 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, imageBase6
     'gemini-2.5-flash'
   ];
 
-  // ساخت بخش‌های ارسالی به هوش مصنوعی (Parts)
-  const parts = [];
-  
-  const combinedPrompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
-  if (combinedPrompt) {
-    parts.push({ text: combinedPrompt });
+  // ساخت ساختار محتوا شامل تاریخچه مکالمات قبلی
+  let contents = [];
+
+  // اضافه کردن سیستم پرامپت به عنوان دستورالعمل اولیه
+  if (systemPrompt) {
+    contents.push({
+      role: 'user',
+      parts: [{ text: `[دستورالعمل سیستم]: ${systemPrompt}` }]
+    });
+    contents.push({
+      role: 'model',
+      parts: [{ text: 'متوجه شدم. آماده‌ام تا به عنوان معلم خصوصی مهربان و سقراطی به دانش‌آموز کمک کنم.' }]
+    });
   }
 
+  // اضافه کردن تاریخچه چت‌های قبلی
+  if (Array.isArray(history) && history.length > 0) {
+    // حذف آخرین پیام کاربر از تاریخچه چون پایین‌تر به صورت دستی همراه با عکس یا متن جدید اضافه می‌شود
+    const cleanHistory = history.slice(0, -1);
+    contents.push(...cleanHistory);
+  }
+
+  // ساخت پیام جدید کاربر (همراه با عکس در صورت وجود)
+  const currentParts = [];
+  if (userQuestion) {
+    currentParts.push({ text: userQuestion });
+  }
   if (imageBase64) {
-    parts.push({
+    currentParts.push({
       inlineData: {
         mimeType: imageMimeType,
         data: imageBase64
@@ -47,8 +61,15 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, imageBase6
     });
   }
 
+  if (currentParts.length > 0) {
+    contents.push({
+      role: 'user',
+      parts: currentParts
+    });
+  }
+
   const requestBody = JSON.stringify({
-    contents: [{ role: 'user', parts: parts }],
+    contents: contents,
     generationConfig: {
       temperature: temperature,
       maxOutputTokens: maxTokens
