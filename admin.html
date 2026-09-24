@@ -79,14 +79,14 @@
       <button onclick="switchTab('staff')" id="tab-btn-staff" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-purple-700 border border-purple-200 transition">۶. کادر و پرسنل مدرسه</button>
     </nav>
 
-    <!-- کانتینرهای بارگذاری پویای تب‌ها -->
+<!-- کانتینرهای بارگذاری پویای تب‌ها (اصلاح شده) -->
     <div id="dynamic-tabs-container">
-      <div id="tab-content-container-students" class="tab-content"></div>
-      <div id="tab-content-container-individual" class="tab-content hidden"></div>
-      <div id="tab-content-container-exposure" class="tab-content hidden"></div>
-      <div id="tab-content-container-group" class="tab-content hidden"></div>
-      <div id="tab-content-container-manage" class="tab-content hidden"></div>
-      <div id="tab-content-container-staff" class="tab-content hidden"></div>
+      <div id="tab-content-students" class="tab-content"></div>
+      <div id="tab-content-individual" class="tab-content hidden"></div>
+      <div id="tab-content-exposure" class="tab-content hidden"></div>
+      <div id="tab-content-group" class="tab-content hidden"></div>
+      <div id="tab-content-manage" class="tab-content hidden"></div>
+      <div id="tab-content-staff" class="tab-content hidden"></div>
     </div>
 
   </div>
@@ -123,7 +123,7 @@
   </div>
 
   <!-- بارگذاری تب‌ها و اسکریپت‌ها به صورت هماهنگ -->
-  <script>
+<script>
     async function loadPartialTabs() {
       const tabs = ['students', 'individual', 'exposure', 'group', 'manage', 'staff'];
       for (const t of tabs) {
@@ -131,7 +131,7 @@
           const res = await fetch(`components/admin/tab-${t}.html`);
           if (res.ok) {
             const html = await res.text();
-            document.getElementById(`tab-content-container-${t}`).innerHTML = html;
+            document.getElementById(`tab-content-${t}`).innerHTML = html;
           }
         } catch (e) {
           console.error(`Error loading tab-${t}:`, e);
@@ -146,7 +146,6 @@
       }
     });
   </script>
-
   <!-- اسکریپت‌های ماژولار و اصلی پنل -->
   <script src="js/admin/students.js"></script>
   <script src="js/admin/individual.js"></script>
