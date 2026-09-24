@@ -12,147 +12,776 @@
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css" rel="stylesheet">
   <style>
     body { font-family: 'Vazirmatn FD', sans-serif; }
+    
     .report-prose h2, .report-prose h3 {
-      font-weight: 900; color: #1e1b4b; margin-top: 1.6rem; margin-bottom: 0.7rem; font-size: 1.1rem; border-bottom: 2px solid #e0e7ff; padding-bottom: 0.35rem;
+      font-weight: 900;
+      color: #1e1b4b;
+      margin-top: 1.6rem;
+      margin-bottom: 0.7rem;
+      font-size: 1.1rem;
+      border-bottom: 2px solid #e0e7ff;
+      padding-bottom: 0.35rem;
+      letter-spacing: -0.01em;
     }
-    .report-prose p { margin-bottom: 0.85rem; line-height: 2.1; text-align: justify; color: #334155; font-size: 0.95rem; }
-    .report-prose ul { list-style-type: disc; padding-right: 1.5rem; margin-bottom: 1rem; }
-    .report-prose li { margin-bottom: 0.5rem; line-height: 1.95; color: #334155; }
+    .report-prose h4 {
+      font-weight: 800;
+      color: #3730a3;
+      margin-top: 1.2rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.98rem;
+    }
+    .report-prose p {
+      margin-bottom: 0.85rem;
+      line-height: 2.1;
+      text-align: justify;
+      color: #334155;
+      font-size: 0.95rem;
+    }
+    .report-prose ul {
+      list-style-type: disc;
+      padding-right: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .report-prose li {
+      margin-bottom: 0.5rem;
+      line-height: 1.95;
+      color: #334155;
+    }
+    .report-prose strong {
+      font-weight: 800;
+      color: #0f172a;
+      background: #f8fafc;
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+    }
+
     @media print {
-      body { background: #ffffff !important; padding: 0 !important; color: #0f172a !important; }
-      .no-print, header, nav { display: none !important; }
-      #roadmap-modal { position: static !important; background: none !important; display: block !important; }
-      .print-header, .print-footer { display: flex !important; }
+      @page {
+        size: A4 portrait;
+        margin: 10mm 10mm 15mm 10mm;
+      }
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        color: #0f172a !important;
+      }
+      body > div:first-of-type,
+      .no-print,
+      header,
+      nav {
+        display: none !important;
+      }
+      #roadmap-modal {
+        position: static !important;
+        background: none !important;
+        padding: 0 !important;
+        display: block !important;
+        inset: auto !important;
+      }
+      #roadmap-modal > div {
+        max-height: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+      .print-header {
+        display: flex !important;
+      }
+      #charts-wrapper {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        margin-bottom: 15px !important;
+      }
+      #modal-content {
+        overflow: visible !important;
+        height: auto !important;
+      }
+      .print-footer {
+        display: flex !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
     }
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 p-4 sm:p-6">
 
-  <!-- مودال ورود کادر مدرسه -->
   <div id="login-modal" class="flex items-center justify-center min-h-[80vh]">
     <div class="bg-white p-8 rounded-3xl shadow-lg border border-slate-200 max-w-md w-full space-y-5">
       <div class="text-center space-y-1">
-        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 font-bold text-xl">🔒</div>
+        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 font-bold text-xl">
+          🔒
+        </div>
         <h2 class="text-lg font-black text-slate-800">ورود کادر مدرسه و مدیریت</h2>
         <p class="text-xs text-slate-400">جهت دسترسی به پنل، نام کاربری و رمز عبور خود را وارد نمایید.</p>
       </div>
+
       <div class="space-y-3">
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">نام کاربری</label>
-          <input type="text" id="login-username" onkeydown="if(event.key === 'Enter') handleStaffLogin()" placeholder="مثال: admin" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          <input type="text" id="login-username" onkeydown="if(event.key === 'Enter') handleStaffLogin()" placeholder="مثال: admin" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 transition">
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">رمز عبور</label>
-          <input type="password" id="login-password" onkeydown="if(event.key === 'Enter') handleStaffLogin()" placeholder="••••••••" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          <input type="password" id="login-password" onkeydown="if(event.key === 'Enter') handleStaffLogin()" placeholder="••••••••" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 transition">
         </div>
-        <button onclick="handleStaffLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">ورود به پنل مدیریت</button>
+        <button onclick="handleStaffLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-sm">
+          ورود به پنل مدیریت
+        </button>
       </div>
       <p id="login-error" class="text-xs text-red-500 text-center font-bold hidden"></p>
     </div>
   </div>
 
-  <!-- داشبورد اصلی -->
   <div id="admin-dashboard" class="hidden max-w-6xl mx-auto space-y-6">
 
     <header class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 no-print">
       <div>
         <h1 class="text-xl font-black text-slate-800">پنل تخصصی مشاوره و سنجش استعداد</h1>
-        <p class="text-xs text-slate-500 mt-1">مدیریت پرونده‌ها، غربالگری گروهی، هوش مصنوعی و مجاورت‌سازی</p>
+        <p class="text-xs text-slate-500 mt-1">مدیریت پرونده‌ها، غربالگری گروهی، هوش مصنوعی، مجاورت‌سازی و کادر مدرسه</p>
       </div>
       <div class="flex items-center gap-2">
         <div class="text-left pl-3 border-l border-slate-200">
           <div id="user-display-name" class="text-xs font-bold text-slate-800">-</div>
           <div id="user-display-role" class="text-[11px] text-slate-400">-</div>
         </div>
-        <button id="btn-test-ai" onclick="openTestAiModal()" class="hidden text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition">⚡ تست هوش مصنوعی</button>
-        <button onclick="openChangePassModal()" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-xl transition">تغییر رمز</button>
-        <button onclick="handleStaffLogout()" class="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl transition">خروج</button>
+
+        <button id="btn-test-ai" onclick="openTestAiModal()" class="hidden text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition flex items-center gap-1">
+          ⚡ تست هوش مصنوعی
+        </button>
+
+        <button onclick="openChangePassModal()" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-xl transition">
+          تغییر رمز
+        </button>
+        <button onclick="handleStaffLogout()" class="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl transition">
+          خروج
+        </button>
       </div>
     </header>
 
     <nav class="flex flex-wrap gap-2 border-b border-slate-200 pb-3 no-print">
-      <button onclick="switchTab('students')" id="tab-btn-students" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white transition">۱. مدیریت دانش‌آموزان</button>
-      <button onclick="switchTab('individual')" id="tab-btn-individual" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">۲. پرونده فردی و تحلیل هوشمند</button>
-      <button onclick="switchTab('exposure')" id="tab-btn-exposure" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-emerald-700 border border-emerald-200 transition">۳. مجاورت‌سازی ۲ هفته‌ای</button>
-      <button onclick="switchTab('group')" id="tab-btn-group" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">۴. غربالگری گروهی</button>
-      <button onclick="switchTab('manage')" id="tab-btn-manage" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">۵. مدیریت مهارت‌ها و سوالات</button>
-      <button onclick="switchTab('staff')" id="tab-btn-staff" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-purple-700 border border-purple-200 transition">۶. کادر و پرسنل مدرسه</button>
+      <button onclick="switchTab('students')" id="tab-btn-students" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white transition">
+        ۱. مدیریت دانش‌آموزان
+      </button>
+      <button onclick="switchTab('individual')" id="tab-btn-individual" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">
+        ۲. پرونده فردی و تحلیل هوشمند (Gemini)
+      </button>
+      <button onclick="switchTab('exposure')" id="tab-btn-exposure" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50 transition">
+        ۳. مجاورت‌سازی ۲ هفته‌ای (Expose)
+      </button>
+      <button onclick="switchTab('group')" id="tab-btn-group" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">
+        ۴. غربالگری گروهی
+      </button>
+      <button onclick="switchTab('manage')" id="tab-btn-manage" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 transition">
+        ۵. مدیریت مهارت‌ها و سوالات
+      </button>
+      <button onclick="switchTab('staff')" id="tab-btn-staff" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold bg-white text-purple-700 border border-purple-200 hover:bg-purple-50 transition">
+        ۶. کادر و پرسنل مدرسه
+      </button>
     </nav>
 
-<!-- کانتینرهای بارگذاری پویای تب‌ها (اصلاح شده) -->
-    <div id="dynamic-tabs-container">
-      <div id="tab-content-students" class="tab-content"></div>
-      <div id="tab-content-individual" class="tab-content hidden"></div>
-      <div id="tab-content-exposure" class="tab-content hidden"></div>
-      <div id="tab-content-group" class="tab-content hidden"></div>
-      <div id="tab-content-manage" class="tab-content hidden"></div>
-      <div id="tab-content-staff" class="tab-content hidden"></div>
-    </div>
+    <!-- تب ۱: مدیریت دانش‌آموزان -->
+    <section id="tab-content-students" class="tab-content space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2 space-y-3">
+          <h2 class="font-bold text-slate-800 text-xs">ثبت / ویرایش سریع پرونده دانش‌آموز</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+            <input type="text" id="std-id" placeholder="کد ملی (الزامی)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+            <input type="text" id="std-first-name" placeholder="نام" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+            <input type="text" id="std-last-name" placeholder="نام خانوادگی" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+
+            <select id="std-grade" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 bg-white text-slate-700">
+              <option value="">انتخاب پایه...</option>
+              <option value="اول">پایه اول</option>
+              <option value="دوم">پایه دوم</option>
+              <option value="سوم">پایه سوم</option>
+              <option value="چهارم">پایه چهارم</option>
+              <option value="پنجم">پایه پنجم</option>
+              <option value="ششم">پایه ششم</option>
+              <option value="هفتم">پایه هفتم</option>
+              <option value="هشتم">پایه هشتم</option>
+              <option value="نهم">پایه نهم</option>
+              <option value="دهم">پایه دهم</option>
+              <option value="یازدهم">پایه یازدهم</option>
+              <option value="دوازدهم">پایه دوازدهم</option>
+            </select>
+
+            <select id="std-class" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 bg-white text-slate-700">
+              <option value="">انتخاب کلاس...</option>
+              <option value="۱">کلاس ۱</option>
+              <option value="۲">کلاس ۲</option>
+              <option value="۳">کلاس ۳</option>
+              <option value="۴">کلاس ۴</option>
+              <option value="۵">کلاس ۵</option>
+            </select>
+            <input type="text" id="std-father-phone" placeholder="شماره تماس پدر" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+            <input type="text" id="std-mother-phone" placeholder="شماره تماس مادر" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+            <button onclick="saveSingleStudent()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl py-2 transition shadow-sm">
+              ذخیره پرونده
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <h2 class="font-bold text-slate-800 text-xs mb-1">ورود گروهی با فایل Excel / CSV</h2>
+            <p class="text-[11px] text-slate-400 mb-2">پشتیبانی کامل از فایل‌های xlsx, xls, csv با هدر فارسی یا انگلیسی</p>
+          </div>
+          <div class="flex flex-wrap gap-2 mb-3">
+            <button type="button" onclick="downloadSampleFile('xlsx')" class="text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition">
+              دانلود نمونه Excel (xlsx)
+            </button>
+            <button type="button" onclick="downloadSampleFile('csv')" class="text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition">
+              دانلود نمونه CSV
+            </button>
+          </div>
+          <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="text-xs text-slate-500 mb-2 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+          <button onclick="handleBatchImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition shadow-sm">
+            آپلود و ثبت در دیتابیس
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 w-full">
+        <div class="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-100">
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-2">
+              <label class="text-xs font-bold text-slate-600">فیلتر پایه:</label>
+              <select id="filter-grade" onchange="onGradeFilterChanged()" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 min-w-[130px]">
+                <option value="">همه پایه‌ها</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="text-xs font-bold text-slate-600">کلاس:</label>
+              <select id="filter-classroom" onchange="loadStudentsList()" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 min-w-[130px]">
+                <option value="">همه کلاس‌ها</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="students-count-badge" class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">تعداد: ۰</span>
+            <button onclick="exportStudentsExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm">
+              <span>📊</span>
+              <span>خروجی اکسل (XLSX)</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto w-full">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-50 text-slate-500 border-b">
+              <tr>
+                <th class="p-3">کد ملی</th>
+                <th class="p-3">نام</th>
+                <th class="p-3">نام خانوادگی</th>
+                <th class="p-3">پایه</th>
+                <th class="p-3">کلاس</th>
+                <th class="p-3">تماس پدر</th>
+                <th class="p-3">تماس مادر</th>
+                <th class="p-3 text-left">عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="students-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- تب ۲: پرونده فردی -->
+    <section id="tab-content-individual" class="tab-content hidden space-y-5">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-end justify-between gap-4">
+        <div class="flex-1 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div class="max-w-md flex-1 space-y-2">
+            <label class="block text-xs font-bold text-slate-700">انتخاب پرونده دانش‌آموز:</label>
+            <div class="relative">
+              <input type="text" id="student-search-input" oninput="filterStudentDropdown(this.value)" placeholder="🔍 جستجوی زنده (نام، فامیل یا کدملی)..." class="w-full border border-slate-200 bg-white p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 shadow-sm transition">
+            </div>
+            <select id="student-select" onchange="onStudentSelectChanged()" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 font-medium">
+              <option value="">انتخاب پرونده...</option>
+            </select>
+          </div>
+
+          <div class="pb-1">
+            <button onclick="checkAndSyncPendingRoadmaps()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-sm flex items-center gap-2 whitespace-nowrap">
+              <span>🔄</span>
+              <span>به‌روزرسانی خودکار پرونده‌های تغییریافته</span>
+            </button>
+          </div>
+        </div>
+        
+        <button id="btn-generate-ai" onclick="generateNewRoadmapAnalysis()" class="hidden bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow transition flex items-center gap-1.5">
+          ✨ صدور کارنامه و تحلیل جدید هوش مصنوعی
+        </button>
+      </div>
+
+      <div id="sync-progress-box" class="hidden bg-indigo-50 border border-indigo-200 p-3.5 rounded-2xl space-y-2">
+        <div class="flex justify-between items-center text-xs font-bold text-slate-700">
+          <span id="sync-status-text">در حال بررسی...</span>
+          <span id="sync-status-count" class="font-mono text-indigo-600">۰ / ۰</span>
+        </div>
+        <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+          <div id="sync-progress-bar" class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div id="ai-history-card" class="hidden bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+        <h3 class="text-xs font-bold text-slate-800">📁 تاریخچه اسناد و تحلیل‌های صادرشده این پرونده:</h3>
+        <div id="history-container" class="flex flex-wrap gap-2 text-xs pt-1"></div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 font-bold text-xs text-slate-700">کارنامه اولویت‌بندی مهارت‌ها</div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-50 text-slate-500 border-b">
+              <tr>
+                <th class="p-3 w-16 text-center">اولویت</th>
+                <th class="p-3">عنوان مهارت</th>
+                <th class="p-3 w-20 text-center">امتیاز</th>
+                <th class="p-3 w-36 text-center">وضعیت استعداد</th>
+              </tr>
+            </thead>
+            <tbody id="student-report-results" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- تب ۳: مجاورت‌سازی ۲ هفته‌ای -->
+    <section id="tab-content-exposure" class="tab-content hidden space-y-5">
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b pb-3">
+          <div>
+            <h2 class="font-bold text-slate-800 text-sm">ارزیابی مجاورت‌سازی ۲ هفته‌ای مربی (تایید نقطه A به A1)</h2>
+            <p class="text-xs text-slate-400 mt-0.5">ثبت مشاهدات رفتاری، سرعت یادگیری، تاب‌آوری و چک‌لیست تخصصی مهارتی پس از تجربه عملی</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">انتخاب دانش‌آموز:</label>
+            <select id="exposure-student-select" onchange="loadExposureHistory(this.value)" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-emerald-600">
+              <option value="">انتخاب پرونده...</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">مهارت مورد آزمایش (کارگاه ۲ هفته‌ای):</label>
+            <select id="exposure-skill-select" onchange="loadCoachSpecializedQuestionsForExposure(this.value)" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-emerald-600">
+              <option value="">انتخاب مهارت...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ۳ معیار عمومی -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">۱. سرعت یادگیری و درک مفاهیم:</label>
+            <select id="exp-speed" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none">
+              <option value="کند">نیاز به تکرار زیاد (کند)</option>
+              <option value="متوسط" selected>عادی و متناسب با سن (متوسط)</option>
+              <option value="جهشی">درک بسیار سریع و پیش‌دستانه (جهشی)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">۲. تاب‌آوری در چالش و غر زدن:</label>
+            <select id="exp-resilience" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none">
+              <option value="شکننده">تسلیم سریع و اعتراض زیاد (شکننده)</option>
+              <option value="متوسط" selected>اعتراض کنترل‌شده با هدایت مربی</option>
+              <option value="مقاوم">سر سخت و مشتاق حل بن‌بست‌ها (مقاوم)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">۳. اشتیاق رفتاری خودانگیخته:</label>
+            <select id="exp-engagement" class="w-full border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none">
+              <option value="بی‌تفاوت">انجام مکانیکی صرفاً با دستور مربی</option>
+              <option value="همراه" selected>مشارکت خوب در فعالیت‌های کلاسی</option>
+              <option value="عمیق">غرقگی بالا و پیگیری فراتر از کلاس</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- بخش ۱۰ گویه تخصصی مربی (تولید شده با هوش مصنوعی) -->
+        <div class="bg-indigo-50/40 p-4 rounded-2xl border border-indigo-100 space-y-3">
+          <div class="flex items-center justify-between border-b border-indigo-100 pb-2">
+            <h4 class="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+              <span>⚙️</span>
+              <span>چک‌لیست ارزیابی تخصصی مربی (۱۰ گویه رشته‌ای):</span>
+            </h4>
+            <span class="text-[10px] text-indigo-600 bg-indigo-100 px-2.5 py-0.5 rounded-lg font-bold">استاندارد هوش مصنوعی و مجاورت‌سازی</span>
+          </div>
+          <div id="exposure-specialized-questions-container" class="space-y-3 max-h-80 overflow-y-auto p-1">
+            <p class="text-xs text-slate-400 text-center py-6">لطفاً ابتدا مهارت مورد آزمایش را انتخاب کنید تا گویه‌های تخصصی بارگذاری شوند.</p>
+          </div>
+        </div>
+
+        <!-- یادداشت کیفی و نتیجه نهایی -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">یادداشت کیفی مربی / مشاهدات عینی:</label>
+            <input type="text" id="exp-notes" placeholder="مثلاً: در مواجهه با خطای الگوریتم صبور بود و خودخواسته معما را ادامه داد..." class="w-full border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-emerald-600">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">نتیجه‌گیری دوره مجاورت‌سازی:</label>
+            <select id="exp-verdict" class="w-full border border-emerald-300 bg-emerald-50 text-emerald-800 p-2.5 rounded-xl text-xs font-bold outline-none">
+              <option value="تایید_استعداد_هدف">✅ تایید به عنوان استعداد قطعی (ورود به A1)</option>
+              <option value="نیازمند_تمدید_آزمایش">⏳ نیازمند دو هفته تمرین مکمل</option>
+              <option value="عدم_همخوانی_تغییر_مهارت">🔄 عدم همخوانی؛ چرخش به اولویت بعدی</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <button onclick="saveExposureTrial()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition shadow-sm">
+            ثبت نتیجه آزمایش مجاورت‌سازی
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 font-bold text-xs text-slate-700">سوابق آزمایش‌های مجاورت‌سازی این دانش‌آموز</div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-50 text-slate-500 border-b">
+              <tr>
+                <th class="p-3">تاریخ</th>
+                <th class="p-3">مهارت آزمایشی</th>
+                <th class="p-3">سرعت یادگیری</th>
+                <th class="p-3">تاب‌آوری</th>
+                <th class="p-3">اشتیاق</th>
+                <th class="p-3">نتیجه قطعی</th>
+                <th class="p-3">یادداشت مربی</th>
+                <th class="p-3 text-left">عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="exposure-history-body" class="divide-y divide-slate-100">
+              <tr><td colspan="8" class="p-4 text-center text-slate-400">ابتدا دانش‌آموز را انتخاب نمایید.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- تب ۴: غربالگری گروهی -->
+    <section id="tab-content-group" class="tab-content hidden space-y-5">
+      <!-- نمودارهای ثابت کلان مدرسه -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5" id="analytics-dashboard-section">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between mb-4 border-b pb-3">
+            <h3 class="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-2">
+              <span>📊</span> میانگین پروفایل هوش‌های چندگانه گاردنر در مدرسه
+            </h3>
+            <span class="text-[11px] px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full font-bold" id="gardner-total-badge">در حال دریافت...</span>
+          </div>
+          <div class="relative h-64 w-full">
+            <canvas id="gardnerBarChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between mb-4 border-b pb-3">
+            <h3 class="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-2">
+              <span>🧭</span> توزیع تیپ‌های رغبت‌سنجی هالند (RIASEC)
+            </h3>
+            <span class="text-[11px] px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full font-bold" id="holland-total-badge">در حال دریافت...</span>
+          </div>
+          <div class="relative h-64 w-full flex items-center justify-center">
+            <canvas id="hollandRadarChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- فیلتر مهارت و رتبه‌بندی -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-3">
+        <label class="text-xs font-bold text-slate-700">فیلتر مهارت:</label>
+        <select id="skill-filter-select" onchange="fetchSkillGroupReport(this.value)" class="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none min-w-[220px]">
+          <option value="">انتخاب مهارت...</option>
+        </select>
+      </div>
+
+      <!-- نمودارهای اختصاصی منتخبین مهارت انتخاب‌شده -->
+      <div id="skill-charts-container" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-indigo-100 bg-indigo-50/20">
+          <div class="flex items-center justify-between mb-4 border-b border-indigo-100 pb-3">
+            <h3 class="font-bold text-indigo-950 text-xs sm:text-sm flex items-center gap-2">
+              <span>🎯</span> گاردنر در منتخبین این مهارت
+            </h3>
+            <span class="text-[11px] px-2.5 py-1 bg-indigo-100 text-indigo-800 rounded-full font-bold" id="skill-gardner-badge">-</span>
+          </div>
+          <div class="relative h-64 w-full">
+            <canvas id="skillGardnerBarChart"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-emerald-100 bg-emerald-50/20">
+          <div class="flex items-center justify-between mb-4 border-b border-emerald-100 pb-3">
+            <h3 class="font-bold text-emerald-950 text-xs sm:text-sm flex items-center gap-2">
+              <span>🧭</span> تیپ غالب هالند منتخبین
+            </h3>
+            <span class="text-[11px] px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold" id="skill-holland-badge">-</span>
+          </div>
+          <div class="relative h-64 w-full flex items-center justify-center">
+            <canvas id="skillHollandRadarChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div id="skill-group-results" class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm"></div>
+    </section>
+<!-- تب ۵: مدیریت مهارت‌ها و سوالات -->
+    <section id="tab-content-manage" class="tab-content hidden space-y-5">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📊</span>
+          <div>
+            <h4 class="text-xs font-black text-slate-800">عملیات گروهی با اکسل</h4>
+            <p class="text-[10px] text-slate-400">دریافت فایل پشتیبان کامل یا بارگذاری یکباره مهارت‌ها و گویه‌ها</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="exportSkillsAndQuestionsToExcel()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm">
+            <span>📥 دانلود اکسل تمام سوالات</span>
+          </button>
+
+          <label class="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm cursor-pointer">
+            <span>📤 بارگذاری از اکسل</span>
+            <input type="file" id="excel-import-questions-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="importSkillsAndQuestionsFromExcel(event)">
+          </label>
+        </div>
+      </div>
+
+      <!-- بخش تعریف مهارت جدید و دکمه تکمیل هوشمند -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <h2 class="font-bold text-slate-800 text-sm mb-3">تعریف مهارت جدید</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          <input type="text" id="new-skill-slug" placeholder="شناسه انگلیسی (مثال: astronomy)" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          <input type="text" id="new-skill-title" placeholder="عنوان فارسی (مثال: نجوم و فضا)" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none">
+          
+          <select id="new-skill-category" class="border border-slate-200 p-2.5 rounded-xl text-xs bg-slate-50 outline-none font-bold text-slate-700">
+            <option value="investigative">کاوشگر / تحلیلی (I)</option>
+            <option value="artistic">هنری / خلاق (A)</option>
+            <option value="social">اجتماعی / ارتباطی (S)</option>
+            <option value="enterprising">متهور / رهبری (E)</option>
+            <option value="conventional">قراردادی / نظم‌گرا (C)</option>
+            <option value="realistic">واقع‌گرا / عملیاتی (R)</option>
+          </select>
+
+          <button onclick="createNewSkill()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold py-2.5 transition">ثبت مهارت (دستی)</button>
+          
+          <button type="button" onclick="generateSkillWithAI()" id="btn-ai-skill" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold px-3 py-2.5 rounded-xl transition shadow-sm flex items-center justify-center gap-1.5">
+            <span>✨</span>
+            <span>تولید ۱۵ گویه با AI</span>
+          </button>
+        </div>
+
+        <!-- دکمه تکمیل هوشمند گویه‌های ناقص -->
+        <div class="pt-2 border-t border-slate-100 flex justify-end">
+          <button type="button" onclick="syncMissingQuestionsWithAI()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5">
+            <span>⚡</span>
+            <span>تکمیل هوشمند گویه‌های ناقص با AI</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- بخش نمایش دو ستونۀ سوالات دانش‌آموز و مربی -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-700">مهارت فعال:</label>
+            <select id="manage-skill-select" onchange="loadQuestionsForAdmin(this.value)" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none"></select>
+          </div>
+          <button onclick="deleteSelectedSkill()" class="text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 px-3 py-1.5 rounded-lg transition">حذف این مهارت</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- ستون اول: گویه‌های دانش‌آموزی -->
+          <div class="space-y-2 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+            <h3 class="text-xs font-black text-indigo-950 mb-2 flex items-center gap-1.5">
+              <span>📋</span> گویه‌های تست دانش‌آموز:
+            </h3>
+            <div class="flex gap-2">
+              <input type="text" id="new-question-text" placeholder="متن گویه جدید دانش‌آموز..." class="flex-1 border border-slate-200 p-2 rounded-xl text-xs outline-none bg-white">
+              <button onclick="addQuestionToSkill()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 rounded-xl text-xs font-bold transition">افزودن +</button>
+            </div>
+            <div id="admin-questions-list" class="space-y-2 pt-1 max-h-72 overflow-y-auto"></div>
+          </div>
+
+          <!-- ستون دوم: گویه‌های تخصصی مربی (تشخیص نقطه A به A1) -->
+          <div class="space-y-2 bg-indigo-50/30 p-3 rounded-2xl border border-indigo-100">
+            <h3 class="text-xs font-black text-indigo-950 mb-2 flex items-center gap-1.5">
+              <span>⚙️</span> چک‌لیست ارزیابی تخصصی مربی (۱۰ گویه):
+            </h3>
+            <div class="text-[11px] text-slate-500 mb-2">این گویه‌ها مستقیماً برای ارزیابی عملکرد مربی در تب مجاورت‌سازی استفاده می‌شوند.</div>
+            <div id="admin-coach-questions-list" class="space-y-2 pt-1 max-h-72 overflow-y-auto"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- تب ۶: کادر و پرسنل مدرسه -->
+    <section id="tab-content-staff" class="tab-content hidden space-y-5">
+      <div id="add-staff-container" class="hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <h2 class="font-bold text-slate-800 text-xs">تعریف حساب کاربری جدید برای کادر مدرسه</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <input type="text" id="staff-name" placeholder="نام و نام خانوادگی (مثال: خانم علوی)" class="border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          <input type="text" id="staff-username" placeholder="نام کاربری انگلیسی (مثال: alavi)" class="border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          <input type="password" id="staff-password" placeholder="رمز عبور اولیه (حداقل ۵ رقم)" class="border p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600">
+          <select id="staff-role" class="border p-2.5 rounded-xl text-xs bg-slate-50 outline-none focus:border-indigo-600 font-bold">
+            <option value="counselor">مشاور تخصصی مدرسه</option>
+            <option value="principal">مدیر مدرسه</option>
+            <option value="vice_principal">معاون مدرسه</option>
+            <option value="expose_coach">مربی (Expose Coach)</option>
+          </select>
+        </div>
+        <button onclick="handleCreateStaff()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition">
+          ثبت و ایجاد دسترسی
+        </button>
+      </div>
+
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <h3 class="font-bold text-slate-800 text-xs">لیست کادر و نقش‌های فعال سامانه</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-50 text-slate-500 border-b">
+              <tr>
+                <th class="p-3">نام و نام خانوادگی</th>
+                <th class="p-3">نام کاربری</th>
+                <th class="p-3">نقش و سطح دسترسی</th>
+                <th class="p-3 text-left">عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="staff-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
 
   </div>
 
-  <!-- مودال‌ها -->
+  <!-- مودال نمایش نقشه راه و کارنامه -->
   <div id="roadmap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
-      <div class="p-5 bg-slate-50 border-b flex justify-between items-center no-print">
+      
+      <div class="p-5 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-3 no-print">
         <div>
           <h3 id="modal-title" class="font-bold text-indigo-950 text-base">کارنامه تحلیلی و نقشه رشد استعدادیابی</h3>
           <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5 font-mono"></p>
         </div>
         <div class="flex items-center gap-2">
-          <button id="btn-export-pdf" onclick="downloadDirectPDF()" class="bg-emerald-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold">ذخیره PDF</button>
-          <button onclick="window.print()" class="bg-indigo-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold">چاپ</button>
-          <button onclick="closeRoadmapModal()" class="text-slate-400 hover:text-slate-600 px-2 text-lg font-bold">✕</button>
+          <button id="btn-export-pdf" onclick="downloadDirectPDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+            <span>📥</span>
+            <span>ذخیره مستقیم PDF</span>
+          </button>
+          <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+            <span>🖨️</span>
+            <span>چاپ</span>
+          </button>
+          <button onclick="closeRoadmapModal()" class="text-slate-400 hover:text-slate-600 px-2 py-1 text-lg font-bold">✕</button>
         </div>
       </div>
-      <div id="pdf-printable-area" class="p-6 overflow-y-auto space-y-6 bg-white text-xs sm:text-sm">
-        <div class="print-header hidden justify-between pb-4 border-b-2 border-slate-800">
+
+      <div id="pdf-printable-area" class="p-6 overflow-y-auto space-y-6 text-xs sm:text-sm bg-white">
+        
+        <div class="print-header hidden justify-between items-center pb-4 border-b-2 border-slate-800 text-slate-900">
           <div>
             <h2 class="text-base font-black">دبستان تخصصی مهارت‌محور آپادانا</h2>
-            <p class="text-[11px] font-bold mt-1 text-slate-600">گزارش بالینی استعدادیابی و نقشه راه اختصاصی رشد</p>
+            <p class="text-[11px] font-bold mt-1 text-slate-600">گزارش بالینی استعدادیابی و نقشه راه اختصاصی رشد فردی (A به A1)</p>
           </div>
-          <div id="pdf-header-date" class="text-left text-[11px] font-mono"></div>
+          <div class="text-left text-[11px] font-mono leading-relaxed">
+            <div><strong>وضعیت سند:</strong> تحلیل رسمی هوش مصنوعی و تایید مشاور</div>
+            <div id="pdf-header-date"></div>
+          </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/70 p-4 rounded-2xl border">
-          <div class="bg-white p-4 rounded-xl border flex flex-col items-center"><canvas id="gardnerRadarChart" class="h-64"></canvas></div>
-          <div class="bg-white p-4 rounded-xl border flex flex-col items-center"><canvas id="reqBarChart" class="h-64"></canvas></div>
+
+        <div id="charts-wrapper" class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
+            <h4 class="font-bold text-slate-700 text-xs mb-3 text-center">🎯 پروفایل هوش‌های چندگانه (گاردنر)</h4>
+            <div class="w-full h-64 flex items-center justify-center">
+              <canvas id="gardnerRadarChart"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
+            <h4 class="font-bold text-slate-700 text-xs mb-3 text-center">⚡ شاخص‌های رفتاری و مهارتی برجسته (Requirements)</h4>
+            <div class="w-full h-64 flex items-center justify-center">
+              <canvas id="reqBarChart"></canvas>
+            </div>
+          </div>
         </div>
-        <div class="bg-white p-5 rounded-2xl border"><div id="modal-content" class="report-prose"></div></div>
+
+        <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h4 class="font-bold text-indigo-900 text-xs mb-3 pb-2 border-b border-slate-100 flex items-center gap-1.5 no-print">
+            <span>📋</span>
+            <span>گزارش بالینی و نقشه راه اختصاصی رشد (نقطه A به A1):</span>
+          </h4>
+          <div id="modal-content" class="report-prose text-slate-800 font-sans text-xs sm:text-sm"></div>
+        </div>
+
+        <div class="print-footer hidden justify-between items-end pt-10 mt-6 border-t border-slate-300 text-xs text-slate-700">
+          <div class="text-center space-y-10">
+            <p class="font-bold">امضای مشاور بالینی و استعدادیاب مدرسه</p>
+            <p class="text-[10px] text-slate-400">.....................................................</p>
+          </div>
+          <div class="text-center space-y-10">
+            <p class="font-bold">مهر و امضای مدیریت دبستان آپادانا</p>
+            <p class="text-[10px] text-slate-400">.....................................................</p>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
 
-  <!-- بارگذاری تب‌ها و اسکریپت‌ها به صورت هماهنگ -->
-<script>
-    async function loadPartialTabs() {
-      const tabs = ['students', 'individual', 'exposure', 'group', 'manage', 'staff'];
-      for (const t of tabs) {
-        try {
-          const res = await fetch(`components/admin/tab-${t}.html`);
-          if (res.ok) {
-            const html = await res.text();
-            document.getElementById(`tab-content-${t}`).innerHTML = html;
-          }
-        } catch (e) {
-          console.error(`Error loading tab-${t}:`, e);
-        }
-      }
-    }
+  <!-- مودال تغییر رمز -->
+  <div id="change-pass-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white p-6 rounded-3xl max-w-sm w-full space-y-4 shadow-xl border border-slate-100">
+      <h3 class="font-bold text-sm text-slate-800">تغییر رمز عبور حساب کاربری</h3>
+      <div class="space-y-2">
+        <input type="password" id="modal-old-pass" placeholder="رمز عبور فعلی" class="w-full border p-2.5 rounded-xl text-xs outline-none">
+        <input type="password" id="modal-new-pass" placeholder="رمز عبور جدید (حداقل ۵ رقم)" class="w-full border p-2.5 rounded-xl text-xs outline-none">
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="submitChangePassword()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-xl transition">
+          ذخیره رمز جدید
+        </button>
+        <button onclick="closeChangePassModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs px-4 py-2.5 rounded-xl transition">
+          انصراف
+        </button>
+      </div>
+    </div>
+  </div>
 
-    window.addEventListener('DOMContentLoaded', async () => {
-      await loadPartialTabs();
-      if (typeof checkAuthSession === 'function') {
-        checkAuthSession();
-      }
-    });
-  </script>
-  <!-- اسکریپت‌های ماژولار و اصلی پنل -->
-  <script src="js/admin/students.js"></script>
-  <script src="js/admin/individual.js"></script>
-  <script src="js/admin/exposure.js"></script>
-  <script src="js/admin/group.js"></script>
-  <script src="js/admin/skills.js"></script>
-  <script src="js/admin/staff.js"></script>
-  <script src="admin.js?v=11"></script>
+  <!-- مودال تست هوش مصنوعی -->
+  <div id="test-ai-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-6 border border-slate-100 space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <div class="flex items-center gap-2">
+          <span class="p-2 bg-emerald-100 text-emerald-700 rounded-xl text-lg">⚡</span>
+          <div>
+            <h3 class="font-black text-slate-800 text-sm">وضعیت و پایش ارتباط با Google Gemini</h3>
+            <p class="text-[11px] text-slate-400">بررسی سلامت کلیدها، پینگ ارتباط و شمارش مصرف توکن</p>
+          </div>
+        </div>
+        <button onclick="closeTestAiModal()" class="text-slate-400 hover:text-slate-700 text-xl font-bold">✕</button>
+      </div>
+
+      <div id="test-ai-results" class="space-y-2 max-h-[380px] overflow-y-auto pt-2"></div>
+
+      <div class="flex justify-between items-center pt-2 border-t">
+        <button onclick="runAiConnectionTest()" id="btn-retest-ai" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-md flex items-center gap-1.5">
+          🔄 اجرای مجدد تست
+        </button>
+        <button onclick="closeTestAiModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-4 py-2 rounded-xl transition">
+          بستن
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js?v=5"></script>
 </body>
 </html>
