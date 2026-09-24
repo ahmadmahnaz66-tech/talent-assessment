@@ -98,7 +98,8 @@ export async function onRequestGet(context) {
     if (type === "site") {
       query = "SELECT id, username, full_name, role, created_at, is_active FROM staff_users WHERE role IN ('super_admin', 'finance_admin', 'content_admin') ORDER BY id ASC";
     } else {
-      query = "SELECT id, username, full_name, role, created_at, is_active FROM staff_users WHERE role IN ('super_admin', 'counselor', 'principal', 'vice_principal') ORDER BY id ASC";
+      // اضافه شدن 'expose_coach' به این لیست
+      query = "SELECT id, username, full_name, role, created_at, is_active FROM staff_users WHERE role IN ('super_admin', 'counselor', 'principal', 'vice_principal', 'expose_coach') ORDER BY id ASC";
     }
 
     const { results } = await env.DB.prepare(query).all();
