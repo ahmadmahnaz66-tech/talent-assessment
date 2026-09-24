@@ -1,0 +1,99 @@
+<!-- components/admin/tab-students.html -->
+<section id="tab-content-students" class="tab-content space-y-4">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2 space-y-3">
+      <h2 class="font-bold text-slate-800 text-xs">ثبت / ویرایش سریع پرونده دانش‌آموز</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+        <input type="text" id="std-id" placeholder="کد ملی (الزامی)" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+        <input type="text" id="std-first-name" placeholder="نام" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+        <input type="text" id="std-last-name" placeholder="نام خانوادگی" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600">
+
+        <select id="std-grade" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 bg-white text-slate-700">
+          <option value="">انتخاب پایه...</option>
+          <option value="اول">پایه اول</option>
+          <option value="دوم">پایه دوم</option>
+          <option value="سوم">پایه سوم</option>
+          <option value="چهارم">پایه چهارم</option>
+          <option value="پنجم">پایه پنجم</option>
+          <option value="ششم">پایه ششم</option>
+        </select>
+
+        <select id="std-class" class="border border-slate-200 p-2.5 rounded-xl text-xs outline-none focus:border-indigo-600 bg-white text-slate-700">
+          <option value="">انتخاب کلاس...</option>
+          <option value="۱">کلاس ۱</option>
+          <option value="۲">کلاس ۲</option>
+          <option value="۳">کلاس ۳</option>
+          <option value="۴">کلاس ۴</option>
+          <option value="۵">کلاس ۵</option>
+        </select>
+        <input type="text" id="std-father-phone" placeholder="شماره تماس پدر" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+        <input type="text" id="std-mother-phone" placeholder="شماره تماس مادر" class="border p-2 rounded-xl text-xs outline-none focus:border-indigo-600 font-mono">
+        <button onclick="saveSingleStudent()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl py-2 transition shadow-sm">
+          ذخیره پرونده
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+      <div>
+        <h2 class="font-bold text-slate-800 text-xs mb-1">ورود گروهی با فایل Excel / CSV</h2>
+        <p class="text-[11px] text-slate-400 mb-2">پشتیبانی کامل از فایل‌های xlsx, xls, csv</p>
+      </div>
+      <div class="flex flex-wrap gap-2 mb-3">
+        <button type="button" onclick="downloadSampleFile('xlsx')" class="text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition">
+          دانلود نمونه Excel
+        </button>
+        <button type="button" onclick="downloadSampleFile('csv')" class="text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 rounded-lg transition">
+          دانلود نمونه CSV
+        </button>
+      </div>
+      <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="text-xs text-slate-500 mb-2">
+      <button onclick="handleBatchImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded-xl transition shadow-sm">
+        آپلود و ثبت در دیتابیس
+      </button>
+    </div>
+  </div>
+
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 w-full">
+    <div class="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-100">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-bold text-slate-600">فیلتر پایه:</label>
+          <select id="filter-grade" onchange="onGradeFilterChanged()" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none min-w-[130px]">
+            <option value="">همه پایه‌ها</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-bold text-slate-600">کلاس:</label>
+          <select id="filter-classroom" onchange="loadStudentsList()" class="border border-slate-200 p-2 rounded-xl text-xs bg-slate-50 outline-none min-w-[130px]">
+            <option value="">همه کلاس‌ها</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="students-count-badge" class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">تعداد: ۰</span>
+        <button onclick="exportStudentsExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm">
+          <span>📊</span> خروجی اکسل
+        </button>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto w-full">
+      <table class="w-full text-right text-xs">
+        <thead class="bg-slate-50 text-slate-500 border-b">
+          <tr>
+            <th class="p-3">کد ملی</th>
+            <th class="p-3">نام</th>
+            <th class="p-3">نام خانوادگی</th>
+            <th class="p-3">پایه</th>
+            <th class="p-3">کلاس</th>
+            <th class="p-3">تماس پدر</th>
+            <th class="p-3">تماس مادر</th>
+            <th class="p-3 text-left">عملیات</th>
+          </tr>
+        </thead>
+        <tbody id="students-table-body" class="divide-y divide-slate-100"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
