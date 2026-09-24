@@ -1,5 +1,5 @@
 // functions/api/private-tutor.js
-import { askGemini } from './_gemini.js';
+import { askGeminiWithHistory } from './_gemini.js';
 
 export async function onRequestPost(context) {
   try {
@@ -15,7 +15,7 @@ export async function onRequestPost(context) {
       });
     }
 
-    const { imageBase64, imageMimeType, userQuestion } = body;
+    const { history, imageBase64, imageMimeType, userQuestion } = body;
 
     if (!imageBase64 && !userQuestion) {
       return new Response(JSON.stringify({ success: false, error: 'لطفاً عکس یا سوال خود را ارسال کنید.' }), {
@@ -25,19 +25,16 @@ export async function onRequestPost(context) {
     }
 
     const systemPrompt = `تو یک معلم خصوصی و مشاور بسیار مهربان، صبور و باحوصله برای دانش‌آموزان در سایت «مهارت‌خانه» هستی. 
-    وظیفه تو این است که به جای دادن پاسخ مستقیم یا حل کردن کامل تمرین، به روش «سقراطی» عمل کنی:
-    1. عکس صفحه کتاب یا سوال را با دقت بررسی کن.
-    2. مفهوم را به زبانی بسیار ساده و ملموس توضیح بده.
-    3. یک مثال مابه‌ازای واقعی بزن.
-    4. در نهایت با طرح یک سوال راهنمایی‌کننده، از دانش‌آموز بخواه خودش بخش بعدی را حل کند و او را تشویق کن.
-    لحن کلامت دوستانه، گرم و تشویق‌کننده باشد.`;
+    وظیفه تو این است که به روش «سقراطی» عمل کنی:
+    1. تاریخچه گفتگو و مراحل قبلی را کاملاً به خاطر بسپار و بر اساس آن پیش برو.
+    2. به جای دادن پاسخ مستقیم یا حل کردن کامل تمرین، مفهوم را به زبانی ساده توضیح بده و با پرسیدن سوالات راهنمایی‌کننده و مثال‌های ملموس، دانش‌آموز را هدایت کن تا خودش به جواب برسد.
+    3. لحن کلامت دوستانه، گرم و تشویق‌کننده باشد.`;
 
-    const promptText = userQuestion ? `سوال دانش‌آموز: ${userQuestion}` : `لطفاً این تصویر از کتاب یا تمرین را بررسی کن و گام‌به‌گام به روش سقراطی به من یاد بده.`;
-
-    // فراخوانی تابع جمینای با پشتیبانی از تصویر و متن
-    const aiResponse = await askGemini(env, {
+    // فراخوانی تابع جدید که تاریخچه چت و تصویر را با هم مدیریت می‌کند
+    const aiResponse = await askGeminiWithHistory(env, {
       systemPrompt,
-      userPrompt: promptText,
+      history: history || [],
+      userQuestion,
       imageBase64,
       imageMimeType: imageMimeType || 'image/jpeg',
       temperature: 0.5,
