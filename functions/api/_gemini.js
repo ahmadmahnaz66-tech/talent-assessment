@@ -1,11 +1,11 @@
 // functions/api/_gemini.js
 
-// تابع قدیمی برای سازگاری با سایر بخش‌های سایت
+// تابع سازگار با بخش‌های قبلی سایت که از askGemini استفاده می‌کنند
 export async function askGemini(env, options) {
   return await askGeminiWithHistory(env, options);
 }
 
-// تابع جامع با پشتیبانی از تاریخچه، متن و تصویر
+// تابع جامع با پشتیبانی از تاریخچه مکالمات، متن و تصویر
 export async function askGeminiWithHistory(env, { systemPrompt = '', history = [], userQuestion, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.4, maxTokens = 5000 }) {
   if (!userQuestion && !imageBase64 && history.length === 0) {
     throw new Error('ارسال متن، تصویر یا تاریخچه گفتگو برای هوش مصنوعی الزامی است.');
