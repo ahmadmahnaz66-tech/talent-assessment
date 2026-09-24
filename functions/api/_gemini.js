@@ -26,8 +26,11 @@ export async function askGeminiWithHistory(env, { systemPrompt = '', history = [
     throw new Error('هیچ کلید معتبری برای هوش مصنوعی در سرور یافت نشد.');
   }
 
-  // اصلاح و اولویت‌بندی مدل‌های واقعی، استاندارد و بسیار سریع
-const model = 'gemini-2.5-flash';
+  // تعریف صحیح لیست مدل‌های معتبر بر اساس پنل شما
+  const models = [
+    'gemini-2.5-flash',
+    'gemini-3.5-flash'
+  ];
 
   let contents = [];
 
@@ -78,39 +81,31 @@ const model = 'gemini-2.5-flash';
   const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
   let lastError = '';
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    for (const key of shuffledKeys) {
-      for (const model of models) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-        try {
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': key
-            },
-            body: requestBody
-          });
+  for (const key of shuffledKeys) {
+    for (const model of models) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': key
+          },
+          body: requestBody
+        });
 
-          if (res.ok) {
-            const data = await res.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) return text;
-          }
-
-          const errText = await res.text();
-          lastError = errText;
-
-          if (res.status === 429 || res.status === 503) {
-            await new Promise(r => setTimeout(r, 1000));
-            continue;
-          }
-        } catch (err) {
-          lastError = err.message;
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) return text;
         }
+
+        const errText = await res.text();
+        lastError = errText;
+      } catch (err) {
+        lastError = err.message;
       }
     }
-    await new Promise(r => setTimeout(r, 1500));
   }
 
   throw new Error(`خطا در دریافت پاسخ هوش مصنوعی: ${lastError}`);
