@@ -19,7 +19,7 @@ function base64UrlDecode(str) {
 async function createToken(payload, secret = JWT_SECRET) {
   const enc = new TextEncoder();
   const header = { alg: "HS256", typ: "JWT" };
-  const exp = Math.floor(Date.now() / 1000) + 7 * 24 * 3600; // اعتبار ۷ روز
+  const exp = Math.floor(Date.now() / 1000) + 7 * 24 * 3600; // اعتبار ۷ روز[cite: 1]
   const tokenPayload = { ...payload, exp };
 
   const encodedHeader = base64UrlEncode(JSON.stringify(header));
@@ -74,7 +74,6 @@ async function verifyToken(token, secret = JWT_SECRET) {
   }
 }
 
-// خواندن اطلاعات کاربر از هدر Authorization یا توکن موجود در بادی
 async function getAuthUser(request, body) {
   let token = null;
   const authHeader = request.headers.get("Authorization");
@@ -98,7 +97,8 @@ export async function onRequestGet(context) {
     if (type === "site") {
       query = "SELECT id, username, full_name, role, created_at, is_active FROM staff_users WHERE role IN ('super_admin', 'finance_admin', 'content_admin') ORDER BY id ASC";
     } else {
-      query = "SELECT id, username, full_name, role, created_at, is_active FROM staff_users WHERE role IN ('super_admin', 'counselor', 'principal', 'vice_principal') ORDER BY id ASC";
+      // اضافه شدن 'expose_coach' به لیست نقش‌های مجاز کادر مدرسه[cite: 1]
+      query = "SELECT id, username, full_name, role, created_at, is_active FROM staff_users WHERE role IN ('super_admin', 'counselor', 'principal', 'vice_principal', 'expose_coach') ORDER BY id ASC";
     }
 
     const { results } = await env.DB.prepare(query).all();
@@ -116,7 +116,6 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { action } = body;
 
-    // استعلام کیف پول
     if (action === "get-wallet") {
       const { user_phone } = body;
       const cleanPhone = String(user_phone).trim();
@@ -130,7 +129,6 @@ export async function onRequestPost(context) {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۱. ورود پرسنل همراه با صدور توکن امضاشده
     if (action === "staff-login") {
       const { username, password } = body;
       const user = await env.DB.prepare(
@@ -157,7 +155,6 @@ export async function onRequestPost(context) {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۲. ثبت‌نام خودکار پرونده دانش‌آموز
     if (action === "student-register") {
       const { national_id, first_name, last_name, grade, classroom, father_phone, mother_phone, password } = body;
       const cleanId = String(national_id || "").trim();
@@ -202,7 +199,6 @@ export async function onRequestPost(context) {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ثبت‌نام کاربر آزاد در سایت مهارت‌خانه
     if (action === 'public-register' || action === 'user-register') {
       const { phone, full_name, password } = body;
       const cleanPhone = String(phone || '').trim();
@@ -246,7 +242,6 @@ export async function onRequestPost(context) {
       }), { headers: { 'Content-Type': 'application/json' } });
     }
     
-    // ۳. ورود دانش‌آموزان یا کاربران آزاد همراه با توکن
     if (action === "student-login") {
       const username = body.username || body.studentId;
       const { password } = body;
@@ -338,7 +333,6 @@ export async function onRequestPost(context) {
       }), { status: 404 });
     }
 
-    // ۴. تغییر رمز ورود اولیه توسط خود دانش‌آموز
     if (action === "change-student-password" || action === "complete-student-profile") {
       const { studentId, newPassword, national_id } = body;
       const cleanOldId = String(studentId).trim();
@@ -371,7 +365,6 @@ export async function onRequestPost(context) {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۵. تعیین رمز عبور دانش‌آموز توسط کادر مجاز مدرسه
     if (action === "set-student-password") {
       const authUser = await getAuthUser(request, body);
       const requesterRole = authUser ? authUser.role : body.requesterRole;
@@ -395,7 +388,6 @@ export async function onRequestPost(context) {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۶. ریست رمز دانش‌آموز
     if (action === "reset-student-password") {
       const authUser = await getAuthUser(request, body);
       const requesterRole = authUser ? authUser.role : body.requesterRole;
@@ -422,7 +414,6 @@ export async function onRequestPost(context) {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۷. افزودن پرسنل (اصلاح‌شده: پشتیبانی از توکن و نقش ارسالی)
     if (action === "add-staff") {
       const authUser = await getAuthUser(request, body);
       const currentRole = authUser ? authUser.role : body.requesterRole;
@@ -451,7 +442,6 @@ export async function onRequestPost(context) {
       });
     }
 
-    // ۸. تغییر رمز پرسنل
     if (action === "change-staff-password") {
       const { username, oldPassword, newPassword } = body;
       const user = await env.DB.prepare("SELECT id, password_hash FROM staff_users WHERE username = ?").bind(String(username).trim()).first();
@@ -463,7 +453,6 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true, message: "رمز عبور تغییر یافت." }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۹. حذف پرسنل (اصلاح‌شده: پشتیبانی از توکن و نقش ارسالی)
     if (action === "delete-staff") {
       const authUser = await getAuthUser(request, body);
       const currentRole = authUser ? authUser.role : body.requesterRole;
