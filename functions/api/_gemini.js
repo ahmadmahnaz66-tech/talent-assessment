@@ -1,8 +1,8 @@
 // functions/api/_gemini.js
 
-export async function askGemini(env, { systemPrompt = '', userPrompt, temperature = 0.4, maxTokens = 5000 }) {
-  if (!userPrompt) {
-    throw new Error('متن پرامپت ارسالی الزامی است.');
+export async function askGemini(env, { systemPrompt = '', userPrompt, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.4, maxTokens = 5000 }) {
+  if (!userPrompt && !imageBase64) {
+    throw new Error('ارسال متن یا تصویر برای هوش مصنوعی الزامی است.');
   }
 
   let apiKeys = [];
@@ -22,17 +22,34 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, temperatur
     throw new Error('هیچ کلید معتبری برای هوش مصنوعی در سرور یافت نشد.');
   }
 
-  // لیست مدل‌ها از پایدارترین و سریع‌ترین نسخه
+  // استفاده از مدل‌هایی که به خوبی از قابلیت Vision و پردازش تصویر پشتیبانی می‌کنند
   const models = [
     'gemini-1.5-flash',
     'gemini-1.5-pro',
-    'gemini-2.5-flash',
-    'gemini-3.6-flash'
+    'gemini-2.5-flash'
   ];
 
-  const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
+  // ساخت بخش‌های ارسالی به هوش مصنوعی (Parts)
+  const parts = [];
+  
+  // اگر سیستم پرامپت بود، آن را به عنوان راهنمای کلی یا متن اصلی اضافه می‌کنیم
+  const combinedPrompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
+  if (combinedPrompt) {
+    parts.push({ text: combinedPrompt });
+  }
+
+  // اگر عکس ارسال شده بود، آن را به درخواست اضافه می‌کنیم
+  if (imageBase64) {
+    parts.push({
+      inlineData: {
+        mimeType: imageMimeType,
+        data: imageBase64
+      }
+    });
+  }
+
   const requestBody = JSON.stringify({
-    contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+    contents: [{ role: 'user', parts: parts }],
     generationConfig: {
       temperature: temperature,
       maxOutputTokens: maxTokens
@@ -42,7 +59,7 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, temperatur
   const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
   let lastError = '';
 
-  // تلاش در چند دور (Retry Loop) برای عبور از خطاهای موقت ترافیک بالا (503)
+  // تلاش در چند دور (Retry Loop) برای عبور از خطاهای موقت ترافیک بالا (503 یا 429)
   for (let attempt = 1; attempt <= 2; attempt++) {
     for (const key of shuffledKeys) {
       for (const model of models) {
@@ -66,7 +83,6 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, temperatur
           const errText = await res.text();
           lastError = errText;
 
-          // اگر خطای محدودیت یا ترافیک بالا داد، کمی مکث کرده و به مدل/کلید بعدی می‌رویم
           if (res.status === 429 || res.status === 503) {
             await new Promise(r => setTimeout(r, 1500));
             continue;
@@ -76,9 +92,8 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, temperatur
         }
       }
     }
-    // مکث ۳ ثانیه‌ای بین دورهای تلاش مجدد
     await new Promise(r => setTimeout(r, 3000));
   }
 
-  throw new Error(`خطا در دریافت پاسخ هوش مصنوعی (سرورها با ترافیک بالا مواجه هستند): ${lastError}`);
+  throw new Error(`خطا در دریافت پاسخ هوش مصنوعی: ${lastError}`);
 }
