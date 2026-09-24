@@ -1,12 +1,10 @@
 // functions/api/_gemini.js
 
-// تابع سازگار با بخش‌های قبلی سایت که از askGemini استفاده می‌کنند
 export async function askGemini(env, options) {
   return await askGeminiWithHistory(env, options);
 }
 
-// تابع جامع با پشتیبانی از تاریخچه مکالمات، متن و تصویر
-export async function askGeminiWithHistory(env, { systemPrompt = '', history = [], userQuestion, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.4, maxTokens = 5000 }) {
+export async function askGeminiWithHistory(env, { systemPrompt = '', history = [], userQuestion, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.4, maxTokens = 2000 }) {
   if (!userQuestion && !imageBase64 && history.length === 0) {
     throw new Error('ارسال متن، تصویر یا تاریخچه گفتگو برای هوش مصنوعی الزامی است.');
   }
@@ -28,11 +26,11 @@ export async function askGeminiWithHistory(env, { systemPrompt = '', history = [
     throw new Error('هیچ کلید معتبری برای هوش مصنوعی در سرور یافت نشد.');
   }
 
+  // اصلاح و اولویت‌بندی مدل‌های واقعی، استاندارد و بسیار سریع
   const models = [
-    'gemini-3.6-flash',
+    'gemini-2.0-flash',
     'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-2.5-flash'
+    'gemini-1.5-pro'
   ];
 
   let contents = [];
@@ -108,7 +106,7 @@ export async function askGeminiWithHistory(env, { systemPrompt = '', history = [
           lastError = errText;
 
           if (res.status === 429 || res.status === 503) {
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 1000));
             continue;
           }
         } catch (err) {
@@ -116,7 +114,7 @@ export async function askGeminiWithHistory(env, { systemPrompt = '', history = [
         }
       }
     }
-    await new Promise(r => setTimeout(r, 3000));
+    await new Promise(r => setTimeout(r, 1500));
   }
 
   throw new Error(`خطا در دریافت پاسخ هوش مصنوعی: ${lastError}`);
