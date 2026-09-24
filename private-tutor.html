@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>معلم خصوصی هوشمند | مهارت‌خانه</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/misc/Farsi-Digits/Vazirmatn-FD-font-face.css">
+  <style>
+    body { font-family: 'Vazirmatn FD', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- هدر صفحه -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30">
+    <div class="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-black text-lg shadow-md">
+          👩‍🏫
+        </div>
+        <div>
+          <h1 class="text-sm sm:text-base font-black text-slate-900 leading-tight">معلم خصوصی هوشمند</h1>
+          <p class="text-[10px] text-slate-500 font-medium">پرسش، پاسخ و یادگیری گام‌به‌گام با روش سقراطی</p>
+        </div>
+      </div>
+      <a href="/" class="flex items-center gap-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl transition">
+        <span>← بازگشت به خانه</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- بخش اصلی چت و تعامل -->
+  <main class="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 flex flex-col h-[calc(100vh-4rem)]">
+    
+    <!-- کانتینر پیام‌ها -->
+    <div id="chat-container" class="flex-1 overflow-y-auto space-y-4 pr-1 pb-4">
+      <!-- پیام خوش‌آمدگویی اولیه -->
+      <div class="flex items-start gap-3">
+        <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shrink-0 shadow-sm">🤖</div>
+        <div class="bg-emerald-50 border border-emerald-100 text-emerald-950 p-4 rounded-2xl text-xs sm:text-sm leading-relaxed max-w-[85%] shadow-sm">
+          سلام دوست عزیزم! 🌸 
+          من معلم خصوصی تو در «مهارت‌خانه» هستم. از هر تمرین، مسئله یا بخشی از کتابت که متوجه نمی‌شوی عکس بفرست یا سوالت را بنویس تا با هم و قدم‌به‌قدم حلش کنیم!
+        </div>
+      </div>
+    </div>
+
+    <!-- پنل ورودی و آپلود تصویر -->
+    <div class="bg-white border border-slate-200 rounded-3xl p-3 shadow-lg mt-3 relative">
+      
+      <!-- پیش‌نمایش تصویر آپلود شده -->
+      <div id="preview-container" class="hidden mb-3 relative inline-block">
+        <img id="image-preview" src="" class="w-20 h-20 object-cover rounded-2xl border-2 border-emerald-500 shadow-sm" />
+        <button onclick="removeImage()" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center shadow-md font-bold hover:bg-rose-600 transition">✕</button>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- دکمه دوربین / گالری -->
+        <label class="cursor-pointer bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-600 p-3 rounded-2xl transition text-lg shrink-0 flex items-center justify-center border border-slate-200" title="آپلود عکس کتاب یا تمرین">
+          📷
+          <input type="file" id="image-input" accept="image/*" class="hidden" onchange="handleImageSelect(event)">
+        </label>
+
+        <!-- اینپوت متن سوال -->
+        <input type="text" id="user-question-input" placeholder="سوال خود را بنویسید (مثلاً: این مسئله ریاضی چطور حل میشه؟)..." class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs sm:text-sm outline-none focus:border-emerald-600 transition">
+
+        <!-- دکمه ارسال -->
+        <button onclick="sendUserMessage()" id="send-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm px-6 py-3 rounded-2xl transition shadow-md shadow-emerald-600/20 shrink-0 flex items-center gap-1.5">
+          <span>ارسال</span>
+          <span>📤</span>
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let base64Image = null;
+    let imageMimeType = 'image/jpeg';
+
+    function handleImageSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        imageMimeType = file.type;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64Full = e.target.result;
+          base64Image = base64Full.split(',')[1];
+          document.getElementById('image-preview').src = base64Full;
+          document.getElementById('preview-container').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function removeImage() {
+      base64Image = null;
+      document.getElementById('image-input').value = '';
+      document.getElementById('preview-container').classList.add('hidden');
+    }
+
+    async function sendUserMessage() {
+      const inputEl = document.getElementById('user-question-input');
+      const chatContainer = document.getElementById('chat-container');
+      const text = inputEl.value.trim();
+
+      if (!text && !base64Image) {
+        alert('لطفاً عکسی آپلود کنید یا سوال خود را بنویسید.');
+        return;
+      }
+
+      // نمایش پیام کاربر در صفحه
+      let userHtml = `
+        <div class="flex items-start gap-3 justify-end">
+          <div class="bg-indigo-600 text-white p-4 rounded-2xl text-xs sm:text-sm leading-relaxed max-w-[85%] shadow-sm space-y-2">
+      `;
+      if (base64Image) {
+        userHtml += `<img src="data:${imageMimeType};base64,${base64Image}" class="max-w-xs rounded-xl border border-indigo-400 shadow-sm">`;
+      }
+      if (text) {
+        userHtml += `<div>${text}</div>`;
+      }
+      userHtml += `</div>
+          <div class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm shrink-0 font-bold">👤</div>
+        </div>
+      `;
+
+      chatContainer.insertAdjacentHTML('beforeend', userHtml);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      const currentImage = base64Image;
+      const currentMime = imageMimeType;
+      
+      // پاکسازی فرم
+      inputEl.value = '';
+      removeImage();
+
+      // ایجاد باکس وضعیت در حال پردازش
+      const loadingId = 'loading-' + Date.now();
+      const loadingHtml = `
+        <div id="${loadingId}" class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shrink-0 shadow-sm">🤖</div>
+          <div class="bg-emerald-50 border border-emerald-100 text-emerald-800 p-4 rounded-2xl text-xs sm:text-sm animate-pulse">
+            معلم خصوصی در حال بررسی عکس و فکر کردن است... ⏳
+          </div>
+        </div>
+      `;
+      chatContainer.insertAdjacentHTML('beforeend', loadingHtml);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      try {
+        const response = await fetch('/api/private-tutor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: currentImage,
+            imageMimeType: currentMime,
+            userQuestion: text
+          })
+        });
+
+        const data = await response.json();
+        document.getElementById(loadingId).remove();
+
+        if (response.ok && data.success) {
+          const formattedReply = data.reply.replace(/\n/g, '<br>');
+          const botHtml = `
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shrink-0 shadow-sm">🤖</div>
+              <div class="bg-emerald-50 border border-emerald-100 text-emerald-950 p-4 rounded-2xl text-xs sm:text-sm leading-relaxed max-w-[85%] shadow-sm">
+                ${formattedReply}
+              </div>
+            </div>
+          `;
+          chatContainer.insertAdjacentHTML('beforeend', botHtml);
+        } else {
+          throw new Error(data.error || 'خطا در دریافت پاسخ از سرور');
+        }
+      } catch (err) {
+        document.getElementById(loadingId).remove();
+        const errHtml = `
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center text-sm shrink-0 shadow-sm">⚠️</div>
+            <div class="bg-rose-50 border border-rose-100 text-rose-900 p-4 rounded-2xl text-xs sm:text-sm">
+              متأسفانه خطایی رخ داد: ${err.message}
+            </div>
+          </div>
+        `;
+        chatContainer.insertAdjacentHTML('beforeend', errHtml);
+      }
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  </script>
+</body>
+</html>
