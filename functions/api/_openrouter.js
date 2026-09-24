@@ -7,8 +7,7 @@ export async function askOpenRouter(env, { systemPrompt = '', history = [], user
   }
 
   // انتخاب مدل پایدار که از تصویر و متن پشتیبانی کامل دارد
-const model = env.OPENROUTER_MODEL || 'google/gemini-flash-1.5';
-  
+const model = env.OPENROUTER_MODEL || 'deepseek/deepseek-chat';  
   let messages = [];
 
   if (systemPrompt) {
