@@ -1446,6 +1446,8 @@ async function loadStaffList() {
     const staffList = await res.json();
     const tbody = document.getElementById('staff-table-body');
 
+    if (!tbody) return;
+
     if (!staffList || staffList.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">هیچ پرسنلی یافت نشد.</td></tr>';
       return;
@@ -1455,7 +1457,7 @@ async function loadStaffList() {
 
     tbody.innerHTML = staffList.map(s => `
       <tr class="hover:bg-slate-50 transition">
-        <td class="p-3 font-bold text-slate-800">${s.full_name}</td>
+        <td class="p-3 font-bold text-slate-800">${s.full_name || s.username}</td>
         <td class="p-3 text-slate-600 font-mono">${s.username}</td>
         <td class="p-3"><span class="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-lg text-[11px] font-bold">${ROLE_NAMES[s.role] || s.role}</span></td>
         <td class="p-3 text-left">
