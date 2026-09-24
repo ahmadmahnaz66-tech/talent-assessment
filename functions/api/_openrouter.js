@@ -8,7 +8,7 @@ export async function askOpenRouter(env, { systemPrompt = '', history = [], user
   }
 
   // انتخاب مدل سریع و ارزان (مثلا Gemini Flash یا DeepSeek از طریق OpenRouter)
-const model = env.OPENROUTER_MODEL || 'deepseek/deepseek-chat';
+const model = env.OPENROUTER_MODEL || 'google/gemini-2.5-flash';
   // ساخت ساختار پیام‌ها برای فرمت استاندارد OpenAI/OpenRouter
   let messages = [];
 
