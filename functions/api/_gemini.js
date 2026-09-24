@@ -26,10 +26,10 @@ export async function askGeminiWithHistory(env, { systemPrompt = '', history = [
     throw new Error('هیچ کلید معتبری برای هوش مصنوعی در سرور یافت نشد.');
   }
 
-  // تعریف صحیح لیست مدل‌های معتبر بر اساس پنل شما
+  // استفاده از مدل‌های کاملاً پایدار و تست‌شده در لیست شما
   const models = [
     'gemini-2.5-flash',
-    'gemini-3.5-flash'
+    'gemini-flash-latest'
   ];
 
   let contents = [];
