@@ -16,9 +16,9 @@ export async function onRequestPost(context) {
 
     let aiResponse = '';
 
-    // انتخاب هوش مصنوعی بر اساس انتخاب کاربر (پیش‌فرض روی openrouter برای سرعت بالا)
-    if (provider === 'gemini') {
-      aiResponse = await askGeminiWithHistory(env, {
+    // پیش‌فرض را روی جمینای می‌گذاریم تا بدون مشکل و بدون نیاز به VPN کار کند
+    if (provider === 'openrouter') {
+      aiResponse = await askOpenRouter(env, {
         systemPrompt,
         history: history || [],
         userQuestion,
@@ -28,8 +28,7 @@ export async function onRequestPost(context) {
         maxTokens: 2000
       });
     } else {
-      // پیش‌فرض OpenRouter (سریع و بدون تایم‌اوت)
-      aiResponse = await askOpenRouter(env, {
+      aiResponse = await askGeminiWithHistory(env, {
         systemPrompt,
         history: history || [],
         userQuestion,
