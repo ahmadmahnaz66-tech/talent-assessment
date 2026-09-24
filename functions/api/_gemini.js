@@ -1,6 +1,16 @@
 // functions/api/_gemini.js
 
+// تابع قدیمی برای سازگاری با سایر بخش‌های سایت
+export async function askGemini(env, options) {
+  return await askGeminiWithHistory(env, options);
+}
+
+// تابع جامع با پشتیبانی از تاریخچه، متن و تصویر
 export async function askGeminiWithHistory(env, { systemPrompt = '', history = [], userQuestion, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.4, maxTokens = 5000 }) {
+  if (!userQuestion && !imageBase64 && history.length === 0) {
+    throw new Error('ارسال متن، تصویر یا تاریخچه گفتگو برای هوش مصنوعی الزامی است.');
+  }
+
   let apiKeys = [];
   if (env.GEMINI_API_KEYS) {
     apiKeys.push(...env.GEMINI_API_KEYS.split(',').map(k => k.trim()));
@@ -25,10 +35,8 @@ export async function askGeminiWithHistory(env, { systemPrompt = '', history = [
     'gemini-2.5-flash'
   ];
 
-  // ساخت ساختار محتوا شامل تاریخچه مکالمات قبلی
   let contents = [];
 
-  // اضافه کردن سیستم پرامپت به عنوان دستورالعمل اولیه
   if (systemPrompt) {
     contents.push({
       role: 'user',
@@ -40,14 +48,11 @@ export async function askGeminiWithHistory(env, { systemPrompt = '', history = [
     });
   }
 
-  // اضافه کردن تاریخچه چت‌های قبلی
   if (Array.isArray(history) && history.length > 0) {
-    // حذف آخرین پیام کاربر از تاریخچه چون پایین‌تر به صورت دستی همراه با عکس یا متن جدید اضافه می‌شود
     const cleanHistory = history.slice(0, -1);
     contents.push(...cleanHistory);
   }
 
-  // ساخت پیام جدید کاربر (همراه با عکس در صورت وجود)
   const currentParts = [];
   if (userQuestion) {
     currentParts.push({ text: userQuestion });
