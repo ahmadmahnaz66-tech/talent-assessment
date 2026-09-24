@@ -99,7 +99,7 @@
       document.getElementById('preview-container').classList.add('hidden');
     }
 
-    async function sendUserMessage() {
+async function sendUserMessage() {
       const inputEl = document.getElementById('user-question-input');
       const chatContainer = document.getElementById('chat-container');
       const text = inputEl.value.trim();
@@ -111,7 +111,7 @@
 
       // نمایش پیام کاربر در صفحه
       let userHtml = `
-        <div class="flex items-start gap-3 justify-end">
+        <div class="flex items-start gap-3 justify-end my-2">
           <div class="bg-indigo-600 text-white p-4 rounded-2xl text-xs sm:text-sm leading-relaxed max-w-[85%] shadow-sm space-y-2">
       `;
       if (base64Image) {
@@ -128,20 +128,30 @@
       chatContainer.insertAdjacentHTML('beforeend', userHtml);
       chatContainer.scrollTop = chatContainer.scrollHeight;
 
+      // جمع‌آوری تاریخچه مکالمات قبلی صفحه برای ارسال به هوش مصنوعی
+      const messageElements = chatContainer.querySelectorAll('.flex.items-start');
+      const history = [];
+      messageElements.forEach(el => {
+        const isUser = el.classList.contains('justify-end');
+        const textContent = el.querySelector('.rounded-2xl').innerText.trim();
+        history.push({
+          role: isUser ? 'user' : 'model',
+          parts: [{ text: textContent }]
+        });
+      });
+
       const currentImage = base64Image;
       const currentMime = imageMimeType;
       
-      // پاکسازی فرم
       inputEl.value = '';
       removeImage();
 
-      // ایجاد باکس وضعیت در حال پردازش
       const loadingId = 'loading-' + Date.now();
       const loadingHtml = `
-        <div id="${loadingId}" class="flex items-start gap-3">
+        <div id="${loadingId}" class="flex items-start gap-3 my-2">
           <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shrink-0 shadow-sm">🤖</div>
           <div class="bg-emerald-50 border border-emerald-100 text-emerald-800 p-4 rounded-2xl text-xs sm:text-sm animate-pulse">
-            معلم خصوصی در حال بررسی عکس و فکر کردن است... ⏳
+            معلم خصوصی در حال بررسی پاسخ توست... ⏳
           </div>
         </div>
       `;
@@ -153,6 +163,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            history: history, // ارسال تاریخچه کامل گفتگو
             imageBase64: currentImage,
             imageMimeType: currentMime,
             userQuestion: text
@@ -160,12 +171,13 @@
         });
 
         const data = await response.json();
-        document.getElementById(loadingId).remove();
+        const loadingElem = document.getElementById(loadingId);
+        if (loadingElem) loadingElem.remove();
 
         if (response.ok && data.success) {
-          const formattedReply = data.reply.replace(/\n/g, '<br>');
+          const formattedReply = (data.reply || '').replace(/\n/g, '<br>');
           const botHtml = `
-            <div class="flex items-start gap-3">
+            <div class="flex items-start gap-3 my-2">
               <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shrink-0 shadow-sm">🤖</div>
               <div class="bg-emerald-50 border border-emerald-100 text-emerald-950 p-4 rounded-2xl text-xs sm:text-sm leading-relaxed max-w-[85%] shadow-sm">
                 ${formattedReply}
@@ -174,19 +186,12 @@
           `;
           chatContainer.insertAdjacentHTML('beforeend', botHtml);
         } else {
-          throw new Error(data.error || 'خطا در دریافت پاسخ از سرور');
+          throw new Error(data.error || 'خطای سرور');
         }
       } catch (err) {
-        document.getElementById(loadingId).remove();
-        const errHtml = `
-          <div class="flex items-start gap-3">
-            <div class="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center text-sm shrink-0 shadow-sm">⚠️</div>
-            <div class="bg-rose-50 border border-rose-100 text-rose-900 p-4 rounded-2xl text-xs sm:text-sm">
-              متأسفانه خطایی رخ داد: ${err.message}
-            </div>
-          </div>
-        `;
-        chatContainer.insertAdjacentHTML('beforeend', errHtml);
+        const loadingElem = document.getElementById(loadingId);
+        if (loadingElem) loadingElem.remove();
+        chatContainer.insertAdjacentHTML('beforeend', `<div class="p-3 bg-rose-50 text-rose-800 rounded-xl text-xs">خطا: ${err.message}</div>`);
       }
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
