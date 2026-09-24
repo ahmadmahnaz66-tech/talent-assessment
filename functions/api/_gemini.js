@@ -22,8 +22,9 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, imageBase6
     throw new Error('هیچ کلید معتبری برای هوش مصنوعی در سرور یافت نشد.');
   }
 
-  // استفاده از مدل‌هایی که به خوبی از قابلیت Vision و پردازش تصویر پشتیبانی می‌کنند
+  // هماهنگ‌سازی با مدل تست‌شده و فعال در پنل ادمین
   const models = [
+    'gemini-3.6-flash',
     'gemini-1.5-flash',
     'gemini-1.5-pro',
     'gemini-2.5-flash'
@@ -32,13 +33,11 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, imageBase6
   // ساخت بخش‌های ارسالی به هوش مصنوعی (Parts)
   const parts = [];
   
-  // اگر سیستم پرامپت بود، آن را به عنوان راهنمای کلی یا متن اصلی اضافه می‌کنیم
   const combinedPrompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
   if (combinedPrompt) {
     parts.push({ text: combinedPrompt });
   }
 
-  // اگر عکس ارسال شده بود، آن را به درخواست اضافه می‌کنیم
   if (imageBase64) {
     parts.push({
       inlineData: {
@@ -59,7 +58,6 @@ export async function askGemini(env, { systemPrompt = '', userPrompt, imageBase6
   const shuffledKeys = [...apiKeys].sort(() => Math.random() - 0.5);
   let lastError = '';
 
-  // تلاش در چند دور (Retry Loop) برای عبور از خطاهای موقت ترافیک بالا (503 یا 429)
   for (let attempt = 1; attempt <= 2; attempt++) {
     for (const key of shuffledKeys) {
       for (const model of models) {
