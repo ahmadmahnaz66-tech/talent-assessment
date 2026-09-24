@@ -1,38 +1,78 @@
 // functions/api/_openrouter.js
 
-export async function askOpenRouter(env, { systemPrompt = '', userPrompt, temperature = 0.3 }) {
-  const apiKey = env.OPENROUTER_API_KEY || env.DEEPSEEK_API_KEY;
+export async function askOpenRouter(env, { systemPrompt = '', history = [], userQuestion, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.5, maxTokens = 2000 }) {
+  // خواندن کلید OpenRouter از متغیرهای محیطی کلادفلر
+  const apiKey = env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    throw new Error('کلید API اوپن‌روتر یافت نشد.');
+    throw new Error('کلید API برای OpenRouter در تنظیمات سرور (Environment Variables) تعریف نشده است.');
   }
 
-  // استفاده از یکی از مدل‌های رایگان و پایدار متن‌باز روی OpenRouter
+  // انتخاب مدل سریع و ارزان (مثلا Gemini Flash یا DeepSeek از طریق OpenRouter)
+  const model = env.OPENROUTER_MODEL || 'google/gemini-flash-1.5';
+
+  // ساخت ساختار پیام‌ها برای فرمت استاندارد OpenAI/OpenRouter
+  let messages = [];
+
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+
+  // اضافه کردن تاریخچه چت
+  if (Array.isArray(history) && history.length > 0) {
+    const cleanHistory = history.slice(0, -1);
+    cleanHistory.forEach(h => {
+      messages.push({
+        role: h.role === 'model' ? 'assistant' : 'user',
+        content: h.parts?.[0]?.text || ''
+      });
+    });
+  }
+
+  // ساخت پیام جدید کاربر (پشتیبانی از متن و تصویر با فرمت Data URI)
+  let userContent = [];
+  if (userQuestion) {
+    userContent.push({ type: 'text', text: userQuestion });
+  }
+  if (imageBase64) {
+    userContent.push({
+      type: 'image_url',
+      image_url: {
+        url: `data:${imageMimeType};base64,${imageBase64}`
+      }
+    });
+  }
+
+  messages.push({
+    role: 'user',
+    content: userContent.length === 1 && userContent[0].type === 'text' ? userContent[0].text : userContent
+  });
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey.trim()}`,
-      'HTTP-Referer': 'https://mahatkhanema.ir', // اختیاری برای شناسایی سایت
-      'X-Title': 'Mahatkhanema'
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://www.maharatkhanema.ir', // اختیاری برای شناسایی سایت در OpenRouter
+      'X-Title': 'Maharatkhaneh Tutor',
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'meta-llama/llama-3-8b-instruct:free', // مدل کاملاً رایگان و پرسرعت
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: temperature
+      model: model,
+      messages: messages,
+      temperature: temperature,
+      max_tokens: maxTokens
     })
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`خطا از سوی اوپن‌روتر: ${errText}`);
+    throw new Error(`خطا از OpenRouter: ${errText}`);
   }
 
   const data = await response.json();
-  const rawResponse = data.choices?.[0]?.message?.content;
-  if (!rawResponse) throw new Error('پاسخی از اوپن‌روتر دریافت نشد.');
+  const reply = data.choices?.[0]?.message?.content;
+  if (!reply) {
+    throw new Error('پاسخی از OpenRouter دریافت نشد.');
+  }
 
-  return rawResponse;
+  return reply;
 }
