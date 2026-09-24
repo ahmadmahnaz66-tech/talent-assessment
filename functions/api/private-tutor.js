@@ -4,6 +4,7 @@ import { askGemini } from './_gemini.js';
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
+    
     let body;
     try {
       body = await request.json();
@@ -33,6 +34,7 @@ export async function onRequestPost(context) {
 
     const promptText = userQuestion ? `سوال دانش‌آموز: ${userQuestion}` : `لطفاً این تصویر از کتاب یا تمرین را بررسی کن و گام‌به‌گام به روش سقراطی به من یاد بده.`;
 
+    // فراخوانی تابع جمینای با پشتیبانی از تصویر و متن
     const aiResponse = await askGemini(env, {
       systemPrompt,
       userPrompt: promptText,
@@ -43,6 +45,7 @@ export async function onRequestPost(context) {
     });
 
     return new Response(JSON.stringify({ success: true, reply: aiResponse }), {
+      status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
 
