@@ -1,8 +1,16 @@
 // js/admin/students.js
 
 async function loadStudentsList() {
-  const grade = document.getElementById('filter-grade').value;
-  const classroom = document.getElementById('filter-classroom').value;
+  const gradeEl = document.getElementById('filter-grade');
+  const classroomEl = document.getElementById('filter-classroom');
+
+  // اگر هنوز قالب تب دانش‌آموزان به DOM تزریق نشده است، اجرای تابع متوقف شود
+  if (!gradeEl || !classroomEl) {
+    return;
+  }
+
+  const grade = gradeEl.value;
+  const classroom = classroomEl.value;
 
   try {
     const res = await fetch(`/api/students?grade=${encodeURIComponent(grade)}&classroom=${encodeURIComponent(classroom)}`);
