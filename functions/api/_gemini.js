@@ -27,10 +27,7 @@ export async function askGeminiWithHistory(env, { systemPrompt = '', history = [
   }
 
   // اصلاح و اولویت‌بندی مدل‌های واقعی، استاندارد و بسیار سریع
-const models = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
-  ];
+const model = 'gemini-2.5-flash';
 
   let contents = [];
 
