@@ -124,6 +124,7 @@
 
   <!-- بارگذاری تب‌ها و اسکریپت‌ها به صورت هماهنگ -->
   <script>
+<script>
     async function loadPartialTabs() {
       const tabs = ['students', 'individual', 'exposure', 'group', 'manage', 'staff'];
       for (const t of tabs) {
@@ -139,18 +140,23 @@
       }
     }
 
+    // اول تب‌ها را به طور کامل لود می‌کنیم، سپس اجازه می‌دهیم اسکریپت‌های اصلی اجرا شوند
     window.addEventListener('DOMContentLoaded', async () => {
       await loadPartialTabs();
+      // پس از لود شدن کامل HTML تب‌ها، اگر تابع بررسی نشست وجود داشت آن را صدا می‌زنیم
+      if (typeof checkAuthSession === 'function') {
+        checkAuthSession();
+      }
     });
   </script>
 
-  <!-- اسکریپت‌های ماژولار و اصلی به صورت تگ‌های استاندارد -->
+  <!-- اسکریپت‌های ماژولار و اصلی -->
   <script src="js/admin/students.js"></script>
   <script src="js/admin/individual.js"></script>
   <script src="js/admin/exposure.js"></script>
   <script src="js/admin/group.js"></script>
   <script src="js/admin/skills.js"></script>
   <script src="js/admin/staff.js"></script>
-  <script src="admin.js?v=8"></script>
+  <script src="admin.js?v=9"></script>
 </body>
 </html>
