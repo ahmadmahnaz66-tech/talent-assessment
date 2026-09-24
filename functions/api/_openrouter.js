@@ -7,8 +7,8 @@ export async function askOpenRouter(env, { systemPrompt = '', history = [], user
   }
 
   // انتخاب مدل پایدار که از تصویر و متن پشتیبانی کامل دارد
-  const model = env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-exp:free';
-
+const model = env.OPENROUTER_MODEL || 'google/gemini-flash-1.5';
+  
   let messages = [];
 
   if (systemPrompt) {
