@@ -4,11 +4,20 @@ import { askGemini } from './_gemini.js';
 export async function onRequestPost(context) {
   try {
     const { request, env } = context;
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      return new Response(JSON.stringify({ success: false, error: 'فرمت داده‌های ارسالی نامعتبر است.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const { imageBase64, imageMimeType, userQuestion } = body;
 
     if (!imageBase64 && !userQuestion) {
-      return new Response(JSON.stringify({ error: 'لطفاً عکس یا سوال خود را ارسال کنید.' }), {
+      return new Response(JSON.stringify({ success: false, error: 'لطفاً عکس یا سوال خود را ارسال کنید.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -38,7 +47,7 @@ export async function onRequestPost(context) {
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, error: err.message }), {
+    return new Response(JSON.stringify({ success: false, error: err.message || 'خطای ناشناخته در سرور' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
