@@ -1054,22 +1054,34 @@ async function loadSettings() {
         setupRoleUI();
       }
     });
-    async function loadTutorLogs() {
+async function loadTutorLogs() {
   const tbody = document.getElementById('tutor-logs-tbody');
   tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-400">در حال بارگذاری لاگ‌ها...</td></tr>';
   
   try {
     const res = await fetch('/api/content-manager?type=tutor-logs');
-    const logs = await res.json();
+    const allItems = await res.json();
     
-    if (!Array.isArray(logs) || logs.length === 0) {
+    if (!Array.isArray(allItems)) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">خطا در دریافت اطلاعات.</td></tr>';
+      return;
+    }
+
+    // فیلتر کردن فقط مواردی که مربوط به معلم خصوصی هستند
+    const logs = allItems.filter(item => item.skill_slug === 'private-tutor');
+
+    if (logs.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">هنوز گفتگویی با معلم خصوصی ثبت نشده است.</td></tr>';
       return;
     }
 
     tbody.innerHTML = logs.map(item => {
       let details = {};
-      try { details = JSON.parse(item.answers || '{}'); } catch(e) {}
+      try { 
+        details = JSON.parse(item.answers || '{}'); 
+      } catch(e) {
+        details = { question: item.answers, response: '-' };
+      }
       
       return `
         <tr class="hover:bg-slate-50 transition align-top">
