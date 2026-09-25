@@ -11,12 +11,12 @@ export async function onRequestGet(context) {
       });
     }
 
-    // استعلام برای دریافت نام تمام جدول‌های دیتابیس
+    // استعلام از جدول responses برای بررسی ساختار و داده‌ها
     const { results } = await env.DB.prepare(
-      "SELECT name FROM sqlite_master WHERE type='table';"
+      "SELECT * FROM responses ORDER BY id DESC LIMIT 5"
     ).all();
 
-    return new Response(JSON.stringify({ success: true, tables: results }, null, 2), {
+    return new Response(JSON.stringify({ success: true, data: results }, null, 2), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
