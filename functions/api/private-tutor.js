@@ -1,4 +1,3 @@
-// functions/api/private-tutor.js
 import { askGeminiWithHistory } from './_gemini.js';
 import { askOpenRouter } from './_openrouter.js';
 
@@ -39,35 +38,22 @@ export async function onRequestPost(context) {
     }
 
     if (!env.DB) {
-      return new Response(JSON.stringify({ success: false, error: "دیتابیس متصل نیست (env.DB تعریف نشده است)" }), {
+      return new Response(JSON.stringify({ success: false, error: "دیتابیس متصل نیست" }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    try {
-      // استفاده از شناسه واقعی کاربر به همراه زمان دقیق برای جلوگیری از خطای UNIQUE constraint
-      const finalStudentId = studentId ? `${studentId}` : 'guest_2000';
-      const uniqueSkillSlug = `private-tutor_${Date.now()}`;
-
-      await env.DB.prepare(
-        "INSERT INTO responses (student_id, skill_slug, answers, total_score, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
-      ).bind(
-        finalStudentId,
-        uniqueSkillSlug,
-        JSON.stringify({ 
-          question: userQuestion || '[ارسال تصویر]', 
-          response: aiResponse, 
-          provider: provider || 'gemini' 
-        }),
-        0
-      ).run();
-    } catch (dbErr) {
-      return new Response(JSON.stringify({ success: false, error: "خطا در ثبت دیتابیس: " + dbErr.message }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+    // ثبت در جدول اختصاصی چت‌ها بدون هیچ‌گونه خطای تکراری‌بودن
+    await env.DB.prepare(
+      `INSERT INTO tutor_conversations (student_id, message, response, provider, created_at) 
+       VALUES (?, ?, ?, ?, datetime('now'))`
+    ).bind(
+      studentId || 'guest_user',
+      userQuestion || '[ارسال تصویر]',
+      aiResponse,
+      provider || 'gemini'
+    ).run();
 
     return new Response(JSON.stringify({ success: true, reply: aiResponse }), {
       status: 200,
@@ -75,7 +61,7 @@ export async function onRequestPost(context) {
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, error: err.message || 'خطای ناشناخته در سرور' }), {
+    return new Response(JSON.stringify({ success: false, error: err.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
