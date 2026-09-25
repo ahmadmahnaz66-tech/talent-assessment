@@ -81,65 +81,66 @@ export async function onRequestPost(context) {
 
     if (action === "site-admin-login") {
       const { username, password } = body;
-      const user = await env.DB.prepare(
-        "SELECT id, username, full_name, role, password_hash, is_active FROM site_admins WHERE username = ?"
-      ).bind(String(username).trim()).first();
-
-      if (!user || user.password_hash !== String(password).trim()) {
-        return new Response(JSON.stringify({ success: false, error: "نام کاربری یا رمز عبور سایت نادرست است." }), { status: 401 });
-      }
+      const user = await env.DB.prepare("SELECT id, username, full_name, role, password_hash, is_active FROM site_admins WHERE username = ?").bind(String(username).trim()).first();
+      if (!user || user.password_hash !== String(password).trim()) return new Response(JSON.stringify({ success: false, error: "نام کاربری یا رمز عبور سایت نادرست است." }), { status: 401 });
       if (user.is_active === 0) return new Response(JSON.stringify({ success: false, error: "حساب شما غیرفعال است." }), { status: 403 });
-
       await env.DB.prepare("UPDATE site_admins SET last_login = CURRENT_TIMESTAMP WHERE id = ?").bind(user.id).run();
       const userPayload = { id: user.id, username: user.username, fullName: user.full_name, role: user.role, portal: 'site' };
       const token = await createToken(userPayload);
-
       return new Response(JSON.stringify({ success: true, token, user: userPayload }), { headers: { "Content-Type": "application/json" } });
     }
 
     if (action === "add-site-admin") {
       const authUser = await getAuthUser(request, body);
       const currentRole = authUser ? authUser.role : body.requesterRole;
-
       if (currentRole !== "super_admin") return new Response(JSON.stringify({ error: "فقط مدیر ارشد سایت مجاز است." }), { status: 403 });
-
       const { full_name, username, password, role } = body;
       const existing = await env.DB.prepare("SELECT id FROM site_admins WHERE username = ?").bind(username.trim()).first();
       if (existing) return new Response(JSON.stringify({ error: "این نام کاربری قبلاً ثبت شده است." }), { status: 409 });
-
-      await env.DB.prepare("INSERT INTO site_admins (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)")
-        .bind(username.trim(), password.trim(), full_name.trim(), role).run();
-
+      await env.DB.prepare("INSERT INTO site_admins (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)").bind(username.trim(), password.trim(), full_name.trim(), role).run();
       return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
     }
 
     if (action === "delete-site-admin") {
       const authUser = await getAuthUser(request, body);
       const currentRole = authUser ? authUser.role : body.requesterRole;
-
       if (currentRole !== "super_admin") return new Response(JSON.stringify({ error: "عدم دسترسی مجاز." }), { status: 403 });
-
       await env.DB.prepare("DELETE FROM site_admins WHERE id = ?").bind(Number(body.staffId)).run();
       return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
     }
 
-    if (action === "site-user-register") {
-      const { phone, full_name, password } = body;
+    // ۱. درخواست صدور کد تلگرام
+    if (action === "request-otp") {
+      const { phone } = body;
       const cleanPhone = String(phone || '').trim();
-      const cleanPass = String(password || '').trim();
-
-      if (!cleanPhone || !cleanPass) {
-        return new Response(JSON.stringify({ error: 'شماره موبایل و رمز عبور الزامی است.' }), { status: 400 });
-      }
+      if (!cleanPhone) return new Response(JSON.stringify({ error: 'شماره موبایل الزامی است.' }), { status: 400 });
 
       const existing = await env.DB.prepare("SELECT id FROM site_students WHERE phone = ?").bind(cleanPhone).first();
-      if (existing) {
-        return new Response(JSON.stringify({ error: 'حسابی با این شماره موبایل قبلاً ایجاد شده است.' }), { status: 409 });
+      if (existing) return new Response(JSON.stringify({ error: 'این شماره موبایل قبلاً ثبت شده است.' }), { status: 409 });
+
+      const otpCode = Math.floor(10000 + Math.random() * 90000).toString(); // تولید کد ۵ رقمی
+      await env.DB.prepare("INSERT OR REPLACE INTO site_otps (phone, code, expires_at) VALUES (?, ?, datetime('now', '+5 minutes'))").bind(cleanPhone, otpCode).run();
+
+      return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // ۲. تکمیل ثبت‌نام با کد تایید
+    if (action === "site-user-register") {
+      const { phone, full_name, password, otp } = body;
+      const cleanPhone = String(phone || '').trim();
+      const cleanPass = String(password || '').trim();
+      const cleanOtp = String(otp || '').trim();
+
+      if (!cleanPhone || !cleanPass || !cleanOtp) return new Response(JSON.stringify({ error: 'تمام فیلدها و کد تایید الزامی است.' }), { status: 400 });
+
+      // بررسی صحت کد تایید
+      const otpRecord = await env.DB.prepare("SELECT code FROM site_otps WHERE phone = ? AND expires_at > datetime('now')").bind(cleanPhone).first();
+      if (!otpRecord || otpRecord.code !== cleanOtp) {
+        return new Response(JSON.stringify({ error: 'کد تایید نامعتبر است یا منقضی شده.' }), { status: 400 });
       }
 
-      await env.DB.prepare(
-        "INSERT INTO site_students (phone, full_name, password_hash, wallet_balance) VALUES (?, ?, ?, 0)"
-      ).bind(cleanPhone, full_name || 'کاربر سایت', cleanPass).run();
+      await env.DB.prepare("INSERT INTO site_students (phone, full_name, password_hash, wallet_balance) VALUES (?, ?, ?, 0)").bind(cleanPhone, full_name || 'کاربر سایت', cleanPass).run();
+      await env.DB.prepare("DELETE FROM site_otps WHERE phone = ?").bind(cleanPhone).run(); // حذف کد پس از استفاده
 
       const pubPayload = { id: cleanPhone, username: cleanPhone, fullName: full_name || 'کاربر سایت', role: 'public', portal: 'site' };
       const token = await createToken(pubPayload);
@@ -150,16 +151,10 @@ export async function onRequestPost(context) {
     if (action === "site-user-login") {
       const { phone, password } = body;
       const cleanPhone = String(phone || '').trim();
-      
       const user = await env.DB.prepare("SELECT id, phone, full_name, password_hash, wallet_balance FROM site_students WHERE phone = ?").bind(cleanPhone).first();
-      
-      if (!user || user.password_hash !== String(password).trim()) {
-        return new Response(JSON.stringify({ error: "شماره موبایل یا رمز عبور نادرست است." }), { status: 401 });
-      }
-
+      if (!user || user.password_hash !== String(password).trim()) return new Response(JSON.stringify({ error: "شماره موبایل یا رمز عبور نادرست است." }), { status: 401 });
       const pubPayload = { id: user.phone, username: user.phone, fullName: user.full_name, role: 'public', portal: 'site', wallet_balance: user.wallet_balance };
       const token = await createToken(pubPayload);
-
       return new Response(JSON.stringify({ success: true, token, user: pubPayload }), { headers: { 'Content-Type': 'application/json' } });
     }
 
