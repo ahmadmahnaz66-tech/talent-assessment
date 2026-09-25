@@ -14,9 +14,10 @@ export async function onRequestGet(context) {
     }
 
     // ۱. دریافت لاگ‌های معلم خصوصی برای پنل ادمین
-    if (type === 'tutor-logs') {
+ if (type === 'tutor-logs') {
+      // موقتاً همه رکوردها را بدون فیلتر اسلاگ می‌گیریم تا ببینیم اصلا چیزی ثبت شده یا نه
       const { results } = await env.DB.prepare(
-        "SELECT * FROM responses WHERE skill_slug = 'private-tutor' ORDER BY id DESC LIMIT 50"
+        "SELECT * FROM responses ORDER BY id DESC LIMIT 20"
       ).all();
 
       return new Response(JSON.stringify(results), {
