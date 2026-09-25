@@ -1,5 +1,4 @@
 // functions/api/test-db.js
-
 export async function onRequestGet(context) {
   try {
     const { env } = context;
@@ -11,9 +10,9 @@ export async function onRequestGet(context) {
       });
     }
 
-    // استعلام از جدول responses برای بررسی ساختار و داده‌ها
+    // استعلام از جدول جدیدِ چت‌ها (tutor_conversations)
     const { results } = await env.DB.prepare(
-      "SELECT * FROM responses ORDER BY id DESC LIMIT 5"
+      "SELECT * FROM tutor_conversations ORDER BY id DESC LIMIT 5"
     ).all();
 
     return new Response(JSON.stringify({ success: true, data: results }, null, 2), {
