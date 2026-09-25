@@ -484,26 +484,27 @@
       }
     }
 
-    function switchMainTab(tab) {
-      const tabs = ['staff', 'finance', 'content'];
-      tabs.forEach(t => {
-        const btn = document.getElementById(`tab-${t}-btn`);
-        const sec = document.getElementById(`section-${t}`);
-        if (!btn || !sec) return;
+function switchMainTab(tab) {
+  const tabs = ['staff', 'finance', 'content', 'tutor_logs']; // اضافه شدن tutor_logs
+  tabs.forEach(t => {
+    const btn = document.getElementById(`tab-${t}-btn`);
+    const sec = document.getElementById(`section-${t}`);
+    if (!btn || !sec) return;
 
-        if (t === tab) {
-          btn.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition';
-          sec.style.display = (t === 'staff') ? 'grid' : 'block';
-        } else {
-          btn.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition';
-          sec.style.display = 'none';
-        }
-      });
-
-      if (tab === 'staff' && activeAdmin.role === 'super_admin') loadStaffList();
-      if (tab === 'finance') { loadSettings(); loadReceipts(); loadPricingPackages(); loadDiscountCodes(); }
-      if (tab === 'content') { loadContentHierarchy(); }
+    if (t === tab) {
+      btn.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-sm transition';
+      sec.style.display = (t === 'staff') ? 'grid' : 'block';
+    } else {
+      btn.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 transition';
+      sec.style.display = 'none';
     }
+  });
+
+  if (tab === 'staff' && activeAdmin.role === 'super_admin') loadStaffList();
+  if (tab === 'finance') { loadSettings(); loadReceipts(); loadPricingPackages(); loadDiscountCodes(); }
+  if (tab === 'content') { loadContentHierarchy(); }
+  if (tab === 'tutor_logs') { loadTutorLogs(); } // <--- این خط باید اضافه شود
+}
 
     async function loadStaffList() {
       const tbody = document.getElementById('staff-tbody');
@@ -1030,6 +1031,37 @@
         setupRoleUI();
       }
     });
+    async function loadTutorLogs() {
+  const tbody = document.getElementById('tutor-logs-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-400">در حال بارگذاری لاگ‌ها...</td></tr>';
+  
+  try {
+    const res = await fetch('/api/content-manager?type=tutor-logs');
+    const logs = await res.json();
+    
+    if (!Array.isArray(logs) || logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">هنوز گفتگویی با معلم خصوصی ثبت نشده است.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = logs.map(item => {
+      let details = {};
+      try { details = JSON.parse(item.answers || '{}'); } catch(e) {}
+      
+      return `
+        <tr class="hover:bg-slate-50 transition align-top">
+          <td class="p-3 font-mono font-bold text-indigo-600">${item.student_id || '2000'}</td>
+          <td class="p-3 max-w-xs truncate text-slate-800" title="${details.question || ''}">${details.question || '-'}</td>
+          <td class="p-3 max-w-sm truncate text-slate-600" title="${details.response || ''}">${details.response || '-'}</td>
+          <td class="p-3 font-mono"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">${details.provider || 'gemini'}</span></td>
+          <td class="p-3 font-mono text-[11px] text-slate-400">${item.created_at || ''}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-rose-500 font-bold">خطا در دریافت تاریخچه گفتگوها</td></tr>';
+  }
+}
   </script>
 </body>
 </html>
