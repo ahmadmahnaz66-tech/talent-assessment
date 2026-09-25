@@ -1056,6 +1056,8 @@ async function loadSettings() {
     });
 async function loadTutorLogs() {
   const tbody = document.getElementById('tutor-logs-tbody');
+  if (!tbody) return;
+  
   tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-400">در حال بارگذاری لاگ‌ها...</td></tr>';
   
   try {
@@ -1063,11 +1065,11 @@ async function loadTutorLogs() {
     const allItems = await res.json();
     
     if (!Array.isArray(allItems)) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">خطا در دریافت اطلاعات.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">خطا در دریافت اطلاعات از سرور.</td></tr>';
       return;
     }
 
-    // فیلتر کردن فقط مواردی که مربوط به معلم خصوصی هستند
+    // فیلتر کردن فقط رکوردهای معلم خصوصی
     const logs = allItems.filter(item => item.skill_slug === 'private-tutor');
 
     if (logs.length === 0) {
@@ -1076,25 +1078,32 @@ async function loadTutorLogs() {
     }
 
     tbody.innerHTML = logs.map(item => {
-      let details = {};
-      try { 
-        details = JSON.parse(item.answers || '{}'); 
-      } catch(e) {
-        details = { question: item.answers, response: '-' };
+      let q = '-';
+      let r = '-';
+      let provider = 'gemini';
+
+      try {
+        const parsed = JSON.parse(item.answers);
+        q = parsed.question || '-';
+        r = parsed.response || '-';
+        provider = parsed.provider || 'gemini';
+      } catch (err) {
+        q = item.answers;
       }
       
       return `
         <tr class="hover:bg-slate-50 transition align-top">
           <td class="p-3 font-mono font-bold text-indigo-600">${item.student_id || '2000'}</td>
-          <td class="p-3 max-w-xs truncate text-slate-800" title="${details.question || ''}">${details.question || '-'}</td>
-          <td class="p-3 max-w-sm truncate text-slate-600" title="${details.response || ''}">${details.response || '-'}</td>
-          <td class="p-3 font-mono"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">${details.provider || 'gemini'}</span></td>
+          <td class="p-3 text-slate-800 max-w-xs truncate" title="${q}">${q}</td>
+          <td class="p-3 text-slate-600 max-w-sm truncate" title="${r}">${r}</td>
+          <td class="p-3 font-mono"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">${provider}</span></td>
           <td class="p-3 font-mono text-[11px] text-slate-400">${item.created_at || ''}</td>
         </tr>
       `;
     }).join('');
+
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-rose-500 font-bold">خطا در دریافت تاریخچه گفتگوها</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-rose-500 font-bold">خطا: ${e.message}</td></tr>`;
   }
 }
     async function saveTutorPrice() {
