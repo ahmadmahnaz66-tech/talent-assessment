@@ -11,13 +11,12 @@ export async function onRequestGet(context) {
       });
     }
 
-    // استعلام تست برای بررسی نام جدول و ساختار ستون‌ها
-    // اگر نام جدول شما چیز دیگری است (مثلا logs یا chat_history)، لطفاً بگویید تا اصلاح کنیم
+    // استعلام برای دریافت نام تمام جدول‌های دیتابیس
     const { results } = await env.DB.prepare(
-      "SELECT * FROM tutor_logs ORDER BY id DESC LIMIT 10"
+      "SELECT name FROM sqlite_master WHERE type='table';"
     ).all();
 
-    return new Response(JSON.stringify({ success: true, count: results.length, data: results }, null, 2), {
+    return new Response(JSON.stringify({ success: true, tables: results }, null, 2), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
