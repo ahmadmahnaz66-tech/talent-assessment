@@ -130,6 +130,45 @@
       </div>
     </div>
 
+    <!-- بخش ۱٫۵: گزارش‌ها و مکالمات معلم خصوصی -->
+    <div id="section-tutor_logs" style="display: none;" class="space-y-6">
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
+            <span>🤖</span>
+            <span>تاریخچه پرسش و پاسخ‌های دانش‌آموزان با معلم خصوصی</span>
+          </h3>
+          <button onclick="loadTutorLogs()" class="text-indigo-600 text-xs font-bold hover:underline">⟳ به‌روزرسانی</button>
+        </div>
+
+        <!-- باکس‌های فیلتر و جستجوی اختصاصی برای هر ستون -->
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+          <input type="text" id="filter-student" placeholder="جستجو شناسه کاربر..." onkeyup="filterTutorLogs()" class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-emerald-600">
+          <input type="text" id="filter-question" placeholder="جستجو سوال دانش‌آموز..." onkeyup="filterTutorLogs()" class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-emerald-600">
+          <input type="text" id="filter-answer" placeholder="جستجو پاسخ هوش مصنوعی..." onkeyup="filterTutorLogs()" class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-emerald-600">
+          <input type="text" id="filter-provider" placeholder="جستجو موتور (gemini/openrouter)..." onkeyup="filterTutorLogs()" class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-emerald-600">
+          <input type="text" id="filter-date" placeholder="جستجو تاریخ/ساعت..." onkeyup="filterTutorLogs()" class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-emerald-600">
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-50 text-slate-600 border-b border-slate-100">
+              <tr>
+                <th class="p-3">شناسه کاربر</th>
+                <th class="p-3">سوال دانش‌آموز</th>
+                <th class="p-3">پاسخ هوش مصنوعی</th>
+                <th class="p-3">موتور</th>
+                <th class="p-3">تاریخ و ساعت تهران</th>
+              </tr>
+            </thead>
+            <tbody id="tutor-logs-tbody" class="divide-y divide-slate-100">
+              <tr><td colspan="5" class="text-center py-6 text-slate-400">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- بخش ۲: مدیریت مالی -->
     <div id="section-finance" style="display: none;" class="space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1054,58 +1093,154 @@ async function loadSettings() {
         setupRoleUI();
       }
     });
-async function loadTutorLogs() {
-  const tbody = document.getElementById('tutor-logs-tbody');
-  if (!tbody) return;
-  
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-400">در حال بارگذاری لاگ‌ها...</td></tr>';
-  
-  try {
-    const res = await fetch('/api/content-manager?type=tutor-logs');
-    const allItems = await res.json();
-    
-    if (!Array.isArray(allItems)) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">خطا در دریافت اطلاعات از سرور.</td></tr>';
-      return;
-    }
-
-    // فیلتر کردن فقط رکوردهای معلم خصوصی
-    const logs = allItems.filter(item => item.skill_slug === 'private-tutor');
-
-    if (logs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">هنوز گفتگویی با معلم خصوصی ثبت نشده است.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = logs.map(item => {
-      let q = '-';
-      let r = '-';
-      let provider = 'gemini';
-
-      try {
-        const parsed = JSON.parse(item.answers);
-        q = parsed.question || '-';
-        r = parsed.response || '-';
-        provider = parsed.provider || 'gemini';
-      } catch (err) {
-        q = item.answers;
-      }
+    function formatTehranDateTime(utcDateStr) {
+      if (!utcDateStr) return '';
+      // تبدیل تاریخ به وقت تهران و فرمت شمسی
+      const date = new Date(utcDateStr);
       
-      return `
-        <tr class="hover:bg-slate-50 transition align-top">
-          <td class="p-3 font-mono font-bold text-indigo-600">${item.student_id || '2000'}</td>
-          <td class="p-3 text-slate-800 max-w-xs truncate" title="${q}">${q}</td>
-          <td class="p-3 text-slate-600 max-w-sm truncate" title="${r}">${r}</td>
-          <td class="p-3 font-mono"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">${provider}</span></td>
-          <td class="p-3 font-mono text-[11px] text-slate-400">${item.created_at || ''}</td>
-        </tr>
-      `;
-    }).join('');
+      // استفاده از Intl برای تنظیم ساعت تهران
+      const optionsDate = { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' };
+      const optionsTime = { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+      
+      const timeStr = new Intl.DateTimeFormat('en-GB', optionsTime).format(date);
+      
+      // تبدیل تاریخ میلادی به شمسی با کتابخانه استاندارد جاوااسکریپت (Intl با تقویم فارسی)
+      const persianFormatter = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Tehran'
+      });
+      
+      const persianDateStr = persianFormatter.format(date);
+      return `${timeStr} &nbsp;&nbsp; ${persianDateStr}`;
+    }
 
-  } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-rose-500 font-bold">خطا: ${e.message}</td></tr>`;
-  }
-}
+    let allTutorLogsCache = []; // ذخیره داده‌ها برای جستجوی زنده
+
+    async function loadTutorLogs() {
+      const tbody = document.getElementById('tutor-logs-tbody');
+      if (!tbody) return;
+      
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-400">در حال بارگذاری لاگ‌ها...</td></tr>';
+      
+      try {
+        const res = await fetch('/api/content-manager?type=tutor-logs');
+        const allItems = await res.json();
+        
+        if (!Array.isArray(allItems)) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">خطا در دریافت اطلاعات از سرور.</td></tr>';
+          return;
+        }
+
+        // فیلتر کردن فقط رکوردهای معلم خصوصی
+        const logs = allItems.filter(item => item.skill_slug === 'private-tutor');
+
+        if (logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-400">هنوز گفتگویی با معلم خصوصی ثبت نشده است.</td></tr>';
+          return;
+        }
+
+        // ذخیره داده‌ها برای فیلتر و جستجو
+        renderTutorLogsTable(logs);
+
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-rose-500 font-bold">خطا: ${e.message}</td></tr>`;
+      }
+    }
+
+    function renderTutorLogsTable(data) {
+      allTutorLogsCache = data;
+      const tbody = document.getElementById('tutor-logs-tbody');
+      if (!tbody) return;
+
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">هنوز گفتگویی با معلم خصوصی ثبت نشده است.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map(row => {
+        // استخراج اطلاعات از ساختار جدید یا فرمت مپ شده
+        let question = row.message || '';
+        let response = row.response || '';
+        if (row.answers) {
+          try {
+            const parsed = JSON.parse(row.answers);
+            question = parsed.question || question;
+            response = parsed.response || response;
+          } catch(e){}
+        }
+
+        const formattedTime = formatTehranDateTime(row.created_at);
+
+        return `
+          <tr class="border-b border-slate-100 hover:bg-slate-50/50 transition">
+            <td class="px-4 py-3 text-xs font-bold text-indigo-600">${row.student_id || ''}</td>
+            <td class="px-4 py-3 text-xs text-slate-700 max-w-xs truncate" title="${question}">${question}</td>
+            <td class="px-4 py-3 text-xs text-slate-600 max-w-sm truncate" title="${response}">${response}</td>
+            <td class="px-4 py-3 text-xs"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono">${row.provider || 'gemini'}</span></td>
+            <td class="px-4 py-3 text-xs text-slate-500 font-mono" dir="ltr">${formattedTime}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterTutorLogs() {
+      const fStudent = document.getElementById('filter-student').value.toLowerCase();
+      const fQuestion = document.getElementById('filter-question').value.toLowerCase();
+      const fAnswer = document.getElementById('filter-answer').value.toLowerCase();
+      const fProvider = document.getElementById('filter-provider').value.toLowerCase();
+      const fDate = document.getElementById('filter-date').value.toLowerCase();
+
+      const filtered = allTutorLogsCache.filter(row => {
+        let question = row.message || '';
+        let response = row.response || '';
+        if (row.answers) {
+          try {
+            const parsed = JSON.parse(row.answers);
+            question = parsed.question || question;
+            response = parsed.response || response;
+          } catch(e){}
+        }
+        const formattedTime = formatTehranDateTime(row.created_at).toLowerCase();
+
+        const matchStudent = (row.student_id || '').toLowerCase().includes(fStudent);
+        const matchQuestion = question.toLowerCase().includes(fQuestion);
+        const matchAnswer = response.toLowerCase().includes(fAnswer);
+        const matchProvider = (row.provider || '').toLowerCase().includes(fProvider);
+        const matchDate = formattedTime.includes(fDate);
+
+        return matchStudent && matchQuestion && matchAnswer && matchProvider && matchDate;
+      });
+
+      // رندر مجدد جدول با نتایج فیلتر شده
+      const tbody = document.getElementById('tutor-logs-tbody');
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400 text-xs">موردی با این مشخصات یافت نشد.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(row => {
+        let q = row.message || '';
+        let r = row.response || '';
+        if (row.answers) {
+          try {
+            const p = JSON.parse(row.answers);
+            q = p.question || q;
+            r = p.response || r;
+          } catch(e){}
+        }
+        return `
+          <tr class="border-b border-slate-100 hover:bg-slate-50/50 transition">
+            <td class="px-4 py-3 text-xs font-bold text-indigo-600">${row.student_id || ''}</td>
+            <td class="px-4 py-3 text-xs text-slate-700 max-w-xs truncate" title="${q}">${q}</td>
+            <td class="px-4 py-3 text-xs text-slate-600 max-w-sm truncate" title="${r}">${r}</td>
+            <td class="px-4 py-3 text-xs"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono">${row.provider || 'gemini'}</span></td>
+            <td class="px-4 py-3 text-xs text-slate-500 font-mono" dir="ltr">${formatTehranDateTime(row.created_at)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
     async function saveTutorPrice() {
   if (!activeAdmin) return;
   const tutorPrice = toEnglishDigits(document.getElementById('set-tutor-price').value);
