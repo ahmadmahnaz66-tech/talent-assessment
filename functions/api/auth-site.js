@@ -135,3 +135,45 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 }
+
+// --- ثبت‌نام کاربر عمومی سایت (مهارت‌خانه) ---
+    if (action === "site-user-register") {
+      const { phone, full_name, password } = body;
+      const cleanPhone = String(phone || '').trim();
+      const cleanPass = String(password || '').trim();
+
+      if (!cleanPhone || !cleanPass) {
+        return new Response(JSON.stringify({ error: 'شماره موبایل و رمز عبور الزامی است.' }), { status: 400 });
+      }
+
+      const existing = await env.DB.prepare("SELECT id FROM site_students WHERE phone = ?").bind(cleanPhone).first();
+      if (existing) {
+        return new Response(JSON.stringify({ error: 'حسابی با این شماره موبایل قبلاً ایجاد شده است.' }), { status: 409 });
+      }
+
+      await env.DB.prepare(
+        "INSERT INTO site_students (phone, full_name, password_hash, wallet_balance) VALUES (?, ?, ?, 0)"
+      ).bind(cleanPhone, full_name || 'کاربر سایت', cleanPass).run();
+
+      const pubPayload = { id: cleanPhone, username: cleanPhone, fullName: full_name || 'کاربر سایت', role: 'public', portal: 'site' };
+      const token = await createToken(pubPayload);
+
+      return new Response(JSON.stringify({ success: true, token, user: pubPayload }), { headers: { 'Content-Type': 'application/json' } });
+    }
+    
+    // --- ورود کاربر عمومی سایت (مهارت‌خانه) ---
+    if (action === "site-user-login") {
+      const { phone, password } = body;
+      const cleanPhone = String(phone || '').trim();
+      
+      const user = await env.DB.prepare("SELECT id, phone, full_name, password_hash, wallet_balance FROM site_students WHERE phone = ?").bind(cleanPhone).first();
+      
+      if (!user || user.password_hash !== String(password).trim()) {
+        return new Response(JSON.stringify({ error: "شماره موبایل یا رمز عبور نادرست است." }), { status: 401 });
+      }
+
+      const pubPayload = { id: user.phone, username: user.phone, fullName: user.full_name, role: 'public', portal: 'site', wallet_balance: user.wallet_balance };
+      const token = await createToken(pubPayload);
+
+      return new Response(JSON.stringify({ success: true, token, user: pubPayload }), { headers: { 'Content-Type': 'application/json' } });
+    }
