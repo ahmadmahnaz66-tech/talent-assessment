@@ -39,6 +39,22 @@ export async function onRequestPost(context) {
       });
     }
 
+    // ثبت خودکار تعامل در جدول موجود responses
+    if (env.DB) {
+      try {
+        await env.DB.prepare(
+          "INSERT INTO responses (student_id, skill_slug, answers, total_score, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
+        ).bind(
+          '2000', // شناسه پیش‌فرض کاربر
+          'private-tutor', // اسلاگ اختصاصی برای تفکیک چت‌ها
+          JSON.stringify({ question: userQuestion || '[ارسال تصویر]', response: aiResponse, provider: provider || 'gemini' }),
+          0
+        ).run();
+      } catch (dbErr) {
+        console.error("Database log error:", dbErr.message);
+      }
+    }
+
     return new Response(JSON.stringify({ success: true, reply: aiResponse }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
