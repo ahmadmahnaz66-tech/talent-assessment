@@ -81,12 +81,28 @@
     let base64Image = null;
     let imageMimeType = 'image/jpeg';
 
-    // ایجاد یا دریافت شناسه یکتای اختصاصی برای این مرورگر/کاربر
-    let studentId = localStorage.getItem('tutor_student_id');
-    if (!studentId) {
-      studentId = 'stu_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-      localStorage.setItem('tutor_student_id', studentId);
+ let base64Image = null;
+    let imageMimeType = 'image/jpeg';
+    
+    // ۱. بررسی وضعیت کاربر و ایجاد محدودیت شمارنده
+    let activeUser = null;
+    let guestMessageCount = parseInt(localStorage.getItem('guest_msg_count') || '0');
+
+    const savedUser = sessionStorage.getItem('activeParent');
+    if (savedUser) {
+      // کاربر قبلاً در سایت لاگین کرده است
+      activeUser = JSON.parse(savedUser);
+    } else {
+      // ایجاد پروفایل موقت برای کاربر مهمان
+      activeUser = {
+        id: 'guest_' + Math.random().toString(36).substring(2, 9),
+        name: 'کاربر مهمان',
+        role: 'guest'
+      };
     }
+
+    // اختصاص شناسه کاربر (ثبت‌نام شده یا مهمان) به سیستم چت
+    let studentId = activeUser.id;
 
     function handleImageSelect(event) {
       const file = event.target.files[0];
@@ -109,7 +125,7 @@
       document.getElementById('preview-container').classList.add('hidden');
     }
 
-    async function sendUserMessage() {
+async function sendUserMessage() {
       const inputEl = document.getElementById('user-question-input');
       const chatContainer = document.getElementById('chat-container');
       const text = inputEl.value.trim();
@@ -118,6 +134,18 @@
         alert('لطفاً عکسی آپلود کنید یا سوال خود را بنویسید.');
         return;
       }
+
+      // --- بررسی محدودیت کاربر مهمان (حداکثر ۳ پیام) ---
+      if (activeUser && activeUser.role === 'guest') {
+        if (guestMessageCount >= 3) {
+          alert('کاربر مهمان عزیز، شما به سقف مجاز پیام‌های رایگان (۳ پیام) رسیده‌اید. برای ادامه یادگیری نامحدود، لطفاً در صفحه اصلی سایت ثبت‌نام کنید.');
+          window.location.href = '/'; // هدایت به صفحه اصلی برای ثبت‌نام و ورود
+          return;
+        }
+        guestMessageCount++;
+        localStorage.setItem('guest_msg_count', guestMessageCount.toString());
+      }
+      // ------------------------------------------------
 
       // خواندن دقیق مقدار از سلیکتور واحد
       const providerSelect = document.getElementById('ai-provider-select');
@@ -178,7 +206,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             studentId: studentId,
-            provider: selectedProvider, // ارسال دقیق انتخاب کاربر
+            provider: selectedProvider, 
             history: history,
             imageBase64: currentImage,
             imageMimeType: currentMime,
