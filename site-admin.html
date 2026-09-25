@@ -473,10 +473,10 @@
       }
 
       try {
-        const res = await fetch('/api/auth', {
+        const res = await fetch('/api/auth-site', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'staff-login', username, password })
+          body: JSON.stringify({ action: 'site-admin-login', username, password })
         });
         const data = await res.json();
 
@@ -570,7 +570,7 @@ function switchMainTab(tab) {
       const tbody = document.getElementById('staff-tbody');
       tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400">در حال دریافت...</td></tr>';
       try {
-        const res = await fetch('/api/auth?type=site');
+        const res = await fetch('/api/auth-site');
         const list = await res.json();
         const roleLabels = { super_admin: 'مدیر ارشد سامانه', finance_admin: 'مدیر مالی', content_admin: 'مدیر محتوا' };
         tbody.innerHTML = list.map(u => `
@@ -596,10 +596,10 @@ function switchMainTab(tab) {
 
       if (!full_name || !username || !password) return alert('تمام فیلدها الزامی هستند.');
       try {
-        const res = await fetch('/api/auth', {
+        const res = await fetch('/api/auth-site', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'add-staff', requesterRole: activeAdmin.role, full_name, username, password, role })
+          body: JSON.stringify({ action: 'add-site-admin', requesterRole: activeAdmin.role, full_name, username, password, role })
         });
         const data = await res.json();
         if (res.ok && data.success) {
@@ -619,10 +619,10 @@ function switchMainTab(tab) {
     async function deleteStaff(staffId, name) {
       if (!confirm(`آیا از حذف دسترسی (${name}) اطمینان دارید؟`)) return;
       try {
-        const res = await fetch('/api/auth', {
+        const res = await fetch('/api/auth-site', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'delete-staff', requesterRole: activeAdmin.role, staffId })
+          body: JSON.stringify({ action: 'delete-site-admin', requesterRole: activeAdmin.role, staffId })
         });
         const data = await res.json();
         if (res.ok && data.success) loadStaffList();
