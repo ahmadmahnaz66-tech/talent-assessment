@@ -6,7 +6,7 @@ export async function onRequestPost(context) {
   try {
     const { request, env } = context;
     const body = await request.json();
-    const { history, imageBase64, imageMimeType, userQuestion, provider } = body;
+    const { studentId, history, imageBase64, imageMimeType, userQuestion, provider } = body;
 
     const systemPrompt = `تو یک معلم خصوصی و مشاور بسیار مهربان، صبور و باحوصله برای دانش‌آموزان در سایت «مهارت‌خانه» هستی. 
     وظیفه تو این است که به روش «سقراطی» عمل کنی:
@@ -16,7 +16,6 @@ export async function onRequestPost(context) {
 
     let aiResponse = '';
 
-    // انتخاب موتور هوش مصنوعی
     if (provider === 'openrouter') {
       aiResponse = await askOpenRouter(env, {
         systemPrompt,
@@ -39,7 +38,6 @@ export async function onRequestPost(context) {
       });
     }
 
-    // بررسی اتصال دیتابیس و ثبت لاگ چت
     if (!env.DB) {
       return new Response(JSON.stringify({ success: false, error: "دیتابیس متصل نیست (env.DB تعریف نشده است)" }), {
         status: 500,
@@ -48,11 +46,15 @@ export async function onRequestPost(context) {
     }
 
     try {
+      // استفاده از شناسه واقعی کاربر به همراه زمان دقیق برای جلوگیری از خطای UNIQUE constraint
+      const finalStudentId = studentId ? `${studentId}` : 'guest_2000';
+      const uniqueSkillSlug = `private-tutor_${Date.now()}`;
+
       await env.DB.prepare(
         "INSERT INTO responses (student_id, skill_slug, answers, total_score, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
       ).bind(
-        '2000', // شناسه پیش‌فرض کاربر
-        'private-tutor', // اسلاگ اختصاصی برای تفکیک چت‌ها
+        finalStudentId,
+        uniqueSkillSlug,
         JSON.stringify({ 
           question: userQuestion || '[ارسال تصویر]', 
           response: aiResponse, 
