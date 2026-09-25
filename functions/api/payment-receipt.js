@@ -1,5 +1,7 @@
-// تابع اعتبارسنجی توکن با کلید مخفی
-const JWT_SECRET = "TALENT_ASSESSMENT_SECRET_KEY_CHANGE_ME_2026";
+// functions/api/payment-receipt.js
+
+// کلید مخفی با سایت هماهنگ شد
+const JWT_SECRET = "MAHARAT_KHANEH_SITE_SECRET_2026";
 
 function base64UrlDecode(str) {
   str = str.replace(/-/g, "+").replace(/_/g, "/");
@@ -16,22 +18,13 @@ async function verifyToken(token, secret = JWT_SECRET) {
     const enc = new TextEncoder();
     const data = `${header}.${payload}`;
 
-    const key = await crypto.subtle.importKey(
-      "raw",
-      enc.encode(secret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["verify"]
-    );
-
+    const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
     const sigBytes = Uint8Array.from(atob(signature.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
     const isValid = await crypto.subtle.verify("HMAC", key, sigBytes, enc.encode(data));
     if (!isValid) return null;
 
     const decodedPayload = JSON.parse(base64UrlDecode(payload));
-    if (decodedPayload.exp && decodedPayload.exp < Math.floor(Date.now() / 1000)) {
-      return null;
-    }
+    if (decodedPayload.exp && decodedPayload.exp < Math.floor(Date.now() / 1000)) return null;
     return decodedPayload;
   } catch {
     return null;
@@ -67,19 +60,14 @@ export async function onRequestGet(context) {
     });
   }
 
-  // ۲. استعلام زنده وضعیت اشتراک، مانده کیف پول و دسترسی‌های کاربر
+  // ۲. استعلام زنده وضعیت اشتراک، مانده کیف پول و دسترسی‌های کاربر مختص سایت
   if (phone) {
     const cleanPhone = String(phone).trim();
 
-    let user = await env.DB.prepare(
-      "SELECT subscription_until, wallet_balance FROM public_users WHERE phone = ?"
+    // فقط از جدول site_students می‌خواند
+    const user = await env.DB.prepare(
+      "SELECT subscription_until, wallet_balance FROM site_students WHERE phone = ?"
     ).bind(cleanPhone).first();
-
-    if (!user) {
-      user = await env.DB.prepare(
-        "SELECT subscription_until, wallet_balance FROM students WHERE id = ?"
-      ).bind(cleanPhone).first();
-    }
 
     const hasActiveSub = Boolean(user && user.subscription_until && new Date(user.subscription_until) > new Date());
 
@@ -99,7 +87,7 @@ export async function onRequestGet(context) {
     }), { headers: { 'Content-Type': 'application/json' } });
   }
 
-  // ۳. نمایش لیست فیش‌ها برای پنل مدیریت
+  // ۳. نمایش لیست فیش‌ها برای پنل مدیریت سایت
   const { results } = await env.DB.prepare(
     "SELECT * FROM card_payments ORDER BY id DESC"
   ).all();
@@ -115,21 +103,17 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { action } = body;
 
-    // ۱. خرید از طریق کیف پول
+    // ۱. خرید از طریق کیف پول سایت
     if (action === 'pay-with-wallet') {
       const { user_phone, amount, item_type, item_id, item_title, discount_code } = body;
       const cleanPhone = String(user_phone).trim();
       const numAmount = Number(amount);
 
-      let isStudent = false;
-      let user = await env.DB.prepare("SELECT wallet_balance FROM public_users WHERE phone = ?").bind(cleanPhone).first();
-      if (!user) {
-        user = await env.DB.prepare("SELECT wallet_balance FROM students WHERE id = ?").bind(cleanPhone).first();
-        if (user) isStudent = true;
-      }
+      // بررسی موجودی فقط از جدول site_students
+      const user = await env.DB.prepare("SELECT wallet_balance FROM site_students WHERE phone = ?").bind(cleanPhone).first();
 
       if (!user) {
-        return new Response(JSON.stringify({ error: 'کاربر یافت نشد.' }), { status: 404 });
+        return new Response(JSON.stringify({ error: 'کاربر در سیستم سایت یافت نشد.' }), { status: 404 });
       }
 
       const currentBalance = Number(user.wallet_balance || 0);
@@ -143,17 +127,11 @@ export async function onRequestPost(context) {
       }
 
       const newBalance = currentBalance - numAmount;
-      if (isStudent) {
-        await env.DB.prepare("UPDATE students SET wallet_balance = ? WHERE id = ?").bind(newBalance, cleanPhone).run();
-      } else {
-        await env.DB.prepare("UPDATE public_users SET wallet_balance = ? WHERE phone = ?").bind(newBalance, cleanPhone).run();
-      }
+      await env.DB.prepare("UPDATE site_students SET wallet_balance = ? WHERE phone = ?").bind(newBalance, cleanPhone).run();
 
+      // اعمال اشتراک یا ثبت خرید تکی
       if (item_type === 'subscription') {
-        const dateQuery = isStudent
-          ? "UPDATE students SET subscription_until = datetime('now', '+30 days') WHERE id = ?"
-          : "UPDATE public_users SET subscription_until = datetime('now', '+30 days') WHERE phone = ?";
-        await env.DB.prepare(dateQuery).bind(cleanPhone).run();
+        await env.DB.prepare("UPDATE site_students SET subscription_until = datetime('now', '+30 days') WHERE phone = ?").bind(cleanPhone).run();
       } else {
         try {
           await env.DB.prepare(
@@ -162,6 +140,7 @@ export async function onRequestPost(context) {
         } catch (_) {}
       }
 
+      // ثبت تراکنش در گردش مالی
       try {
         await env.DB.prepare(
           "INSERT INTO wallet_transactions (user_phone, amount, type, description) VALUES (?, ?, 'purchase', ?)"
@@ -201,6 +180,7 @@ export async function onRequestPost(context) {
     // ۳. تایید یا رد فیش توسط ادمین مالی
     if (action === 'update-status') {
       const authUser = await getAuthUser(request, body);
+      // اعتبارسنجی نقش‌ها
       if (!authUser || !['super_admin', 'finance_admin'].includes(authUser.role)) {
         return new Response(JSON.stringify({ error: 'عدم دسترسی مجاز یا نیاز به ورود مجدد.' }), { status: 403 });
       }
@@ -211,17 +191,13 @@ export async function onRequestPost(context) {
         return new Response(JSON.stringify({ error: 'رسید پرداخت یافت نشد.' }), { status: 404 });
       }
 
-      // اگر قبلاً تایید نشده بود و اکنون وضعیت approved شد، موجودی اضافه شده و payment_id ثبت می‌شود
+      // تایید و شارژ کیف پول کاربر
       if (status === 'approved' && payment.status !== 'approved') {
         const phone = String(payment.user_phone).trim();
         const addAmount = Number(payment.amount || 0);
 
-        let userFound = await env.DB.prepare("SELECT id FROM public_users WHERE phone = ?").bind(phone).first();
-        if (userFound) {
-          await env.DB.prepare("UPDATE public_users SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE phone = ?").bind(addAmount, phone).run();
-        } else {
-          await env.DB.prepare("UPDATE students SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE id = ?").bind(addAmount, phone).run();
-        }
+        // آپدیت موجودی فقط در جدول site_students
+        await env.DB.prepare("UPDATE site_students SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE phone = ?").bind(addAmount, phone).run();
 
         try {
           await env.DB.prepare(
