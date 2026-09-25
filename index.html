@@ -687,17 +687,18 @@
       }
     }
 
-    async function handleLoginSubmit() {
+async function handleLoginSubmit() {
       const user = toEnglishDigits(document.getElementById('login-user-input').value);
       const pass = toEnglishDigits(document.getElementById('login-pass-input').value);
 
       if (!user || !pass) return alert('نام کاربری و رمز عبور الزامی است.');
 
       try {
-        const res = await fetch('/api/auth', {
+        const res = await fetch('/api/auth-site', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'student-login', username: user, password: pass })
+          // تغيير مسار الإجراء وإرسال المتغير باسم phone بدلاً من username
+          body: JSON.stringify({ action: 'site-user-login', phone: user, password: pass })
         });
         const data = await res.json();
 
@@ -717,6 +718,37 @@
         }
       } catch (e) {
         alert('خطا در ورود.');
+      }
+    }
+
+    async function handleRegisterSubmit() {
+      const fullName = document.getElementById('reg-name-input').value.trim();
+      const phone = toEnglishDigits(document.getElementById('reg-phone-input').value);
+      const pass = toEnglishDigits(document.getElementById('reg-pass-input').value);
+
+      if (!fullName || !phone || !pass) return alert('تمامی فیلدها الزامی هستند.');
+
+      try {
+        const res = await fetch('/api/auth-site', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          // تغيير مسار الإجراء إلى site-user-register
+          body: JSON.stringify({ action: 'site-user-register', full_name: fullName, phone, password: pass })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          activeUser = { id: phone, name: fullName, role: 'public', wallet_balance: 0 };
+          sessionStorage.setItem('activeParent', JSON.stringify(activeUser));
+          await refreshUserWalletAndPermissions();
+          renderDynamicContent();
+          closeAuthModal();
+          alert('ثبت‌نام با موفقیت انجام شد.');
+        } else {
+          alert(data.error || 'خطا در ثبت‌نام.');
+        }
+      } catch (e) {
+        alert('خطا در برقراری ارتباط.');
       }
     }
 
