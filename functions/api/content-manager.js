@@ -127,3 +127,24 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 }
+
+// بررسی اینکه آیا درخواست برای دریافت لاگ‌های معلم خصوصی است یا خیر
+const url = new URL(request.url);
+if (url.searchParams.get('type') === 'tutor-logs') {
+  if (!env.DB) {
+    return new Response(JSON.stringify({ success: false, error: "دیتابیس متصل نیست" }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // استعلام از جدول responses برای اسلاگ private-tutor
+  const { results } = await env.DB.prepare(
+    "SELECT * FROM responses WHERE skill_slug = 'private-tutor' ORDER BY id DESC LIMIT 50"
+  ).all();
+
+  return new Response(JSON.stringify(results), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
