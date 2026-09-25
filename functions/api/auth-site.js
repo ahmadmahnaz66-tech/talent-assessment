@@ -1,6 +1,5 @@
 // functions/api/auth-site.js
 
-// --- توابع کمکی رمزنگاری ---
 const JWT_SECRET = "MAHARAT_KHANEH_SITE_SECRET_2026"; 
 
 function base64UrlEncode(str) {
@@ -63,8 +62,6 @@ async function getAuthUser(request, body) {
   return await verifyToken(token);
 }
 
-// --- Handler های اختصاصی سایت ---
-
 export async function onRequestGet(context) {
   const { env } = context;
   try {
@@ -82,7 +79,6 @@ export async function onRequestPost(context) {
     const body = await request.json();
     const { action } = body;
 
-    // ۱. ورود کادر سایت مهارت‌خانه
     if (action === "site-admin-login") {
       const { username, password } = body;
       const user = await env.DB.prepare(
@@ -101,7 +97,6 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true, token, user: userPayload }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۲. افزودن مدیر جدید برای سایت
     if (action === "add-site-admin") {
       const authUser = await getAuthUser(request, body);
       const currentRole = authUser ? authUser.role : body.requesterRole;
@@ -118,7 +113,6 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۳. حذف مدیر سایت
     if (action === "delete-site-admin") {
       const authUser = await getAuthUser(request, body);
       const currentRole = authUser ? authUser.role : body.requesterRole;
@@ -129,7 +123,6 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // ۴. ثبت‌نام کاربر عمومی سایت (مهارت‌خانه)
     if (action === "site-user-register") {
       const { phone, full_name, password } = body;
       const cleanPhone = String(phone || '').trim();
@@ -154,7 +147,6 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true, token, user: pubPayload }), { headers: { 'Content-Type': 'application/json' } });
     }
     
-    // ۵. ورود کاربر عمومی سایت (مهارت‌خانه)
     if (action === "site-user-login") {
       const { phone, password } = body;
       const cleanPhone = String(phone || '').trim();
