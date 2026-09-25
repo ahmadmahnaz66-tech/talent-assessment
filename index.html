@@ -163,7 +163,7 @@
   <button onclick="handleLoginSubmit()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-xl shadow-lg shadow-indigo-100 transition mt-2">تأیید و ورود</button>
 </div>
 
-      <div id="form-register" class="space-y-3 hidden">
+<div id="form-register" class="space-y-3 hidden">
         <div>
           <label class="text-xs font-bold text-slate-700 block mb-1">نام و نام خانوادگی:</label>
           <input type="text" id="reg-name-input" placeholder="مثال: سارا محمدی" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600">
@@ -176,7 +176,18 @@
           <label class="text-xs font-bold text-slate-700 block mb-1">تعیین رمز عبور:</label>
           <input type="password" id="reg-pass-input" placeholder="حداقل ۴ کاراکتر" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-indigo-600">
         </div>
-        <button onclick="handleRegisterSubmit()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition mt-2">عضویت و ثبت‌نام</button>
+        
+        <button id="btn-request-otp" onclick="requestTelegramOTP()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs py-3 rounded-xl transition mt-2 flex items-center justify-center gap-2">
+          <span>دریافت کد تایید از تلگرام</span> <span>✈️</span>
+        </button>
+
+        <!-- بخش وارد کردن کد تایید (ابتدا مخفی است) -->
+        <div id="otp-section" class="hidden pt-3 border-t border-slate-100">
+          <p class="text-[11px] text-slate-500 mb-2 leading-relaxed text-center" id="bot-link-instruction"></p>
+          <label class="text-xs font-bold text-slate-700 block mb-1">کد ۵ رقمی دریافتی:</label>
+          <input type="text" id="reg-otp-input" placeholder="کد تلگرام" class="w-full bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-emerald-600 font-mono text-center mb-3 tracking-widest text-lg">
+          <button onclick="handleRegisterSubmit()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition shadow-lg shadow-emerald-100">عضویت و ورود به حساب</button>
+        </div>
       </div>
     </div>
   </div>
@@ -753,18 +764,62 @@ async function handleLoginSubmit() {
       }
     }
 
+// جایگزین کردن نام کاربری ربات در متغیر زیر:
+    const BOT_USERNAME = "maharatkhanemabot"; // اگر یوزرنیم ربات متفاوت است آن را اینجا تغییر دهید
+
+    async function requestTelegramOTP() {
+      const phone = toEnglishDigits(document.getElementById('reg-phone-input').value);
+      const fullName = document.getElementById('reg-name-input').value.trim();
+      const pass = toEnglishDigits(document.getElementById('reg-pass-input').value);
+
+      if (!fullName || !phone || !pass) return alert('پر کردن نام، شماره موبایل و رمز عبور الزامی است.');
+
+      const btn = document.getElementById('btn-request-otp');
+      btn.disabled = true;
+      btn.innerText = 'در حال ارسال درخواست...';
+
+      try {
+        const res = await fetch('/api/auth-site', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'request-otp', phone })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          btn.style.display = 'none';
+          document.getElementById('otp-section').classList.remove('hidden');
+          
+          const botUrl = `https://t.me/${BOT_USERNAME}?start=${phone}`;
+          document.getElementById('bot-link-instruction').innerHTML = `
+            برای دریافت کد، روی دکمه زیر کلیک کنید و در تلگرام <strong>START</strong> را بزنید:<br><br>
+            <a href="${botUrl}" target="_blank" class="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold border border-blue-200 hover:bg-blue-200">🚀 رفتن به تلگرام و دریافت کد</a>
+          `;
+        } else {
+          alert(data.error || 'خطا در ثبت درخواست کد.');
+          btn.disabled = false;
+          btn.innerHTML = 'دریافت کد تایید از تلگرام ✈️';
+        }
+      } catch (e) {
+        alert('خطا در برقراری ارتباط.');
+        btn.disabled = false;
+        btn.innerHTML = 'دریافت کد تایید از تلگرام ✈️';
+      }
+    }
+
     async function handleRegisterSubmit() {
       const fullName = document.getElementById('reg-name-input').value.trim();
       const phone = toEnglishDigits(document.getElementById('reg-phone-input').value);
       const pass = toEnglishDigits(document.getElementById('reg-pass-input').value);
+      const otp = toEnglishDigits(document.getElementById('reg-otp-input').value);
 
-      if (!fullName || !phone || !pass) return alert('تمامی فیلدها الزامی هستند.');
+      if (!otp) return alert('لطفاً کد تایید تلگرام را وارد کنید.');
 
       try {
-        const res = await fetch('/api/auth', {
+        const res = await fetch('/api/auth-site', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'public-register', full_name: fullName, phone, password: pass })
+          body: JSON.stringify({ action: 'site-user-register', full_name: fullName, phone, password: pass, otp })
         });
         const data = await res.json();
 
@@ -776,7 +831,7 @@ async function handleLoginSubmit() {
           closeAuthModal();
           alert('ثبت‌نام با موفقیت انجام شد.');
         } else {
-          alert(data.error || 'خطا در ثبت‌نام.');
+          alert(data.error || 'کد تایید اشتباه است.');
         }
       } catch (e) {
         alert('خطا در برقراری ارتباط.');
