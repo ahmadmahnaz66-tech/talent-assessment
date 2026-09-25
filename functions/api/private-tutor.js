@@ -16,7 +16,7 @@ export async function onRequestPost(context) {
 
     let aiResponse = '';
 
-    // پیش‌فرض را روی جمینای می‌گذاریم تا بدون مشکل و بدون نیاز به VPN کار کند
+    // انتخاب موتور هوش مصنوعی
     if (provider === 'openrouter') {
       aiResponse = await askOpenRouter(env, {
         systemPrompt,
@@ -39,20 +39,32 @@ export async function onRequestPost(context) {
       });
     }
 
-    // ثبت خودکار تعامل در جدول موجود responses
-    if (env.DB) {
-      try {
-        await env.DB.prepare(
-          "INSERT INTO responses (student_id, skill_slug, answers, total_score, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
-        ).bind(
-          '2000', // شناسه پیش‌فرض کاربر
-          'private-tutor', // اسلاگ اختصاصی برای تفکیک چت‌ها
-          JSON.stringify({ question: userQuestion || '[ارسال تصویر]', response: aiResponse, provider: provider || 'gemini' }),
-          0
-        ).run();
-      } catch (dbErr) {
-        console.error("Database log error:", dbErr.message);
-      }
+    // بررسی اتصال دیتابیس و ثبت لاگ چت
+    if (!env.DB) {
+      return new Response(JSON.stringify({ success: false, error: "دیتابیس متصل نیست (env.DB تعریف نشده است)" }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    try {
+      await env.DB.prepare(
+        "INSERT INTO responses (student_id, skill_slug, answers, total_score, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
+      ).bind(
+        '2000', // شناسه پیش‌فرض کاربر
+        'private-tutor', // اسلاگ اختصاصی برای تفکیک چت‌ها
+        JSON.stringify({ 
+          question: userQuestion || '[ارسال تصویر]', 
+          response: aiResponse, 
+          provider: provider || 'gemini' 
+        }),
+        0
+      ).run();
+    } catch (dbErr) {
+      return new Response(JSON.stringify({ success: false, error: "خطا در ثبت دیتابیس: " + dbErr.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     return new Response(JSON.stringify({ success: true, reply: aiResponse }), {
