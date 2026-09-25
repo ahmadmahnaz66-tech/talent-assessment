@@ -7,32 +7,42 @@ export async function onRequestPost(context) {
   try {
     const update = await request.json();
 
-    // بررسی پیام ارسالی کاربر به ربات (فقط دستورات شروع با /start)
-    if (update.message && update.message.text && update.message.text.startsWith('/start ')) {
-      const phone = update.message.text.split(' ')[1];
+    if (update.message && update.message.text) {
       const chatId = update.message.chat.id;
+      const text = update.message.text.trim();
 
-      // جستجوی کد تایید در دیتابیس
-      const otpRecord = await env.DB.prepare(
-        "SELECT code FROM site_otps WHERE phone = ? AND expires_at > datetime('now')"
-      ).bind(phone).first();
+      // اگر کاربر از طریق لینک سایت آمده باشد (شامل شماره موبایل)
+      if (text.startsWith('/start ')) {
+        const phone = text.split(' ')[1];
+        
+        const otpRecord = await env.DB.prepare(
+          "SELECT code FROM site_otps WHERE phone = ? AND expires_at > datetime('now')"
+        ).bind(phone).first();
 
-      let text = "❌ کد تایید شما یافت نشد یا منقضی شده است. لطفاً در سایت مجدداً درخواست دهید.";
-      
-      if (otpRecord) {
-        text = `✅ کد تایید شما برای ثبت‌نام در مهارت‌خانه:\n\n\`${otpRecord.code}\`\n\nاین کد تا ۵ دقیقه اعتبار دارد.`;
+        let replyText = "❌ کد تایید شما یافت نشد یا منقضی شده است. لطفاً در سایت مجدداً درخواست دریافت کد را ثبت کنید.";
+        
+        if (otpRecord) {
+          replyText = `✅ کد تایید شما برای ورود به سایت مهارت‌خانه:\n\n\`${otpRecord.code}\`\n\nاین کد تا ۵ دقیقه اعتبار دارد.`;
+        }
+
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text: replyText, parse_mode: 'Markdown' })
+        });
+
+      } 
+      // اگر کاربر به صورت دستی ربات را استارت کرده باشد
+      else if (text === '/start') {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            chat_id: chatId, 
+            text: "سلام! 🌺\nبرای دریافت کد تایید، لطفاً مستقیماً از طریق لینک موجود در فرم ثبت‌نام سایت اقدام کنید." 
+          })
+        });
       }
-
-      // ارسال پیام به کاربر از طریق API تلگرام
-      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: text,
-          parse_mode: 'Markdown'
-        })
-      });
     }
 
     return new Response("OK", { status: 200 });
