@@ -13,14 +13,26 @@ export async function onRequestGet(context) {
       });
     }
 
-    // ۱. دریافت لاگ‌های معلم خصوصی برای پنل ادمین
-// ۱. دریافت لاگ‌های معلم خصوصی برای پنل ادمین
-if (type === 'tutor-logs') {
+// ۱. دریافت لاگ‌های معلم خصوصی برای پنل ادمین (سازگار با ساختار فرانت‌اند ادمین)
+    if (type === 'tutor-logs') {
       const { results } = await env.DB.prepare(
         "SELECT * FROM tutor_conversations ORDER BY id DESC LIMIT 50"
       ).all();
 
-      return new Response(JSON.stringify(results), {
+      // نگاشت داده‌های جدول جدید به فرمت JSON مورد انتظار در پنل مدیریت
+      const formattedResults = results.map(row => ({
+        id: row.id,
+        student_id: row.student_id,
+        skill_slug: 'private-tutor',
+        answers: JSON.stringify({
+          question: row.message,
+          response: row.response,
+          provider: row.provider
+        }),
+        created_at: row.created_at
+      }));
+
+      return new Response(JSON.stringify(formattedResults), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
