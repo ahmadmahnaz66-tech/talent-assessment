@@ -1,7 +1,7 @@
 // functions/api/auth-site.js
 
 // --- توابع کمکی رمزنگاری ---
-const JWT_SECRET = "MAHARAT_KHANEH_SITE_SECRET_2026"; // بهتر است سکرت سایت متفاوت باشد
+const JWT_SECRET = "MAHARAT_KHANEH_SITE_SECRET_2026"; 
 
 function base64UrlEncode(str) {
   return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -63,12 +63,11 @@ async function getAuthUser(request, body) {
   return await verifyToken(token);
 }
 
-// --- Handler ها اختصاصی سایت ---
+// --- Handler های اختصاصی سایت ---
 
 export async function onRequestGet(context) {
   const { env } = context;
   try {
-    // خواندن لیست ادمین‌های سایت از جدول اختصاصی
     const query = "SELECT id, username, full_name, role, created_at, is_active FROM site_admins ORDER BY id ASC";
     const { results } = await env.DB.prepare(query).all();
     return new Response(JSON.stringify(results || []), { headers: { "Content-Type": "application/json" } });
@@ -130,13 +129,7 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ error: "عملیات نامعتبر است." }), { status: 400 });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
-  }
-}
-
-// --- ثبت‌نام کاربر عمومی سایت (مهارت‌خانه) ---
+    // ۴. ثبت‌نام کاربر عمومی سایت (مهارت‌خانه)
     if (action === "site-user-register") {
       const { phone, full_name, password } = body;
       const cleanPhone = String(phone || '').trim();
@@ -161,7 +154,7 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true, token, user: pubPayload }), { headers: { 'Content-Type': 'application/json' } });
     }
     
-    // --- ورود کاربر عمومی سایت (مهارت‌خانه) ---
+    // ۵. ورود کاربر عمومی سایت (مهارت‌خانه)
     if (action === "site-user-login") {
       const { phone, password } = body;
       const cleanPhone = String(phone || '').trim();
@@ -177,3 +170,9 @@ export async function onRequestPost(context) {
 
       return new Response(JSON.stringify({ success: true, token, user: pubPayload }), { headers: { 'Content-Type': 'application/json' } });
     }
+
+    return new Response(JSON.stringify({ error: "عملیات نامعتبر است." }), { status: 400 });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+}
