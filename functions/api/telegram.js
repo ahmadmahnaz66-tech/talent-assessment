@@ -2,8 +2,9 @@
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-  const BOT_TOKEN = "8686393307:AAHlePkpGKyzSaFH77csOZft9WWKvKv_6G0";
-
+  
+  // توکن به صورت امن از تنظیمات کلودفلر فراخوانی می‌شود
+  const BOT_TOKEN = env.TELEGRAM_BOT_TOKEN;
   try {
     const update = await request.json();
 
