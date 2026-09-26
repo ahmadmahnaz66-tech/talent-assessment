@@ -4,8 +4,14 @@ export async function askGemini(env, options) {
   return await askGeminiWithHistory(env, options);
 }
 
-export async function askGeminiWithHistory(env, { systemPrompt = '', history = [], userQuestion, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.4, maxTokens = 2000 }) {
-  if (!userQuestion && !imageBase64 && history.length === 0) {
+// پارامتر userPrompt به ساختار ورودی اضافه شد تا هر دو حالت پشتیبانی شود
+export async function askGeminiWithHistory(env, { systemPrompt = '', history = [], userQuestion, userPrompt, imageBase64, imageMimeType = 'image/jpeg', temperature = 0.4, maxTokens = 2000 }) {
+  
+  // ترکیب هوشمند: هر کدام از پارامترها که مقدار داشت، در finalQuestion قرار می‌گیرد
+  const finalQuestion = userQuestion || userPrompt;
+
+  // بررسی بر اساس finalQuestion انجام می‌شود
+  if (!finalQuestion && !imageBase64 && history.length === 0) {
     throw new Error('ارسال متن، تصویر یا تاریخچه گفتگو برای هوش مصنوعی الزامی است.');
   }
 
@@ -51,9 +57,12 @@ export async function askGeminiWithHistory(env, { systemPrompt = '', history = [
   }
 
   const currentParts = [];
-  if (userQuestion) {
-    currentParts.push({ text: userQuestion });
+  
+  // قرار دادن متن نهایی در آرایه برای ارسال به گوگل
+  if (finalQuestion) {
+    currentParts.push({ text: finalQuestion });
   }
+  
   if (imageBase64) {
     currentParts.push({
       inlineData: {
