@@ -1,5 +1,4 @@
-import { askGeminiWithHistory } from './_gemini.js';
-import { askOpenRouter } from './_openrouter.js';
+import { askGeminiWithHistory, askOpenRouter } from './_gemini.js';
 
 export async function onRequestPost(context) {
   try {
